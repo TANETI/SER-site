@@ -1,0 +1,884 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="dark">
+<title>SER 세계관 가이드북</title>
+<style>
+:root{
+  --ink:#e9eef5; --dim:#95a5ba; --faint:#61738a;
+  --bg:#070b12; --panel:#0f1723; --panel2:#152030; --line:#243447;
+  --glass:#77b7d7; --gold:#d9b978; --danger:#e0736c; --safe:#7fc6ae; --violet:#a58bd6;
+  --serif:"Noto Serif KR","MaruBuri","Batang",serif;
+  --sans:"Pretendard","Noto Sans KR","Malgun Gothic",sans-serif;
+  --mono:"Cascadia Mono","D2Coding",ui-monospace,monospace;
+  --r:14px; --side:250px;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth;scroll-padding-top:24px}
+body{margin:0;color:var(--ink);font-family:var(--sans);font-size:16px;line-height:1.72;
+  background:
+    radial-gradient(900px 520px at 82% -10%, rgb(119 183 215 / 11%), transparent 60%),
+    radial-gradient(700px 420px at 4% 8%, rgb(165 139 214 / 8%), transparent 60%),
+    linear-gradient(90deg, rgb(119 183 215 / 3%) 1px, transparent 1px) 0 0/72px 72px,
+    linear-gradient(rgb(119 183 215 / 2%) 1px, transparent 1px) 0 0/72px 72px,
+    var(--bg);
+  -webkit-font-smoothing:antialiased}
+h1,h2,h3,h4{font-family:var(--serif);font-weight:700;letter-spacing:-.01em;margin:0}
+p{margin:0 0 .75em}
+p:last-child{margin-bottom:0}
+a{color:inherit}
+code{font-family:var(--mono);font-size:.87em;color:var(--glass);background:rgb(119 183 215 / 10%);padding:.1em .45em;border-radius:6px}
+strong{color:#fff}
+
+.shell{display:grid;grid-template-columns:var(--side) minmax(0,1fr);gap:0;min-height:100vh}
+
+/* ── 사이드바 ── */
+aside{position:sticky;top:0;align-self:start;height:100vh;overflow-y:auto;
+  padding:26px 18px;border-right:1px solid var(--line);background:rgb(10 15 23 / 72%);backdrop-filter:blur(10px)}
+aside .brand{font-family:var(--mono);font-size:11px;letter-spacing:.3em;color:var(--glass);text-transform:uppercase}
+aside .bt{font-family:var(--serif);font-size:19px;margin:6px 0 18px}
+aside input{width:100%;padding:9px 12px;margin-bottom:16px;border:1px solid var(--line);border-radius:10px;
+  background:var(--panel);color:var(--ink);font:inherit;font-size:13.5px}
+aside input::placeholder{color:var(--faint)}
+aside ul{list-style:none;margin:0;padding:0}
+aside a{display:flex;gap:9px;align-items:baseline;padding:7px 10px;border-radius:9px;text-decoration:none;
+  color:var(--dim);font-size:13.8px;transition:.2s}
+aside a:hover{color:var(--ink);background:rgb(119 183 215 / 9%)}
+aside a.on{color:#07131c;background:var(--glass);font-weight:600}
+aside a.on .n{color:#07131c}
+aside .n{font-family:var(--mono);font-size:10.5px;color:var(--faint)}
+
+main{min-width:0;padding:0 34px 90px}
+.inner{max-width:900px;margin:0 auto}
+
+/* ── 표지 ── */
+.hero{position:relative;overflow:hidden;padding:86px 0 54px;border-bottom:1px solid var(--line);margin-bottom:10px}
+.hero::after{content:"";position:absolute;inset:auto 0 0;height:1px;
+  background:linear-gradient(90deg,transparent,var(--glass),transparent);animation:sweep 7s linear infinite}
+@keyframes sweep{0%{transform:translateX(-60%)}100%{transform:translateX(60%)}}
+.hero .eyebrow{font-family:var(--mono);font-size:11.5px;letter-spacing:.32em;color:var(--glass);text-transform:uppercase;margin-bottom:18px}
+.hero h1{font-size:clamp(34px,5.6vw,60px);line-height:1.18}
+.hero h1 em{font-style:normal;background:linear-gradient(100deg,var(--gold) 10%,#fff 45%,var(--gold) 80%);
+  background-size:220% 100%;-webkit-background-clip:text;background-clip:text;color:transparent;animation:shine 6s ease-in-out infinite}
+@keyframes shine{0%,100%{background-position:0% 50%}50%{background-position:100% 50%}}
+.hero .sub{margin-top:20px;max-width:62ch;color:var(--dim);font-size:16.5px}
+.stats{display:flex;flex-wrap:wrap;gap:11px;margin-top:32px}
+.stat{flex:1 1 148px;padding:13px 15px;border:1px solid var(--line);border-radius:var(--r);
+  background:linear-gradient(180deg,var(--panel2),var(--panel))}
+.stat b{display:block;font-family:var(--serif);font-size:22px;color:var(--gold)}
+.stat span{font-family:var(--mono);font-size:10.5px;letter-spacing:.16em;color:var(--faint);text-transform:uppercase}
+
+/* ── 섹션 ── */
+section{padding:62px 0;border-bottom:1px solid rgb(36 52 71 / 55%)}
+.shead{display:flex;align-items:baseline;gap:15px;margin-bottom:10px}
+.sno{font-family:var(--mono);font-size:11.5px;letter-spacing:.2em;color:var(--faint)}
+.shead h2{font-size:clamp(25px,3.2vw,34px)}
+.lead{color:var(--dim);max-width:68ch;margin-bottom:24px;font-size:16.5px}
+h4{font-size:18.5px;margin:34px 0 12px;padding-top:4px}
+.eyebrow{font-family:var(--mono);font-size:12px;letter-spacing:.2em;color:var(--glass);margin-bottom:12px}
+
+.grid{display:grid;gap:15px;margin:16px 0}
+.g2{grid-template-columns:repeat(auto-fit,minmax(275px,1fr))}
+.g3{grid-template-columns:repeat(auto-fit,minmax(225px,1fr))}
+.g4{grid-template-columns:repeat(auto-fit,minmax(190px,1fr))}
+
+.card{position:relative;padding:19px;border:1px solid var(--line);border-radius:var(--r);
+  background:linear-gradient(180deg,var(--panel2),var(--panel));
+  transition:transform .3s cubic-bezier(.2,.7,.3,1),border-color .3s,box-shadow .3s}
+.card:hover{transform:translateY(-3px);border-color:var(--glass);box-shadow:0 14px 32px rgb(0 0 0 / 40%)}
+.card h3{font-size:17.5px;margin-bottom:7px}
+.card p,.card li{font-size:14.5px;color:var(--dim)}
+.card ul{margin:0;padding-left:17px}
+.card li{margin:.2em 0}
+.card::before{content:"";position:absolute;inset:0 auto 0 0;width:2px;border-radius:var(--r) 0 0 var(--r);background:var(--line);transition:background .3s}
+.card:hover::before{background:var(--glass)}
+.card.safe::before{background:var(--safe)}
+.card.danger::before{background:var(--danger)}
+.card.gold::before{background:var(--gold)}
+.card.violet::before{background:var(--violet)}
+.card.accent::before{background:var(--glass)}
+.tag{display:inline-block;font-family:var(--mono);font-size:10.5px;letter-spacing:.15em;text-transform:uppercase;color:var(--faint);margin-bottom:7px}
+
+.note{border:1px solid var(--line);border-left:3px solid var(--gold);border-radius:10px;padding:16px 18px;
+  background:rgb(217 185 120 / 6%);margin:18px 0}
+.note b{color:var(--gold);font-family:var(--serif)}
+.note p{color:var(--dim);font-size:14.8px;margin-top:5px}
+.note.danger{border-left-color:var(--danger);background:rgb(224 115 108 / 6%)}
+.note.danger b{color:var(--danger)}
+
+.formula{font-family:var(--mono);font-size:12.8px;line-height:1.9;color:var(--glass);background:rgb(119 183 215 / 8%);
+  border:1px dashed rgb(119 183 215 / 28%);border-radius:10px;padding:11px 14px;margin:14px 0}
+
+blockquote.pull{margin:24px 0 0;padding:22px 26px;border:1px solid var(--line);border-radius:var(--r);
+  font-family:var(--serif);font-size:18px;line-height:1.85;color:#f2f5f9;
+  background:linear-gradient(180deg,rgb(21 32 48 / 90%),rgb(15 23 35 / 90%));white-space:pre-line}
+
+/* ── 술식 ── */
+.rite{position:relative;margin:18px 0;padding:22px 24px;border:1px solid var(--line);border-radius:var(--r);
+  background:linear-gradient(180deg,var(--panel2),var(--panel))}
+.rite::before{content:"";position:absolute;inset:0 auto 0 0;width:3px;border-radius:var(--r) 0 0 var(--r);background:var(--line)}
+.rite.safe::before{background:var(--safe)}
+.rite.danger::before{background:var(--danger)}
+.rite.gold::before{background:var(--gold)}
+.rite.violet::before{background:var(--violet)}
+.rite h3{font-size:19px;margin-bottom:12px;line-height:1.45}
+.rite ul{margin:12px 0 0;padding-left:18px}
+.rite li{font-size:14.6px;color:var(--dim);margin:.3em 0}
+blockquote.scripture{margin:0 0 10px;padding:14px 18px;border-left:2px solid var(--gold);border-radius:0 8px 8px 0;
+  background:rgb(217 185 120 / 5%);font-family:var(--serif);font-size:15px;color:#e6dcc4;white-space:pre-line}
+.fold{margin-top:16px;border:1px solid rgb(119 183 215 / 22%);border-radius:12px;overflow:hidden;
+  background:linear-gradient(180deg,rgb(12 20 31 / 95%),rgb(9 14 22 / 95%))}
+.fold>summary{list-style:none;cursor:pointer;display:flex;align-items:center;gap:10px;padding:12px 16px;
+  font-family:var(--mono);font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--glass);
+  transition:background .2s;user-select:none}
+.fold>summary::-webkit-details-marker{display:none}
+.fold>summary::before{content:"▸";font-size:11px;color:var(--faint);transition:transform .25s}
+.fold[open]>summary::before{transform:rotate(90deg)}
+.fold>summary:hover{background:rgb(119 183 215 / 8%)}
+.fold>summary .meta{margin-left:auto;color:var(--faint);letter-spacing:.1em}
+.fold[open]>summary{border-bottom:1px solid rgb(119 183 215 / 18%)}
+.fold .chant{margin:0;border:0;border-radius:0;background:none;animation:unfold .3s ease}
+@keyframes unfold{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:none}}
+.chant{margin-top:16px;padding:22px 24px;border:1px solid rgb(119 183 215 / 22%);border-radius:12px;
+  background:linear-gradient(180deg,rgb(12 20 31 / 95%),rgb(9 14 22 / 95%));
+  font-family:var(--serif);font-size:15.5px;line-height:1.95;color:#eef3f8;white-space:pre-line}
+.chant strong{color:var(--gold)}
+
+/* ── 타임라인 ── */
+.tl{position:relative;margin:22px 0;padding-left:26px}
+.tl::before{content:"";position:absolute;left:6px;top:6px;bottom:6px;width:2px;
+  background:linear-gradient(180deg,var(--safe),var(--gold) 55%,var(--danger))}
+.tl li{list-style:none;position:relative;margin-bottom:18px}
+.tl li::before{content:"";position:absolute;left:-26px;top:8px;width:10px;height:10px;border-radius:50%;
+  background:var(--bg);border:2px solid var(--glass)}
+.tl b{display:block;font-family:var(--serif);font-size:16.5px}
+.tl span{color:var(--dim);font-size:14.5px}
+
+/* ── 등급 ── */
+.ranks{display:flex;gap:6px;margin:18px 0 6px}
+.ranks div{flex:1;text-align:center;padding:11px 4px;border:1px solid var(--line);border-radius:9px;
+  font-family:var(--mono);font-size:12.5px;color:var(--dim);
+  background:linear-gradient(180deg,var(--panel2),var(--panel));animation:rise .5s backwards cubic-bezier(.2,.8,.3,1)}
+.ranks div:nth-child(1){animation-delay:.02s}.ranks div:nth-child(2){animation-delay:.06s}
+.ranks div:nth-child(3){animation-delay:.10s}.ranks div:nth-child(4){animation-delay:.14s}
+.ranks div:nth-child(5){animation-delay:.18s}.ranks div:nth-child(6){animation-delay:.22s}
+.ranks div:nth-child(7){animation-delay:.26s}.ranks div:nth-child(8){animation-delay:.30s}
+.ranks div:nth-child(9){animation-delay:.34s}
+@keyframes rise{from{opacity:0;transform:translateY(10px) scaleY(.86)}to{opacity:1;transform:none}}
+.ranks .r-lo{color:var(--safe);border-color:rgb(127 198 174 / 42%)}
+.ranks .r-mid{color:var(--gold);border-color:rgb(217 185 120 / 40%)}
+.ranks .r-hi{color:var(--danger);border-color:rgb(224 115 108 / 40%)}
+.ranks .r-top{color:#fff;border-color:var(--danger);background:linear-gradient(180deg,rgb(224 115 108 / 22%),var(--panel))}
+
+/* ── 골든타임 바 ── */
+.bar{height:12px;border-radius:999px;overflow:hidden;border:1px solid var(--line);display:flex;margin:16px 0 8px}
+.bar i{display:block;height:100%;transform-origin:left;animation:fill 1.1s .15s backwards cubic-bezier(.3,.8,.3,1)}
+@keyframes fill{from{transform:scaleX(0)}to{transform:scaleX(1)}}
+.bar .b1{flex:8;background:linear-gradient(90deg,var(--safe),#a9dcc9)}
+.bar .b2{flex:78;background:linear-gradient(90deg,var(--gold),#f0d9a4);animation-delay:.35s}
+.bar .b3{flex:14;background:linear-gradient(90deg,var(--danger),#f0a09a);animation-delay:.7s}
+.barlabels{display:flex;font-family:var(--mono);font-size:11px;color:var(--faint)}
+.barlabels span{flex:1}
+.barlabels span:nth-child(2){flex:9.6;text-align:center}
+.barlabels span:nth-child(3){flex:1.8;text-align:right}
+
+/* ── 명단 ── */
+.roster{display:grid;gap:8px;margin:14px 0}
+.row{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:11px 14px;border:1px solid var(--line);
+  border-radius:10px;background:var(--panel);transition:.24s}
+.row:hover{border-color:var(--violet);transform:translateX(4px)}
+.row .code{font-family:var(--mono);font-size:11px;color:var(--faint);min-width:34px}
+.row .nm{font-family:var(--serif);font-size:15.5px;min-width:66px}
+.row .ds{color:var(--dim);font-size:14px}
+.row .arrow{color:var(--faint);font-family:var(--mono)}
+
+.empty{display:none;padding:40px 0;color:var(--faint);font-family:var(--mono);font-size:13px}
+.empty.on{display:block}
+footer{padding:40px 0 0;color:var(--faint);font-family:var(--mono);font-size:11.5px;letter-spacing:.12em}
+
+@media (max-width:900px){
+  .shell{grid-template-columns:1fr}
+  aside{position:static;height:auto;border-right:0;border-bottom:1px solid var(--line)}
+  aside ul{display:flex;flex-wrap:wrap;gap:4px}
+  aside a{padding:6px 11px}
+  main{padding:0 18px 70px}
+}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+@media print{
+  body{background:#fff;color:#000}
+  aside{display:none}
+  .card,.rite,.note,.chant,.row{break-inside:avoid}
+}
+</style>
+</head>
+<body>
+<div class="shell">
+<aside>
+  <div class="brand">SER</div>
+  <div class="bt">세계관 가이드북</div>
+  <input id="q" type="search" placeholder="설정 검색 (영창문 포함)" aria-label="설정 검색">
+  <ul><li><a href="#premise"><span class="n">01</span>기획 방향</a></li><li><a href="#origin"><span class="n">02</span>신과 고대사</a></li><li><a href="#orthros"><span class="n">03</span>오르트로스</a></li><li><a href="#goldentime"><span class="n">04</span>골든타임과 정화</a></li><li><a href="#taskforce"><span class="n">05</span>괴이사건대책반</a></li><li><a href="#church"><span class="n">06</span>성당교회</a></li><li><a href="#clavis"><span class="n">07</span>클라비스 목록</a></li><li><a href="#seraph"><span class="n">08</span>세라프와 세라피안</a></li><li><a href="#nymph"><span class="n">09</span>NYMPH</a></li><li><a href="#response"><span class="n">10</span>사건 대응 흐름</a></li><li><a href="#core"><span class="n">11</span>핵심 대칭</a></li><li><a href="#start"><span class="n">12</span>시작과 모드</a></li><li><a href="#index"><span class="n">13</span>인물 색인</a></li><li><a href="#assets"><span class="n">14</span>제작용 에셋</a></li></ul>
+</aside>
+<main><div class="inner">
+  <header class="hero">
+    <div class="eyebrow">Canon Guidebook</div>
+    <h1>돌아올 수 있는<br><em>시간에 관한 세계</em></h1>
+    <p class="sub">욕망에 삼켜진 인간, 그 인간을 되돌리려는 자들, 가능성 자체를 지우려는 자들이 골든타임을 두고 충돌하는 현대 변신 액션 세계관. 이 문서는 현재 확정된 설정만 담습니다.</p>
+    <div class="stats">
+      <div class="stat"><b>24시간</b><span>기본 골든타임</span></div>
+      <div class="stat"><b>30초 × N</b><span>정화 봉독</span></div>
+      <div class="stat"><b>4세력</b><span>대책반 · 교회 · 세라피안 · NYMPH</span></div>
+      <div class="stat"><b>6+3</b><span>세라피안 · 시작 세라프</span></div>
+    </div>
+  </header>
+  <div id="empty" class="empty" role="status">일치하는 설정이 없습니다.</div>
+
+<section id="premise" data-searchable><div class="shead"><span class="sno">01</span><h2>기획 방향</h2></div><p class="lead">어두운 현대 변신 액션물. 세라프의 권능을 빌리지만 변신자의 의식과 주도권은 끝까지 인간에게 남습니다.</p>
+  <div class="grid g2">
+    <article class="card accent"><span class="tag">Transformation</span><h3>권능 대여형 변신</h3>
+      <p>마법소녀물과 빙의·권능 대여형 변신물의 구조를 함께 씁니다. 세라프가 몸을 빼앗거나 대신 행동하지 않으며, 변신 외형은 계약한 세라프의 특성과 인간이 품은 염원의 성질이 결합해 형성됩니다.</p></article>
+    <article class="card"><span class="tag">Divine distance</span><h3>직접 개입하지 않는 신</h3>
+      <p>신은 개인에게 직접 능력을 주지 않으며 평상시 현세에 개입하지 않습니다. 티폰이 직접 나설 때만 아르케의 개입 가능성이 생깁니다.</p></article>
+  </div>
+  <div class="note"><b>오즈의 마법사 구조</b>
+    <p>아르케는 세라프를 통해 인간의 염원을 이루어주겠다고 약속하지만, 실제로 그 약속을 이행할 의지는 희박해 보입니다. 소원을 이뤄주겠다는 존재가 실제로 이뤄줄지는 끝까지 미지수입니다.</p>
+    <p><strong>세라피안들은 사건을 겪으며 결국 자신의 소원을 어떠한 방식으로든 스스로 이루거나, 소원의 전제 자체를 바꾸게 됩니다.</strong></p></div>
+</section>
+
+<section id="origin" data-searchable><div class="shead"><span class="sno">02</span><h2>신과 고대사</h2></div><p class="lead">고대에 아르케와 티폰이 있었습니다. 아르케는 세라프를 만들었고, 아르케와 티폰은 선악을 함께 지닌 인간을 만들었습니다.</p>
+  <ul class="tl">
+    <li><b>중세 · 최초의 접촉</b><span>신앙이 무너지고 회의와 절망을 품은 이들이 늘자 티폰이 직접 접촉해 최초의 오르트로스로 변이시킵니다.</span></li>
+    <li><b>계약</b><span>아르케가 세라프들에게 강한 염원을 품은 인간과 계약하도록 명합니다. 세라프의 권능과 인간의 염원이 결합해 최초의 세라피안이 태어납니다.</span></li>
+    <li><b>봉인</b><span>세라프와 세라피안이 함께 티폰을 봉인합니다. 이 전쟁은 신화처럼 성스럽게 전해지지만 실제 역사는 거의 잊혔습니다.</span></li>
+    <li><b>공백기</b><span>오르트로스는 크게 줄었을 뿐 사라지지 않고 오랫동안 산발적으로만 발생했습니다.</span></li>
+    <li><b>현대 · 대량 발생</b><span>신앙이 사라지고 현대인의 고통과 부정적 감정이 극에 달하며 다시 대량 발생합니다. 아르케는 다시 계약을 명합니다.</span></li>
+  </ul>
+  <div class="grid g3">
+    <article class="card"><span class="tag">Fixed</span><h3>모체는 인간</h3><p>오르트로스의 모체는 처음부터 인간이며 별개의 고대 종족이 아닙니다.</p></article>
+    <article class="card danger"><span class="tag">Typhon</span><h3>티폰의 목적</h3><p>인간 괴멸과 오르트로스 증식.</p></article>
+    <article class="card gold"><span class="tag">Arche</span><h3>거리를 둔 신</h3><p>아르케와 티폰 모두 평상시 인간에게 직접 권능을 부여하지 않습니다.</p></article>
+  </div>
+</section>
+
+<section id="orthros" data-searchable><div class="shead"><span class="sno">03</span><h2>오르트로스</h2></div><p class="lead">인간의 과도한 부정적 감정과 뒤틀린 욕망이 한계를 넘을 때 발생하는 변이체. 단순한 분노나 욕망만으로는 변이하지 않습니다.</p>
+  <div class="grid g3">
+    <article class="card"><span class="tag">Form</span><h3>외형과 능력</h3><p>인정욕구·집착·질투·복수심·소유욕·생존욕·사랑에 대한 갈망이 뒤틀린 형태로 육체와 능력에 반영됩니다.</p></article>
+    <article class="card"><span class="tag">Scale</span><h3>강함의 두 축</h3><p><strong>욕망의 크기</strong>는 감정의 강렬함과 집요함, <strong>그릇의 크기</strong>는 얼마나 거대한 괴이성을 받아들일 수 있는가입니다.</p></article>
+    <article class="card"><span class="tag">Public</span><h3>대중의 인식</h3><p>일반인은 인간 기원을 모르며 사람을 공격하는 괴물로만 인식합니다.</p></article>
+  </div>
+  <div class="note"><b>발생 장소는 공공장소만이 아님</b><p>자택에서 조용히 변이해 아무도 모르는 사이 골든타임이 흐르기도 하고, 대응 전력이 닿기 어려운 시골 마을에서 발생하기도 합니다. 발견과 신고가 늦을수록 남는 시간이 줄어듭니다.</p></div>
+
+  <h4>위험 등급과 대응 한계</h4>
+  <div class="ranks">
+    <div class="r-lo">8급</div><div class="r-lo">7급</div><div class="r-mid">6급</div>
+    <div class="r-hi">5급</div><div class="r-hi">4급</div><div class="r-hi">3급</div>
+    <div class="r-hi">2급</div><div class="r-hi">1급</div><div class="r-top">특급</div>
+  </div>
+  <div class="grid g4">
+    <article class="card safe"><span class="tag">8 · 7급</span><h3>단독 제압</h3><p>대책반의 화력과 장비만으로 제압 가능.</p></article>
+    <article class="card gold"><span class="tag">6급</span><h3>경계선</h3><p>대책반 단독 제압이 어려워지기 시작.</p></article>
+    <article class="card danger"><span class="tag">5 · 4 · 3급</span><h3>버티기의 한계</h3><p>현장을 유지하는 것 자체가 한계.</p></article>
+    <article class="card danger"><span class="tag">2 · 1급 · 특급</span><h3>교전 대상 아님</h3><p>성당교회나 세라피안의 개입이 필요.</p></article>
+  </div>
+  <div class="note danger"><b>1급과 특급은 연속선상에 있지 않음</b>
+    <p>그릇과 욕망이 모두 극단에 이른 개체이며, 2급과의 격차가 8급부터 2급까지의 격차를 전부 합한 것보다 큽니다.</p>
+    <p><strong>1급</strong>은 단일 개체로 구 단위 재해를 일으킵니다. 대책반은 교전을 포기하고 봉쇄와 대피에만 전념하며, 세라피안이 단독으로 상대하려면 필살기를 전제해야 합니다.</p>
+    <p><strong>특급</strong>은 발생 자체가 국가급 사태입니다. 세라피안 복수 또는 세라프의 권능을 극한까지 끌어낸 전력이 필요하고, 정화와 소멸 어느 쪽도 성공을 보장할 수 없습니다.</p></div>
+
+  <h4>물리적 특성</h4>
+  <p>완전한 영체가 아니므로 총탄·도검·폭발물·충격으로 피해를 입힐 수 있습니다. 그러나 대부분 인간을 크게 초월하는 신체능력·내구력·회복력을 지니며, 일정 등급 이상은 현대 화기에도 강한 저항력을 보입니다. <strong>평범한 물리 공격은 육체를 파괴할 뿐 근원인 괴이성과 욕망을 정화하거나 소멸시키지 못합니다.</strong></p>
+</section>
+
+<section id="goldentime" data-searchable><div class="shead"><span class="sno">04</span><h2>골든타임과 정화</h2></div><p class="lead">변이 후에도 인간의 정신과 존재가 남아 있는 기간. 기본값은 24시간이지만 모체의 정신적 저항력에 따라 달라집니다. 정신력이 강하면 길어지고 약하면 짧아집니다.</p>
+  <div class="bar"><i class="b1"></i><i class="b2"></i><i class="b3"></i></div>
+  <div class="barlabels"><span>극초기 1~2h</span><span>골든타임 · 가변 24h</span><span>고착</span></div>
+  <div class="grid g3">
+    <article class="card safe"><span class="tag">0 ~ 2h</span><h3>변이 극초기</h3>
+      <p>괴이성이 아직 정착하지 않은 구간. 등급과 무관하게 충분히 제압하는 것만으로 <strong>성당교회의 정화 전례 없이</strong> 인간으로 되돌릴 수 있습니다.</p>
+      <p>8·7·6급 하급 개체는 이 구간이 지난 뒤에도 제압만으로 괴이성이 풀리는 경우가 있습니다. 항상 그렇지는 않습니다.</p></article>
+    <article class="card gold"><span class="tag">Within</span><h3>골든타임 이내</h3>
+      <div class="formula">제압 → 괴이성 약화 → 정화 → 인간 복귀</div>
+      <p>정화 수단은 둘입니다. 성당교회 사제의 <code>PURIFICATIO</code> 봉독과, 세라프에게 빌린 권능으로 정화하는 세라피안.</p></article>
+    <article class="card danger"><span class="tag">After</span><h3>골든타임 경과</h3>
+      <div class="formula">고착·강화 → 정화 불가 → 소멸</div>
+      <p>인간과 오르트로스의 경계가 붕괴해 별개의 존재로 고착되고 힘이 크게 강화됩니다. 대책반의 전력으로는 대응할 수 없으며 어떤 정화로도 되돌릴 수 없습니다.</p></article>
+  </div>
+  <div class="grid g2">
+    <article class="card"><span class="tag">Operator</span><h3>예상 골든타임 산출</h3><p>대책반 오퍼레이터가 모체의 신원을 특정하고 생전의 이력·심리 상태·현장 반응을 분석해 남은 시간을 현장 인력에게 고지합니다.</p></article>
+    <article class="card violet"><span class="tag">Relapse</span><h3>재괴인화 취약기</h3><p>정화된 인간은 당분간 오르트로스화에 취약하고 충동이 심해집니다. 취약 기간은 개인차가 커서 도식화되지 않으며 대체로 일주일에서 한 달, 길게는 년 단위로 이어집니다.</p></article>
+  </div>
+
+  <h4>정화 후 관리</h4>
+  <p>정화에 성공한 인간은 재괴인화 취약 기간 동안 관리 대상이 됩니다. 관리 주체는 정화 당시의 등급에 따라 나뉩니다.</p>
+  <div class="grid g3">
+    <article class="card safe"><span class="tag">8 · 7 · 6급</span><h3>정신병원</h3><p>욕망 자체가 다른 오르트로스보다 작았던 경우가 많아 정신병원으로 이관되는 경우가 많습니다. 6급에는 대책반의 감시가 붙습니다.</p></article>
+    <article class="card"><span class="tag">5 · 4 · 3급</span><h3>대책반 특수 치료시설</h3><p>대책반 내부의 특수 치료시설에서 전문 치료사의 감시 아래 생활합니다.</p></article>
+    <article class="card gold"><span class="tag">3급 일부 · 2 · 1급 · 특급</span><h3>성당교회</h3><p>성당교회의 소관입니다.</p></article>
+  </div>
+</section>
+
+<section id="taskforce" data-searchable><div class="shead"><span class="sno">05</span><h2>괴이사건대책반</h2></div><p class="lead">오르트로스 발생 시 가장 먼저 투입되는 경찰 소속 국가 초동 대응 조직. 초자연적 권능 없이 인간의 과학·군사기술만 사용합니다.</p>
+  <h4>전술 트럭</h4>
+  <p>군용 8×8 트럭을 개조한 차량으로, 방탄·방폭 컨테이너를 얹었고 현장에서는 이동 지휘소·슈트 격납고·구호소를 겸합니다. 전개 완료까지 약 90초가 걸립니다.</p>
+  <div class="formula">현장 진입 → 아웃리거 접지 → 측면 패널 전개 → 관측 마스트 상승 → 착용 플랫폼 개방</div>
+  <div class="grid g3">
+    <article class="card"><span class="tag">Front</span><h3>지휘실</h3><p>오퍼레이터석. 통신 중계, 신원 조회 단말, 현장 영상·드론 관제, 대피 방송.</p></article>
+    <article class="card gold"><span class="tag">Center</span><h3>격납·착용부</h3><p>E3·E4 슈트 슬롯과 착용 플랫폼. 슈트 착용과 탄약 재보급은 이곳에서만 가능합니다.</p></article>
+    <article class="card safe"><span class="tag">Rear</span><h3>정비·구호부</h3><p>응급 처치대와 구호 물자. 부상자를 임시 수용합니다.</p></article>
+  </div>
+  <div class="grid g2">
+    <article class="card"><span class="tag">Loadout</span><h3>적재 장비</h3><ul>
+      <li>총화기와 특수탄 — 관통·충격·구속·연막·조명</li>
+      <li>폭발물과 설치형 장애물</li>
+      <li>전자기 앵커·강선 그물·발포 점착제</li>
+      <li>괴이성 반응 탐지기 — 등급 추정</li>
+      <li>열화상·음향 탐지기와 정찰 드론</li>
+      <li>구호 약품과 응급처치 물자</li></ul></article>
+    <article class="card danger"><span class="tag">Weak point</span><h3>트럭은 전투 차량이 아님</h3>
+      <p>장갑은 유탄과 파편을 막는 수준이라 일정 등급 이상의 직격은 견디지 못합니다. 파괴되면 슈트 재보급·오퍼레이팅·구호가 동시에 끊기고 예상 골든타임 산출도 불가능해지므로, 대책반은 교전 위치를 트럭에서 최대한 떼어 놓는 것을 원칙으로 합니다.</p>
+      <p>배치 대수가 많지 않아 서울과 주요 도시에 나누어 둡니다. 관할 밖에서 사건이 발생하면 트럭 도착 자체가 늦어집니다.</p></article>
+  </div>
+
+  <h4>슈트</h4>
+  <p>변신 슈트 운용자는 세 명으로 제한된 소수 정예입니다. <strong>E3</strong>는 안정성과 보급성을 우선한 양산형, <strong>E4</strong>는 E4 프로젝트의 최신 슈트입니다.</p>
+
+  <h4>임무</h4>
+  <p>대책반의 목적은 오르트로스를 반드시 쓰러뜨리는 것이 아닙니다. 가장 먼저 현장에 도착해 민간인을 보호하고, 사건을 끝낼 수 있는 지원 인력이 올 때까지 현장을 유지합니다.</p>
+  <div class="grid g3">
+    <article class="card"><h3>사람을 지킨다</h3><p>발생 지역 봉쇄, 민간인 대피·구조, 이동 경로 제한, 사건 종료 후 조사·피해 통제·현장 수습.</p></article>
+    <article class="card"><h3>직접 대응한다</h3><p>화력 견제와 특정 부위 집중 공격, 구속장비와 장애물을 이용한 행동 지연. 골든타임 이내에는 복수의 대원을 전제로 제압·구속이 가능합니다.</p></article>
+    <article class="card"><h3>끝까지 붙든다</h3><p>극초기·하급 개체는 제압만으로 자체 종결하고, 그 밖에는 지원이 올 때까지 버팁니다. 정화 봉독이 반복되는 동안 대상을 붙들어 두는 것도 대책반의 몫입니다.</p></article>
+  </div>
+  <div class="note"><b>정화도 소멸도 대책반의 수단은 아님</b><p>대책반은 정화 전례도 소멸 수단도 갖지 못합니다. 극초기나 하급 개체가 제압만으로 돌아오는 것은 정화를 수행한 것이 아니라 아직 정착하지 않은 괴이성이 스스로 풀리는 현상입니다.</p></div>
+
+  <h4>특수 치료시설</h4>
+  <p>대책반 내부에 정화된 인간을 위한 특수 치료시설을 둡니다. 5·4·3급에서 돌아온 사람이 전문 치료사의 감시 아래 생활하는 곳입니다.</p>
+
+  <h4>현장 감찰팀</h4>
+  <p>대책반 소속의 조사 인력입니다. 형사이자 탐정에 가까운 성격으로, 현장 전투가 아니라 사건의 앞뒤를 밝히는 일을 맡습니다. 팀장은 김헌철, 감찰관은 정나은입니다.</p>
+  <div class="grid g3">
+    <article class="card"><h3>피해 규모</h3><p>민간인 피해 규모를 조사합니다.</p></article>
+    <article class="card"><h3>괴인화 경위</h3><p>모체가 어떤 과정을 거쳐 오르트로스가 됐는지 밝힙니다.</p></article>
+    <article class="card danger"><h3>배후와 거수자</h3><p>사건 뒤에 다른 세력이나 수상한 인물이 있는지 조사합니다.</p></article>
+  </div>
+  <blockquote class="pull"><strong>“우리는 저것을 끝낼 수 없다.
+하지만 끝낼 수 있는 자가 올 때까지 막을 수는 있다.”</strong></blockquote>
+</section>
+
+<section id="church" data-searchable><div class="shead"><span class="sno">06</span><h2>바티칸 성당교회 한국지부</h2></div><p class="lead">초자연적 대응과 사건의 최종 해결을 담당하는 소수 사제 조직. 성경의 성구를 봉독해 주의 권능을 구현하는 전례마술 Clavis Arche를 사용합니다.</p>
+  <p>사제들은 아르케를 신학적 명칭으로 인식하지만 신앙과 전례에서는 주로 <code>주</code>라고 부릅니다.</p>
+  <div class="grid g2">
+    <article class="card danger"><span class="tag">Scale</span><h3>지부는 서울 한 곳</h3>
+      <p>인원은 열몇 명이 전부입니다. 서울 밖에서 사건이 발생하거나 여러 사건이 겹치면 현장 도착 자체가 늦어집니다.</p>
+      <p>상급 개체에서 돌아온 인간의 보호도 맡습니다. 취약 기간이 길게는 년 단위로 이어지므로 보호 대상은 사건이 쌓일수록 늘어납니다.</p></article>
+    <article class="card"><span class="tag">Exposure</span><h3>아는 사람은 아는 조직</h3>
+      <p>비밀조직은 아닙니다. 활동을 굳이 은폐하지도 공개하지도 않으며 대외적으로 나서지 않아, 인지도도 딱 그 수준입니다.</p></article>
+  </div>
+
+  <h4>삼위일체 계통과 전문 분파</h4>
+  <p>사제는 저마다 전문으로 삼는 분파가 있습니다. 계통마다 술자에게 요구하는 자질이 다르고, 그 자질이 없으면 같은 술식이라도 위력이 나오지 않습니다. 전문 분파란 다른 계통을 못 쓴다는 뜻이 아니라 가장 깊이 다루는 계통을 말합니다.</p>
+  <div class="grid g3">
+    <article class="card gold"><span class="tag">Pater · 파테르</span><h3>물리계</h3>
+      <p>신체강화·완력·속도·방어막·내구력·물리적 충격·무기강화·구속·물질 현현.</p>
+      <p><strong>의지와 용기.</strong> 신체의 단련이 뒷받침되지 않으면 소용이 없습니다. 전문=라파엘.</p></article>
+    <article class="card safe"><span class="tag">Filius · 필리우스</span><h3>회복계</h3>
+      <p>상처·체력·피로 회복, 통증 완화, 출혈 억제, 생명 유지, 상태 이상 완화, 영적 보호.</p>
+      <p><strong>희생정신과 자애.</strong> 타고난 측은지심이 없으면 위력이 반감합니다. 전문=마리.</p></article>
+    <article class="card violet"><span class="tag">Spiritus · 스피리투스</span><h3>정신계</h3>
+      <p>정신 안정, 공포 억제, 혼란 해제, 정신간섭·환각·세뇌 저항, 집중·감각 강화, 의식 회복.</p>
+      <p><strong>불굴과 지혜.</strong> 가장 익히기 어렵고 전문 사제 자체가 드뭅니다. 국내에는 예로니모가 사실상 유일합니다.</p></article>
+  </div>
+
+  <h4>호명 형식</h4>
+  <div class="formula">Clavis Communis, [계통명] 제○식 — 「핵심 성구」<br>
+특수 전례 = Clavis Communis, [특수 영역명] 제0식 — [전례명]<br>
+고유 술식 = Clavis Collata — [핵심 성구·전례문·전례 명칭 중 대표가 되는 구절]</div>
+  <p>각 술식의 통칭은 능력을 설명하는 기술명이 아니라 권능의 근거가 된 성구에서 가장 상징적인 절구를 그대로 씁니다. <code>제○식</code>은 강함의 순위가 아니라 정식 연구·등록된 순서 또는 교본상의 분류 번호입니다.</p>
+  <p>정화와 소멸은 삼위일체 계통 밖의 특수 전례로, 일반 체계의 예외라는 의미에서 <code>제0식</code>으로 분류합니다. <code>0</code>은 최초나 최약을 뜻하지 않습니다.</p>
+
+  <h4>제10식</h4>
+  <div class="note danger"><b>과반수의 동의</b>
+    <p>각 계통의 교본은 열 자리로 구성되며 마지막 자리인 제10식은 최종식 몫으로 비워 둡니다. 10은 십계명의 수로, 교본이 열로 완결된다는 뜻입니다.</p>
+    <p>제10식은 위험도가 높고 술자의 몸에도 큰 타격을 남깁니다. <strong>그 자리에 입회한 성직자 과반수의 동의 없이는 사용할 수 없습니다.</strong> 다른 공통 클라비스와 달리 라틴 표제와 한국어 절구를 함께 씁니다.</p>
+    <div class="formula">술자의 개방 요청 → 입회 성직자 과반수 동의 → 호명</div>
+    <p>세 계통의 제10식은 사건의 서로 다른 국면을 담당합니다. <strong>Pater</strong>는 고착된 개체를 부수고, <strong>Filius</strong>는 죽어가는 사람을 살리며, <strong>Spiritus</strong>는 아직 이름이 남은 개체를 멈춰 정화로 넘깁니다.</p>
+    <p>제10식이 요구하는 대가는 그 계통이 요구하는 자질과 같은 것입니다. 파테르는 단련한 육체를, 필리우스는 대신 짊어질 몸을, 스피리투스는 죄를 통과시킬 정신을 내놓습니다.</p></div>
+
+  <h4>Clavis Collata</h4>
+  <p>특히 뛰어난 신앙심을 인정받은 사제가 선발되어 받는 고유 클라비스입니다. 현재 보유자는 예로니모 한 명입니다.</p>
+  <div class="formula">대상자 선발 → 바티칸 본토에서 3년간 수련 → 아르케에 대한 봉헌 의식 → 고유 클라비스 부여</div>
+  <blockquote class="scripture">&quot;아르케가 아끼는 사제가 극도의 위험에 빠지면 고유한 클라비스를 부여받고 해당 상황을 타파했다&quot;</blockquote>
+  <p>신화에 전해지는 별도의 수여 사례이며, 현대에도 재현 가능한 실제 수여 방식인지는 확인되지 않았습니다.</p>
+</section>
+
+<section id="clavis" data-searchable><div class="shead"><span class="sno">07</span><h2>클라비스 목록</h2></div><p class="lead">현재 확정된 술식 전문입니다. 성구와 영창문은 기준 문서에서 그대로 옮겨 왔습니다.</p>
+  <article class="rite safe">
+    <span class="tag">FILIUS · 제1식 · 마리</span><h3>Clavis Communis, Filius 제1식 — 「불꽃이 너를 사르지 못하리니」</h3>
+    <blockquote class="scripture">&quot;네가 물 가운데로 지날 때에 내가 너와 함께 할 것이라 강을 건널 때에 물이 너를 침몰하지 못할 것이며 네가 불 가운데로 지날 때에 타지도 아니할 것이요 불꽃이 너를 사르지도 못하리니&quot;</blockquote>
+    <ul><li>가까운 거리에서 지정한 한 사람에게 영적으로 작용하는 보호막을 걸어 약한 공격을 막습니다.</li>
+    <li>한 번에 한 명이며, 물리적으로 현현하는 장벽은 아닙니다.</li></ul>
+  </article>
+  <article class="rite safe">
+    <span class="tag">FILIUS · 제2식 · 마리</span><h3>Clavis Communis, Filius 제2식 — 「그의 백성을 두르시리로다」</h3>
+    <blockquote class="scripture">산들이 예루살렘을 두름과 같이 여호와께서 그의 백성을 두르시리로다</blockquote>
+    <ul><li>지정한 좁은 구역을 감싸는 보호막을 전개합니다. 성인 5~6명이 들어갈 정도의 크기입니다.</li>
+    <li>전개한 자리에 고정되어 옮길 수 없고, 유지하는 동안 다른 술식을 함께 쓰기 어려우며, 강한 공격은 막지 못합니다.</li>
+    <li>대피가 끝나지 않은 민간인을 한곳에 모아 두는 데 주로 씁니다.</li></ul>
+  </article>
+  <article class="rite gold">
+    <span class="tag">PATER · 제1식 · 라파엘</span><h3>Clavis Communis, Pater 제1식 — 「나의 의로운 오른손으로 너를 붙들리라」</h3>
+    <blockquote class="scripture">두려워 말라 내가 너와 함께 함이니라 놀라지 말라 나는 네 하나님이 됨이니라 내가 너를 굳세게 하리라 참으로 너를 도와 주리라 참으로 나의 의로운 오른손으로 너를 붙들리라.</blockquote>
+    <ul><li>사용자의 신체를 강화합니다.</li><li>발동 중 오른손이 황금빛으로 빛납니다.</li></ul>
+  </article>
+  <article class="rite violet">
+    <span class="tag">SPIRITUS · 제1식 · 예로니모</span><h3>Clavis Communis, Spiritus 제1식 — 「너희 마음과 생각을 지키시리라」</h3>
+    <blockquote class="scripture">너희 관용을 모든 사람에게 알게 하라 주께서 가까우시니라
+아무 것도 염려하지 말고 다만 모든 일에 기도와 간구로, 너희 구할 것을 감사함으로 하나님께 아뢰라
+그리하면 모든 지각에 뛰어난 하나님의 평강이 그리스도 예수 안에서 너희 마음과 생각을 지키시리라</blockquote>
+    <ul><li>모체 안에 남은 인간의 정신을 보호해 오르트로스의 골든타임을 억지로 근소하게 연장합니다.</li>
+    <li>난이도가 높습니다. 자신이나 아군이 아니라 이미 뒤틀린 타인의 정신에 작용시켜야 하기 때문입니다.</li></ul>
+  </article>
+
+  <article class="rite gold">
+    <span class="tag">PATER · 제10식 · 최종</span><h3>Clavis Communis, Pater 제10식 — DEXTERA DOMINI 「주의 오른손이 원수를 부수시니이다」</h3>
+    <blockquote class="scripture">여호와여 주의 오른손이 권능으로 영광을 나타내시니이다
+여호와여 주의 오른손이 원수를 부수시니이다</blockquote>
+    <ul><li>권능을 오른팔 하나에 몰아 단 한 번 내리칩니다. 골든타임이 지나 고착된 개체의 저항능력까지 무너뜨립니다.</li>
+    <li>물리계이므로 괴이성 자체는 건드리지 못합니다. <strong>소멸시키는 술식이 아니라 VANITAS를 봉독할 수 있는 상태까지 몰아넣는 술식입니다.</strong></li>
+    <li>격발과 동시에 술자의 오른팔이 부서지며 연속 사용은 불가능합니다.</li>
+    <li>제1식이 붙드는 오른손이라면 제10식은 부수는 오른손입니다.</li></ul>
+    <details class="fold"><summary><span class="lbl">영창문</span><span class="meta">22행</span></summary><div class="chant">고한다.
+
+나는 심판할 자격이 없고,
+나는 끝낼 권능도 없으며,
+나는 다만 주의 팔을 빌리는 종이니.
+
+그러므로 청하노라.
+
+바다를 가르신 손이여,
+병거를 삼키신 손이여,
+원수 위에 떨어지신 손이여.
+
+Dextera tua, Domine, magnificata est in fortitudine.
+주여, 주의 오른손이 권능으로 영광을 나타내시니이다.
+
+오늘 이 자리에 내려오소서.
+이 팔을 취하소서.
+부서져도 좋으니, 한 번만 들어 올리소서.
+
+물러설 곳은 없고,
+되돌릴 시간도 이미 지났으며,
+남은 것은 이 한 번뿐이라.
+
+그러니 —
+
+뒤틀린 것을 꺾으라.
+굳어버린 것을 부수라.
+일어선 것을 무릎 꿇리라.
+
+Dextera tua, Domine, percussit inimicum.
+
+<strong>주의 오른손이 원수를 부수시니이다.</strong></div></details>
+  </article>
+  <article class="rite safe">
+    <span class="tag">FILIUS · 제10식 · 최종</span><h3>Clavis Communis, Filius 제10식 — AGNUS DEI 「세상 죄를 지고 가는 하나님의 어린양」</h3>
+    <blockquote class="scripture">보라 세상 죄를 지고 가는 하나님의 어린 양이로다</blockquote>
+    <ul><li>대상 한 명의 치명상을 술자가 대신 짊어집니다. 상처·출혈·장기 손상이 술자의 몸으로 옮겨오고 대상은 옮겨간 만큼 회복합니다.</li>
+    <li>인간에게만 적용됩니다. 이미 숨이 끊긴 자에게는 통하지 않으며 <strong>옮길 수 있는 것은 손상뿐, 생사 자체는 되돌리지 못합니다.</strong></li>
+    <li>옮겨온 손상은 술자를 즉사시키지 않습니다. 다만 곧바로 처치받지 못하면 죽으며, 회복 술식이나 응급처치를 즉시 받으면 살아남을 수 있습니다.</li>
+    <li>대신 죽는 전례가 아니라 값을 먼저 치르는 전례입니다. 생사의 판단은 주의 영역으로 남깁니다.</li></ul>
+    <details class="fold"><summary><span class="lbl">영창문</span><span class="meta">23행</span></summary><div class="chant">고한다.
+
+이 사람은 아직 죽지 않았고,
+이 숨은 아직 끊기지 않았으며,
+이 이름은 아직 부를 수 있으니.
+
+그러므로 청하노라.
+
+Agnus Dei, qui tollis peccata mundi, miserere nobis.
+세상의 죄를 지고 가시는 하나님의 어린양이여, 우리를 불쌍히 여기소서.
+
+짐을 지신 이여,
+대신 지는 법을 보이신 이여,
+그 법을 오늘 제게도 허락하소서.
+
+저 상처를 이리로.
+저 피를 이리로.
+저 끝을 이리로.
+
+Agnus Dei, qui tollis peccata mundi, miserere nobis.
+세상의 죄를 지고 가시는 하나님의 어린양이여, 우리를 불쌍히 여기소서.
+
+저는 대신 죽겠다 말하지 않겠나이다.
+그것은 제 몫이 아니며,
+생사의 저울은 주의 것이니.
+
+다만 오늘 하루,
+저 사람이 치를 값을
+제가 먼저 치르게 하소서.
+
+Agnus Dei, qui tollis peccata mundi, dona nobis pacem.
+
+<strong>하나님의 어린양이여, 우리에게 평화를 주소서.</strong></div></details>
+  </article>
+  <article class="rite violet">
+    <span class="tag">SPIRITUS · 제10식 · 최종</span><h3>Clavis Communis, Spiritus 제10식 — CONFITEOR 「내 죄가 항상 내 앞에 있나이다」</h3>
+    <blockquote class="scripture">무릇 나는 내 죄과를 아오니 내 죄가 항상 내 앞에 있나이다</blockquote>
+    <blockquote class="scripture">여호와께서 미워하시는 것 곧 그의 마음에 싫어하시는 것이 육 칠 가지니</blockquote>
+    <ul><li>일곱 죄의 이름을 차례로 불러 대상을 여기까지 끌고 온 욕망이 어느 이름에 응답하는지 찾아냅니다. 응답한 이름으로 욕망을 못박고 대상을 자기 죄가 눈앞에 선 상태에 가둡니다.</li>
+    <li><strong>육체를 파괴하지 않고 행동만 정지시키므로, 골든타임이 남은 개체를 정화 가능한 상태로 만드는 데 씁니다.</strong></li>
+    <li>욕망이 응답하지 않으면 발동하지 않습니다. 이미 고착돼 인간의 흔적이 남지 않은 개체에게는 부를 이름이 없어 통하지 않습니다.</li>
+    <li>대상 대신 고백하는 것은 술자입니다. 응답한 죄가 술자의 정신에 남아 한동안 그 감정을 자기 것처럼 앓고, 반복 사용은 인격에 손상을 남깁니다.</li></ul>
+    <details class="fold"><summary><span class="lbl">영창문</span><span class="meta">33행</span></summary><div class="chant">고한다.
+
+네 힘은 네 것이 아니며,
+네 형상은 네 뜻이 아니고,
+너를 여기까지 끌고 온 것은
+네가 끝내 놓지 못한 하나이니.
+
+그러므로 청하노라.
+
+주여, 그 이름을 제게 보이소서.
+
+여호와께서 미워하시는 것,
+그 마음에 싫어하시는 것이
+여섯 가지요 일곱 가지라.
+
+Superbia. 교만이여, 대답하라.
+Avaritia. 탐욕이여, 대답하라.
+Luxuria. 색욕이여, 대답하라.
+Invidia. 질투여, 대답하라.
+Gula. 탐식이여, 대답하라.
+Ira. 분노여, 대답하라.
+Acedia. 나태여, 대답하라.
+
+하나가 대답하였도다.
+
+그것이 네 이름이며,
+그것이 네 전부이고,
+그것이 네가 지금 서 있는 자리다.
+
+보라.
+네 죄가 네 앞에 섰으니.
+
+Confiteor Deo omnipotenti.
+전능하신 주 앞에 나는 고백하나이다.
+
+Mea culpa,
+mea culpa,
+mea maxima culpa.
+
+이제 눈을 감아도 보이고,
+귀를 막아도 들리리라.
+
+네가 그것을 끝까지 바라볼 때까지,
+너는 이 자리에서 한 걸음도 나아가지 못하리라.
+
+<strong>내 죄가 항상 내 앞에 있나이다.</strong></div></details>
+  </article>
+
+  <article class="rite gold">
+    <span class="tag">CLAVIS COLLATA · 정신계 + 타격계</span><h3>Clavis Collata — NUNC DIMITTIS</h3>
+    <ul><li>사용자=예로니모.</li><li>신성한 황금의 사슬로 오르트로스를 결박하고 작열통을 줍니다.</li></ul>
+    <details class="fold"><summary><span class="lbl">영창문</span><span class="meta">31행</span></summary><div class="chant"><strong>고한다.</strong>
+
+왕들을 사슬로 결박하고,
+귀한 자들을 쇠고랑으로 묶으라.
+기록된 심판을 그들에게 행하라.
+
+멈출지어다.
+
+달리는 자는 그 걸음을 멈추고,
+분노한 자는 그 손을 거두며,
+갈망하는 자는 그 욕망을 내려놓을지어다.
+
+서두르지 말라.
+몸부림치지 말라.
+도망치려 하지도 말라.
+
+네가 아무리 달아나도 끝은 뒤따르며,
+네가 아무리 발버둥쳐도
+사슬은 이미 네 발밑에 있노라.
+
+내게 맡기라.
+무거운 것은 내려놓으라.
+
+지친 자에게 안식을,
+상처 입은 자에게 침묵을,
+길을 잃은 자에게 멈추어 설 시간을.
+
+나는 네 죄를 심판하지 않으며,
+네 생명을 거두지도 않노라.
+
+다만 네 손을 묶고,
+네 발을 묶고,
+네 안에서 날뛰는 욕망마저
+이 자리에 붙들어 두리라.
+
+그러므로 이제 쉬어라.
+
+투쟁도, 분노도, 도망도 그만두고,
+그저 여기에서 기다릴지어다.
+
+─────주의 뜻이 이르기까지.
+
+─────<strong>Nunc dimittis servum tuum, Domine, in pace.</strong>
+
+<strong>이제 주여, 당신의 종을 평안히 놓아주소서.</strong></div></details>
+  </article>
+
+  <article class="rite safe">
+    <span class="tag">LIMBUS · 제0식 · 정화</span><h3>Clavis Communis, Limbus 제0식 — PURIFICATIO</h3>
+    <p>골든타임 내의 오르트로스를 인간으로 되돌리는 특수 클라비스입니다. 정상적으로 활동하며 저항하는 대상에게는 적용할 수 없으므로 먼저 육체와 괴이성을 충분히 약화시켜야 합니다. <code>Limbus</code>는 경계·가장자리를 뜻합니다.</p>
+    <div class="formula">오르트로스 무력화 → 정화 영창 → 괴이성 분리·제거 → 인간 복귀</div>
+    <ul><li>전문 분파와 무관합니다. 정식 훈련을 받은 사제라면 누구나 봉독할 수 있습니다.</li>
+    <li>봉독 1회에 약 30초. <strong>문제는 한 번으로 끝나지 않는다는 점입니다.</strong> 8·7·6급은 1회로 충분하고, 5급 이상은 2회 이상, 특급이라면 10회까지 반복해야 할 수도 있습니다.</li>
+    <li>특급은 대부분 이미 골든타임이 지난 상태라 정화 대상이 되는 일 자체가 드뭅니다.</li>
+    <li>반복하는 동안 대상을 계속 무력화 상태로 붙들어 둬야 합니다. 실패의 대부분은 정화 자체가 아니라 그 시간을 벌지 못해 일어납니다.</li></ul>
+    <details class="fold"><summary><span class="lbl">영창문</span><span class="meta">21행</span></summary><div class="chant">고한다.
+
+그 육신은 네 것이 아니며,
+그 형상은 네 이름이 아니며,
+그 욕망은 네 혼이 아니다.
+
+Asperges me, Domine, hyssopo, et mundabor.
+주여, 우슬초로 나를 씻기시면 내가 정결하리이다.
+
+아직 그곳에 남아 있다면,
+아직 제 이름을 잊지 않았다면,
+이 목소리를 들으라.
+
+분노는 네 전부가 아니고,
+증오는 네 얼굴이 아니며,
+갈망은 네 끝이 아니다.
+
+Cor mundum crea in me, Deus.
+주여, 제 안에 깨끗한 마음을 다시 세우소서.
+
+괴이여, 물러가라.
+뒤틀림이여, 풀려라.
+경계에 선 자여, 돌아서라.
+
+인간이여.
+
+그 이름을 기억하라.
+그 삶을 기억하라.
+
+돌아오라.</div></details>
+  </article>
+  <article class="rite danger">
+    <span class="tag">CAELUM · 제0식 · 소멸</span><h3>Clavis Communis, Caelum 제0식 — VANITAS</h3>
+    <p>골든타임이 끝난 오르트로스를 소멸시키는 최종 전례입니다. <code>Caelum</code>은 하늘·천상을 뜻하며, 골든타임을 잃은 존재의 최종 처분을 인간의 판단이 아니라 주의 영역에 맡긴다는 의미입니다.</p>
+    <div class="formula">오르트로스 제압 → 저항능력 상실 → Vanitas 봉독 → 약 20초간 영창 유지 → 소멸</div>
+    <ul><li>봉독 중 사제는 다른 전투행동을 거의 수행할 수 없어 동료의 보호가 필요합니다.</li>
+    <li>사용 후 강한 정신적 피로·일시적 허무감·감정 둔화·현실감 저하·집중력 저하가 나타날 수 있습니다.</li>
+    <li>반복 사용은 정신에 큰 부담을 남기므로 반드시 필요한 상황에서만 시행합니다.</li></ul>
+    <details class="fold"><summary><span class="lbl">영창문</span><span class="meta">23행</span></summary><div class="chant">Memento, homo, quia pulvis es, et in pulverem reverteris.
+사람아, 너는 티끌이니 티끌로 돌아갈 것을 기억하라.
+
+고한다.
+이미 꺾인 욕망이여, 다시 이름을 얻지 말라.
+이미 무너진 집착이여, 다시 형상을 취하지 말라.
+분노는 재로,
+증오는 티끌로,
+갈망은 침묵으로
+그대가 원한 것은 끝내 그대를 채우지 못했고,
+그대가 붙잡은 것은 마지막까지 그대를 구하지 못했다.
+그러니 끝난 것은 끝난 채로
+스러진 것은 스러진 채로
+티끌에서 온 것은 티끌로.
+허무에서 비롯된 것은 허무로.
+주의 앞에서 모든 집착은 풀리고,
+모든 욕망은 마침내 자신의 끝을 안다.
+그러므로 다시 고한다.
+그대에게 남을 이름은 없고,
+그대에게 남을 내일도 없다.
+그렇다면 흘린 피에 남을 뜻은 없으니,
+Vanitas vanitatum.
+Et omnia vanitas.
+
+편히 잠드소서</div></details>
+  </article>
+</section>
+
+<section id="seraph" data-searchable><div class="shead"><span class="sno">08</span><h2>세라프와 세라피안</h2></div><p class="lead">세라프는 아르케를 따르는 천사적 존재입니다. 강력한 염원을 품었으면서도 욕망에 정신을 빼앗기지 않은 인간에게 접근해, 염원을 이루어주겠다고 약속하는 대신 오르트로스를 저지해달라는 계약을 제안하고 권능을 빌려줍니다.</p>
+  <div class="grid g2">
+    <article class="card violet"><span class="tag">Attitude</span><h3>소원을 대하는 태도</h3>
+      <p>세라프마다 다릅니다. <strong>이뤄줄 수 없음을 알면서 속이는 쪽</strong>, <strong>아르케의 약속을 믿고 함께 속고 있는 쪽</strong>, <strong>그럼에도 자신이 할 수 있는 범위에서 계약자의 소원을 이뤄주려는 쪽</strong>이 함께 있습니다.</p></article>
+    <article class="card"><span class="tag">Motif</span><h3>배분 모티브</h3>
+      <p>세라프의 권능 계통과 계약자의 염원은 카발라·게마트리아로 해석된 히브리 문자를 모티브로 배분합니다.</p></article>
+  </div>
+
+  <h4>현신</h4>
+  <div class="note"><b>계약자의 눈에만 보임</b>
+    <p>여기서 계약자란 자신의 계약자만이 아니라 <strong>세라프와 계약한 모든 인간</strong>을 말합니다. 그 밖의 사람에게는 보이지 않습니다.</p>
+    <p>영체화해 계약자의 소지품에 깃들어 있을 수 있고, 형체를 드러낸 채 함께 다닐 수도 있습니다. 보이지 않을 뿐 물리력은 있어 만질 수 있고 음식을 먹을 수 있으며 부딪히기도 합니다.</p>
+    <p><strong>세라프가 물건에 남긴 변화는 비계약자에게도 그대로 관측됩니다.</strong> 음식이 저절로 줄어들고 컵이 혼자 움직이는 것으로 보이므로, 계약자는 사람이 있는 곳에서 세라프의 행동을 단속해야 합니다.</p>
+    <p>형체를 드러낸 채 다니다 다른 세라피안과 마주치면 서로를 알아볼 수 있습니다.</p></div>
+
+  <h4>세라피안</h4>
+  <p>세라프에게 선택되어 계약한 인간. 세라프의 권능과 자신의 염원을 결합해 변신하며, 변신 중에도 의식과 주도권을 잃지 않습니다.</p>
+  <div class="formula">욕망에 자신을 빼앗긴 인간 → 오르트로스<br>염원을 자신의 것으로 붙잡은 인간 → 세라피안이 될 가능성</div>
+  <p>조건은 단순히 욕망이 강한 것이 아니라 <strong>강한 욕망을 자신의 의지 아래 유지하는 것</strong>입니다. 염원이 구체적인 목표로 언어화되어 있을 필요는 없습니다. 아직 말이 되지 못한 욕망들이 하나의 물음으로 뭉쳐 있는 경우도 강한 염원으로 성립합니다.</p>
+  <p>세라피안은 단일 조직이 아닙니다. 서로 다른 상황에서 개별 계약하며 서로의 존재조차 모를 수 있고, 대부분 계약한 세라프의 요청과 지시에 따라 괴이 사건에 개입합니다.</p>
+
+  <h4>사회적 인식</h4>
+  <div class="grid g2">
+    <article class="card"><span class="tag">Church</span><h3>성당교회의 인지</h3><p>세라피안의 존재를 인지합니다. 다만 누가 세라피안인지는 알지 못하며, 현장에 나타난 존재를 보고 세라피안임을 알아보는 정도입니다.</p></article>
+    <article class="card"><span class="tag">Public</span><h3>도시전설</h3><p>시민들은 도시전설로 취급합니다. 이미 과학력으로 제압하는 대책반이 있으므로 자작 슈트를 입고 히어로 행세를 하는 관심 끌기로 보는 시선도 있습니다. 신화적 식견이 뛰어나거나 신앙이 있는 사람은 그 존재를 믿습니다.</p></article>
+  </div>
+  <p>변신 전 정체를 숨기는 것이 일반적입니다. 공개 시 정부기관의 감시, 언론·대중의 관심, 범죄조직의 접근, 주변인 위협, 오르트로스와 적대세력의 표적화 위험이 생깁니다.</p>
+
+  <h4>전투적 위치</h4>
+  <div class="note"><b>정화의 힘</b>
+    <p>세라프의 권능에는 정화의 힘이 포함됩니다. 계약과 함께 빌려주므로 세라피안은 사제의 봉독 없이도 오르트로스를 인간으로 되돌릴 수 있습니다. 평상시의 공격에도 정화가 함께 작용하며, 정화 방식과 연출은 계약한 세라프마다 다릅니다.</p>
+    <p><strong>필살기는 특히 강한 정화력을 지닙니다.</strong> 봉독을 여러 번 반복해야 하는 상급 개체도 필살기 한 번으로 정리할 수 있습니다. 다만 필살기에는 준비시간이 필요하고 그동안 견제와 보호가 있어야 합니다.</p></div>
+  <div class="formula">골든타임 내 = 정화　·　골든타임 경과 = 소멸　·　상급 개체 = 필살기 필요</div>
+  <p>수가 적고 공식 출동망과 지휘체계가 없다는 약점이 있습니다. 대책반과 성당교회 입장에서는 강력한 아군이면서 누구도 완전히 통제할 수 없는 변수입니다.</p>
+  <blockquote class="pull"><strong>“싸울 수 있으며,
+그 싸움의 끝을 스스로 결정할 수도 있다.”</strong></blockquote>
+</section>
+
+<section id="nymph" data-searchable><div class="shead"><span class="sno">09</span><h2>NYMPH</h2></div><p class="lead">신의 존재와 천계의 개입을 부정하고 과학의 힘을 맹신하는 비인가 지하 비밀조직. 성당교회·오르트로스 집단과 모두 별개의 세력입니다.</p>
+  <p class="eyebrow">Neuron Yearn for Mortality Precluding Heaven</p>
+  <div class="grid g2">
+    <article class="card"><span class="tag">Proof</span><h3>인간의 힘으로</h3><p>자체 제작한 변신 벨트와 과학식 변신체를 운용해 인간의 힘만으로 오르트로스를 격파할 수 있음을 증명하려 합니다. 신화 속 승리 역시 신과 천사가 아니라 인간의 힘으로 이룬 결과라고 주장합니다. 변신체 코드명은 각각 수학·화학·뇌과학에서 따왔습니다.</p></article>
+    <article class="card danger"><span class="tag">Doctrine</span><h3>정화 부정</h3><p>정화된 인간이 당분간 재괴인화에 취약하고 충동이 심해진다는 사실을 근거로, 골든타임이 남은 오르트로스도 소멸·사살하는 것을 최우선으로 삼습니다. 돌아올 수 있는 인간을 구하려는 성당교회·세라피안과의 주요 마찰점입니다.</p></article>
+  </div>
+  <article class="card violet"><span class="tag">Special AI</span><h3>이즘</h3>
+    <p>피트가 개발한 여성형 특수 AI. 변신체 오퍼레이팅, 실시간 전투 보조, 전장·적 능력 분석, 대규모 가상 전투 시뮬레이션을 담당합니다. NYMPH의 변신체는 이즘이 시뮬레이션한 전투 데이터를 기반으로 설계·제작됐습니다.</p></article>
+</section>
+
+<section id="response" data-searchable><div class="shead"><span class="sno">10</span><h2>일반적인 괴이 사건 대응</h2></div>
+  <ul class="tl">
+    <li><b>01 발생</b><span>인간이 변이하며 골든타임이 시작됩니다.</span></li>
+    <li><b>02 대책반 출동</b><span>전술 트럭 전개, 봉쇄·대피·견제·이동 저지.</span></li>
+    <li><b>03 판정</b><span>오퍼레이터가 모체 신원과 예상 골든타임을 고지합니다.</span></li>
+    <li><b>04 초동 종결 판단</b><span>변이 극초기이거나 8·7·6급 하급 개체면 대책반이 제압만으로 사건을 끝낼 수 있습니다.</span></li>
+    <li><b>05 지원 도착</b><span>그 밖의 경우 성당교회 또는 세라피안이 오르트로스를 충분히 무력화합니다.</span></li>
+    <li><b>06 최종 처리</b><span>골든타임 내에는 정화, 경과 후에는 소멸. 정화는 봉독을 반복하는 동안 대책반이 대상을 붙들어 둡니다.</span></li>
+    <li><b>07 수습</b><span>대책반이 구조·조사·피해 통제와 사후 처리를 담당하고, 등급에 따라 관리 주체가 정해집니다.</span></li>
+  </ul>
+  <div class="note danger"><b>NYMPH 개입 시</b><p>골든타임과 무관한 사살을 시도하기 때문에 성당교회·세라피안·대책반과 현장에서 충돌할 수 있습니다.</p></div>
+</section>
+
+<section id="core" data-searchable><div class="shead"><span class="sno">11</span><h2>세계관의 핵심 대칭</h2></div><p class="lead">오르트로스와 세라피안은 모두 인간의 강렬한 욕망에서 출발하지만 인간과 욕망의 관계가 반대입니다.</p>
+  <div class="grid g2">
+    <article class="card danger"><span class="tag">Consumed</span><h3>욕망이 인간을 집어삼키면</h3><p>오르트로스가 됩니다.</p></article>
+    <article class="card safe"><span class="tag">Held</span><h3>염원을 끝까지 자신의 것으로 붙잡으면</h3><p>세라피안이 될 가능성이 생깁니다.</p></article>
+  </div>
+  <div class="grid g4">
+    <article class="card"><h3>괴이사건대책반</h3><p>과학으로 시간을 법니다.</p></article>
+    <article class="card gold"><h3>성당교회</h3><p>말씀으로 사람을 되돌리거나 끝을 고합니다.</p></article>
+    <article class="card violet"><h3>세라피안</h3><p>자신의 염원과 세라프의 힘으로 직접 맞섭니다.</p></article>
+    <article class="card danger"><h3>NYMPH</h3><p>재발 가능성 자체를 제거하려 합니다.</p></article>
+  </div>
+  <blockquote class="pull">괴이 사건은 괴물을 쓰러뜨리는 싸움만이 아니라,<br>한 인간이 아직 돌아올 수 있는가 이미 돌아올 수 없는 곳까지 갔는가를 두고 벌어지는<br><strong>시간과 욕망의 싸움</strong>입니다.</blockquote>
+</section>
+
+<section id="start" data-searchable><div class="shead"><span class="sno">12</span><h2>기본 시작과 모드</h2></div><p class="lead">기본 시작 시점은 웹툰 이후. 평범한 대학생 {{{{user}}}}가 저녁 귀가 중 오르트로스에게 습격받으며 시작합니다.</p>
+  <p>사건 속에서 염원을 정하고, 염원의 방향에 따라 시작 세라프 세 명 중 하나와 계약합니다. 현대에는 여섯 세라프와 계약한 여섯 세라피안이 오르트로스와 싸웁니다.</p>
+  <div class="grid g3">
+    <article class="card safe"><span class="tag">질서</span><h3>아리엘 [AR]</h3></article>
+    <article class="card"><span class="tag">중립</span><h3>루미엘 [LM]</h3></article>
+    <article class="card danger"><span class="tag">혼돈</span><h3>유리엘 [UR]</h3></article>
+  </div>
+  <div class="grid g4">
+    <article class="card"><h3>기본 모드</h3><p>사건 진행 중 염원을 입력합니다.</p></article>
+    <article class="card"><h3>확정 매칭</h3><p>지정한 세라프와 계약합니다.</p></article>
+    <article class="card"><h3>세력 스타트</h3><p>NYMPH 또는 괴이사건대책반. 대책반에서는 슈트 운용자 3인 중 남은 한 자리를 맡습니다.</p></article>
+    <article class="card"><h3>커스텀 스타트</h3><p>별도의 조건으로 시작합니다.</p></article>
+  </div>
+</section>
+
+<section id="index" data-searchable><div class="shead"><span class="sno">13</span><h2>인물·명칭 색인</h2></div>
+  <h4>세라피안과 세라프</h4>
+  <div class="roster">
+    <div class="row"><span class="code">SY</span><span class="nm">시연</span><span class="ds">헤(He) · 보라색 · 창조</span><span class="arrow">→</span><span class="ds">하니엘 [HN]</span></div>
+    <div class="row"><span class="code">KY</span><span class="nm">김예나</span><span class="ds">자인(Zayin) · 전투 · 싸움</span><span class="arrow">→</span><span class="ds">제르엘 [ZR]</span></div>
+    <div class="row"><span class="code">CS</span><span class="nm">차서린</span><span class="ds">아인(Ayin) · 눈 · 보다 · 빛</span><span class="arrow">→</span><span class="ds">아즈라엘 [AZ]</span></div>
+    <div class="row"><span class="code">HW</span><span class="nm">한우리</span><span class="ds">헤트(Chet) · 숨기다 · 덮다</span><span class="arrow">→</span><span class="ds">카마엘 [KM]</span></div>
+    <div class="row"><span class="code">SA</span><span class="nm">이세아</span><span class="ds">달레트(Dalet) · 거지</span><span class="arrow">→</span><span class="ds">다니엘 [DN]</span></div>
+    <div class="row"><span class="code">GT</span><span class="nm">고태웅</span><span class="ds">알레프(Aleph) · 힘 · 최초의 · 신</span><span class="arrow">→</span><span class="ds">아브디엘 [AB]</span></div>
+  </div>
+  <div class="grid g2">
+    <article class="card"><span class="tag">Task force</span><h3>괴이사건대책반</h3><ul>
+      <li>장현성 [JH] — E4 운용자</li>
+      <li>윤도연 [YD] — E3 운용자</li>
+      <li>장세라 [JS] — 오퍼레이터</li>
+      <li>김헌철 [KH] — 현장 감찰팀 팀장</li>
+      <li>정나은 [JN] — 현장 감찰관</li>
+      <li>슈트 운용자 3인 중 한 자리 — 대책반 스타트의 <code>{{user}}</code></li></ul></article>
+    <article class="card danger"><span class="tag">NYMPH</span><h3>NYMPH</h3><ul>
+      <li>셰리 [SH] — 인테그라 · 수학</li>
+      <li>진 [JI] — 아이오딘 · 화학</li>
+      <li>코스모 [CM] — 포비아 · 뇌과학</li>
+      <li>피트 [PT] — 연구원·과학자, 이즘 개발자</li>
+      <li>이즘 [IZ] — 여성형 특수 AI</li></ul></article>
+    <article class="card gold"><span class="tag">Church</span><h3>성당교회 한국지부</h3><ul>
+      <li>마리 [MR] — 필리우스 전문</li>
+      <li>라파엘 [RF] — 파테르 전문</li>
+      <li>예로니모 [YR] — 스피리투스 전문, 파테르 겸수. NUNC DIMITTIS 보유</li></ul></article>
+    <article class="card violet"><span class="tag">Divine</span><h3>핵심 존재</h3><ul>
+      <li>아르케 [AK] — 천사 측 신</li>
+      <li>티폰 [TP] — 오르트로스 측 신</li>
+      <li>아리엘 [AR] · 유리엘 [UR] · 루미엘 [LM] — 시작 세라프</li></ul></article>
+  </div>
+</section>
+
+<section id="assets" data-searchable><div class="shead"><span class="sno">14</span><h2>제작용 에셋 기준</h2></div><p class="lead">세력과 역할에 따라 준비할 이미지 범위를 구분합니다.</p>
+  <div class="grid g3">
+    <article class="card violet"><h3>세라프 · 신</h3><ul><li>세라프: 감정, 전투</li><li>신: 권능, 감정</li></ul></article>
+    <article class="card accent"><h3>세라피안</h3><p>변신 전 감정, 변신, 전투, 필살기, 패배, 잠식.</p></article>
+    <article class="card danger"><h3>NYMPH</h3><p>변신 전 감정, 변신, 전투, 필살기, 패배.</p></article>
+    <article class="card"><h3>괴이사건대책반</h3><p>변신 전 감정, 변신, 전투, 필살기, 패배.</p></article>
+    <article class="card"><h3>오르트로스</h3><p>기본 2장.</p></article>
+    <article class="card"><h3>민간인</h3><p>감정, 전투, 패배.</p></article>
+  </div>
+</section>
+
+  <footer>SER WORLD GUIDEBOOK · 확정 설정 기준</footer>
+</div></main>
+</div>
+<script>
+(function(){
+  var links = [].slice.call(document.querySelectorAll('aside a'));
+  var secs  = links.map(function(a){ return document.querySelector(a.getAttribute('href')); });
+  if('IntersectionObserver' in window){
+    var spy = new IntersectionObserver(function(es){
+      es.forEach(function(e){
+        if(!e.isIntersecting) return;
+        var i = secs.indexOf(e.target);
+        links.forEach(function(a,j){ a.classList.toggle('on', i===j); });
+      });
+    }, {rootMargin:'-20% 0px -70% 0px'});
+    secs.forEach(function(s){ if(s) spy.observe(s); });
+  }
+
+  window.addEventListener('beforeprint', function(){
+    document.querySelectorAll('details.fold').forEach(function(d){ d.dataset.was = d.open ? '1' : ''; d.open = true; });
+  });
+  window.addEventListener('afterprint', function(){
+    document.querySelectorAll('details.fold').forEach(function(d){ d.open = d.dataset.was === '1'; });
+  });
+
+  var q = document.getElementById('q');
+  var empty = document.getElementById('empty');
+  q.addEventListener('input', function(){
+    var term = q.value.trim().toLowerCase();
+    var hit = 0;
+    secs.forEach(function(s,i){
+      if(!s) return;
+      var show = !term || s.textContent.toLowerCase().indexOf(term) !== -1;
+      s.style.display = show ? '' : 'none';
+      links[i].style.display = show ? '' : 'none';
+      if(show) hit++;
+    });
+    empty.classList.toggle('on', term && hit === 0);
+  });
+})();
+</script>
+</body>
+</html>
