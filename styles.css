@@ -90,6 +90,7 @@ h2 { margin: 0; font: 500 clamp(36px, 5vw, 58px)/1.15 Georgia, 'Noto Serif KR', 
 .character-group { margin: 0 0 8px; color: var(--gold); font-size: 11px; font-weight: 750; }
 .character-name { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin: 0; font-size: 21px; }
 .character-name span { color: var(--muted); font: 600 12px/1 Georgia, serif; }
+.character-english-name { margin: 3px 0 0; color: var(--muted); font: 400 13px/1.4 Georgia, serif; overflow-wrap: break-word; }
 .character-role { min-height: 48px; margin: 8px 0 16px; color: var(--muted); font-size: 14px; }
 .copy-button { width: 100%; color: var(--ink); font-size: 13px; }
 .copy-button:hover { border-color: var(--gold); }

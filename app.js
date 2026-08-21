@@ -14,7 +14,7 @@ function render() {
   const term = search.value.trim().toLocaleLowerCase('ko');
   const visible = characters.filter((character) => {
     const inGroup = activeFilter === 'all' || character.group === activeFilter;
-    const haystack = `${character.name} ${character.code} ${character.role} ${character.groupLabel}`.toLocaleLowerCase('ko');
+    const haystack = `${character.name} ${character.englishName} ${character.code} ${character.role} ${character.groupLabel}`.toLocaleLowerCase('ko');
     return inGroup && (!term || haystack.includes(term));
   });
 
@@ -24,6 +24,7 @@ function render() {
       <div class="character-info">
         <p class="character-group">${character.groupLabel}</p>
         <h3 class="character-name">${character.name}<span>${character.code}</span></h3>
+        <p class="character-english-name" lang="en">${character.englishName}</p>
         <p class="character-role">${character.role}</p>
         <button class="copy-button" type="button" data-copy-code="${character.code}">이미지 Markdown 복사</button>
       </div>
