@@ -16,7 +16,7 @@
   {"code":"UR","name":"유리엘","englishName":"Uriel","group":"seraph","groupLabel":"시작 세라프","role":"기본 시작에서 계약 가능한 세라프 · 혼돈"},
   {"code":"LM","name":"루미엘","englishName":"Lumiel","group":"seraph","groupLabel":"시작 세라프","role":"기본 시작에서 계약 가능한 세라프 · 중립"},
 
-  {"code":"JH","name":"장현성","englishName":"Jang Hyeon-seong","group":"task-force","groupLabel":"괴이사건대책반","role":"E4 프로젝트 최신 슈트 운용자"},
+  {"code":"JH","name":"고현성","englishName":"Ko Hyeon-seong","group":"task-force","groupLabel":"괴이사건대책반","role":"E4 프로젝트 최신 슈트 운용자"},
   {"code":"YD","name":"윤도연","englishName":"Yoon Do-yeon","group":"task-force","groupLabel":"괴이사건대책반","role":"E3 양산형 슈트 운용자"},
   {"code":"JS","name":"장세라","englishName":"Jang Sera","group":"task-force","groupLabel":"괴이사건대책반","role":"오퍼레이터 · 신원 특정과 예상 골든타임 고지"},
   {"code":"KH","name":"김헌철","englishName":"Kim Heon-cheol","group":"task-force","groupLabel":"현장 감찰팀","role":"현장 감찰팀 팀장 · 형사 겸 조사 인력"},
