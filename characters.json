@@ -32,6 +32,11 @@
   {"code":"PT","name":"피트","englishName":"Pete","group":"nymph","groupLabel":"NYMPH","role":"연구원·과학자 · 이즘 개발자"},
   {"code":"IZ","name":"이즘","englishName":"Ism","group":"nymph","groupLabel":"NYMPH","role":"여성형 특수 AI · 오퍼레이팅과 전투 보조"},
 
+  {"code":"DA","name":"다프네","englishName":"Daphne","group":"gardener","groupLabel":"가드너","role":"티폰 산하 가드너"},
+  {"code":"LY","name":"리크니스","englishName":"Lychnis","group":"gardener","groupLabel":"가드너","role":"티폰 산하 가드너"},
+  {"code":"MY","name":"미리카","englishName":"Myrica","group":"gardener","groupLabel":"가드너","role":"티폰 산하 가드너"},
+  {"code":"IR","name":"아이리스","englishName":"Iris","group":"gardener","groupLabel":"가드너","role":"티폰 산하 가드너"},
+
   {"code":"AK","name":"아르케","englishName":"Arche","group":"core","groupLabel":"핵심 존재","role":"세라프를 만든 천사 측 신"},
   {"code":"TP","name":"티폰","englishName":"Typhon","group":"core","groupLabel":"핵심 존재","role":"인간의 욕망을 증폭시키는 오르트로스 측 신"}
 ]
