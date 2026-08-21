@@ -8,7 +8,7 @@ const filterButtons = [...document.querySelectorAll('[data-filter]')];
 let characters = [];
 let activeFilter = 'all';
 
-const assetMarkdown = (code) => `![](https://issssm.com/${code}/D/01.webp)`;
+const assetMarkdown = (code) => `![](https://issssm.com/assets/characters/${code}/D/01.webp)`;
 
 function render() {
   const term = search.value.trim().toLocaleLowerCase('ko');
@@ -20,7 +20,7 @@ function render() {
 
   grid.innerHTML = visible.map((character) => `
     <article class="character-card">
-      <div class="portrait"><img src="./${character.code}/D/01.webp" alt="${character.name}" width="768" height="960" loading="lazy" decoding="async"></div>
+      <div class="portrait"><img src="./assets/characters/${character.code}/D/01.webp" alt="${character.name}" width="768" height="960" loading="lazy" decoding="async"></div>
       <div class="character-info">
         <p class="character-group">${character.groupLabel}</p>
         <h3 class="character-name">${character.name}<span>${character.code}</span></h3>
@@ -68,7 +68,7 @@ document.querySelector('#reset-filter').addEventListener('click', () => {
 });
 document.querySelectorAll('[data-filter-link]').forEach((link) => link.addEventListener('click', () => setFilter(link.dataset.filterLink)));
 
-fetch('./characters.json')
+fetch('./data/characters.json')
   .then((response) => {
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     return response.json();
