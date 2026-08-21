@@ -15,6 +15,7 @@
   {"code":"AR","name":"아리엘","englishName":"Ariel","group":"seraph","groupLabel":"시작 세라프","role":"기본 시작에서 계약 가능한 세라프 · 질서"},
   {"code":"UR","name":"유리엘","englishName":"Uriel","group":"seraph","groupLabel":"시작 세라프","role":"기본 시작에서 계약 가능한 세라프 · 혼돈"},
   {"code":"LM","name":"루미엘","englishName":"Lumiel","group":"seraph","groupLabel":"시작 세라프","role":"기본 시작에서 계약 가능한 세라프 · 중립"},
+  {"code":"LT","name":"라티엘","englishName":"Latiel","group":"seraph","groupLabel":"시작 세라프","role":"기본 시작에서 계약 가능한 세라프 · 진 중립"},
 
   {"code":"JH","name":"고현성","englishName":"Ko Hyeon-seong","group":"task-force","groupLabel":"괴이사건대책반","role":"E4 프로젝트 최신 슈트 운용자"},
   {"code":"YD","name":"윤도연","englishName":"Yoon Do-yeon","group":"task-force","groupLabel":"괴이사건대책반","role":"E3 양산형 슈트 운용자"},
