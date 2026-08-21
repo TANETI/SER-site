@@ -12,7 +12,7 @@
   {"code":"KM","name":"카마엘","englishName":"Kamael","group":"seraph","groupLabel":"계약 세라프","role":"한우리의 계약 세라프"},
   {"code":"DN","name":"다니엘","englishName":"Daniel","group":"seraph","groupLabel":"계약 세라프","role":"이세아의 계약 세라프"},
   {"code":"AB","name":"아브디엘","englishName":"Abdiel","group":"seraph","groupLabel":"계약 세라프","role":"고태웅의 계약 세라프"},
-  {"code":"AR","name":"아리엘","englishName":"Ariel","group":"seraph","groupLabel":"시작 세라프","role":"기본 시작에서 계약 가능한 세라프 · 무조건적인 선"},
+  {"code":"AR","name":"아리엘","englishName":"Ariel","group":"seraph","groupLabel":"시작 세라프","role":"기본 시작에서 계약 가능한 세라프 · 질서 선"},
   {"code":"UR","name":"유리엘","englishName":"Uriel","group":"seraph","groupLabel":"시작 세라프","role":"기본 시작에서 계약 가능한 세라프 · 혼돈 선"},
   {"code":"LM","name":"루미엘","englishName":"Lumiel","group":"seraph","groupLabel":"시작 세라프","role":"기본 시작에서 계약 가능한 세라프 · 중립 선"},
   {"code":"LT","name":"라티엘","englishName":"Latiel","group":"seraph","groupLabel":"시작 세라프","role":"기본 시작에서 계약 가능한 세라프 · 진 중립"},
