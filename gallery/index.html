@@ -21,6 +21,10 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);
   font-size:15px;line-height:1.6;padding:32px 20px 80px}
 .wrap{max-width:1240px;margin:0 auto}
 h1{font-size:26px;margin:0 0 6px;letter-spacing:-.02em}
+.back{display:flex;gap:14px;margin:0 0 18px}
+.back a{color:var(--dim);text-decoration:none;font-size:13px;
+  padding:6px 12px;border:1px solid var(--line);border-radius:3px;background:var(--panel)}
+.back a:hover{color:var(--strong);border-color:var(--gold)}
 .lead{color:var(--dim);margin:0 0 24px;font-size:14px}
 .lead code{font-family:var(--mono);color:var(--steel)}
 
@@ -72,6 +76,10 @@ footer{margin-top:40px;font-family:var(--mono);font-size:10.5px;letter-spacing:.
 </head>
 <body>
 <div class="wrap">
+  <nav class="back" aria-label="사이트 메뉴">
+    <a href="../">← 세계관 정보</a>
+    <a href="../guidebook/">가이드북</a>
+  </nav>
   <h1>에셋 제작 현황</h1>
   <p class="lead">제작 확인용 임시 페이지입니다. 예상 물량=감정 <code>25</code> · 변신·전투 <code>3</code> · 일상 <code>7</code> · NSFW <code>36</code>(여성 전용).
   일상과 NSFW는 상황번호가 아직 배정되지 않아 보유분만 칸으로 보입니다. 성별 미확정 인물은 NSFW를 예상치에서 제외합니다.</p>
