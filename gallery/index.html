@@ -1,0 +1,158 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<meta name="theme-color" content="#10141d">
+<title>에셋 제작 현황</title>
+<link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+<link rel="stylesheet" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
+<style>
+:root{
+  --bg:#0E1319; --panel:#151B23; --panel2:#1A212A; --line:#27313D;
+  --ink:#E8EBEF; --strong:#FBFCFD; --dim:#98A3B1; --faint:#66717E;
+  --gold:#C39B4E; --steel:#7396B5; --safe:#5C9C85; --danger:#BF574F;
+  --sans:"Pretendard Variable",Pretendard,"Malgun Gothic",sans-serif;
+  --mono:ui-monospace,"D2Coding",monospace;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);
+  font-size:15px;line-height:1.6;padding:32px 20px 80px}
+.wrap{max-width:1240px;margin:0 auto}
+h1{font-size:26px;margin:0 0 6px;letter-spacing:-.02em}
+.lead{color:var(--dim);margin:0 0 24px;font-size:14px}
+.lead code{font-family:var(--mono);color:var(--steel)}
+
+.sum{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));
+  border-top:1px solid var(--line);border-bottom:1px solid var(--line);margin-bottom:22px}
+.sum div{padding:14px 16px 14px 0;border-right:1px solid var(--line)}
+.sum div:last-child{border-right:0}
+.sum b{display:block;font-size:22px;color:var(--strong);font-variant-numeric:tabular-nums}
+.sum span{font-family:var(--mono);font-size:10px;letter-spacing:.14em;color:var(--faint);text-transform:uppercase}
+
+.bar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:24px}
+.bar button{font:inherit;font-size:13px;padding:7px 14px;border:1px solid var(--line);
+  background:var(--panel);color:var(--dim);border-radius:3px;cursor:pointer}
+.bar button:hover{color:var(--ink)}
+.bar button[aria-pressed="true"]{background:var(--gold);border-color:var(--gold);color:#10141d;font-weight:600}
+
+.grp{font-family:var(--mono);font-size:11px;letter-spacing:.2em;color:var(--gold);
+  text-transform:uppercase;margin:30px 0 10px;padding-bottom:6px;border-bottom:1px solid var(--line)}
+
+.row{display:grid;grid-template-columns:150px 1fr;gap:16px;align-items:start;
+  padding:14px 0;border-bottom:1px solid var(--line)}
+.who .nm{font-size:16px;color:var(--strong);font-weight:600}
+.who .cd{font-family:var(--mono);font-size:11px;color:var(--gold);letter-spacing:.08em}
+.who .pg{margin-top:6px;height:4px;background:var(--panel2);overflow:hidden}
+.who .pg i{display:block;height:100%;background:var(--safe)}
+.who .pct{font-family:var(--mono);font-size:11px;color:var(--dim);margin-top:4px;
+  font-variant-numeric:tabular-nums}
+
+.cells{display:grid;grid-template-columns:repeat(auto-fill,minmax(56px,1fr));gap:4px}
+.cell{position:relative;aspect-ratio:1;background:var(--panel);border:1px solid var(--line);
+  display:flex;align-items:center;justify-content:center;overflow:hidden}
+.cell img{width:100%;height:100%;object-fit:cover;display:block}
+.cell .n{position:absolute;left:2px;bottom:1px;font-family:var(--mono);font-size:9px;
+  color:#fff;text-shadow:0 0 3px #000;letter-spacing:.04em}
+.cell.miss{background:repeating-linear-gradient(45deg,#131920,#131920 5px,#161D26 5px,#161D26 10px)}
+.cell.miss .n{position:static;color:var(--faint);text-shadow:none;font-size:11px}
+.cell.nsfw{border-color:var(--danger)}
+.cell a{display:block;width:100%;height:100%}
+
+footer{margin-top:40px;font-family:var(--mono);font-size:10.5px;letter-spacing:.12em;color:var(--faint)}
+@media(max-width:640px){
+  body{padding:22px 14px 60px}
+  .row{grid-template-columns:1fr;gap:10px}
+  .sum div{border-right:0;border-bottom:1px solid var(--line)}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>에셋 제작 현황</h1>
+  <p class="lead">제작 확인용 임시 페이지입니다. 기대 목록=<code>01~25</code> 감정 · <code>101~103</code> 변신·전투 · <code>301</code> NSFW.</p>
+
+  <div class="sum" id="sum"></div>
+  <div class="bar" id="bar"></div>
+  <div id="list"></div>
+  <footer>SERAPH PROJECT · ASSET STATUS · 빌드 시각 기준</footer>
+</div>
+
+<script>
+const BASE = 'https://srp.issssm.com';
+const EXPECT = [
+  ...Array.from({length:25},(_,i)=>String(i+1).padStart(2,'0')),
+  '101','102','103','301'
+];
+const BANDS = [
+  {key:'all',   label:'전체',      test:()=>true},
+  {key:'emo',   label:'감정 01~25', test:n=>Number(n)<100},
+  {key:'battle',label:'변신·전투',  test:n=>Number(n)>=101&&Number(n)<200},
+  {key:'nsfw',  label:'NSFW 301~', test:n=>Number(n)>=301}
+];
+let band = 'all', people = [], have = {};
+
+async function boot(){
+  const [cs, as] = await Promise.all([
+    fetch('../data/characters.json').then(r=>r.json()),
+    fetch('../data/assets.json').then(r=>r.json()).catch(()=>({}))
+  ]);
+  people = cs; have = as;
+  document.getElementById('bar').innerHTML = BANDS.map(b =>
+    `<button type="button" data-band="${b.key}" aria-pressed="${b.key===band}">${b.label}</button>`).join('');
+  document.getElementById('bar').addEventListener('click', e => {
+    const b = e.target.closest('button'); if(!b) return;
+    band = b.dataset.band;
+    document.querySelectorAll('#bar button').forEach(x =>
+      x.setAttribute('aria-pressed', String(x.dataset.band===band)));
+    render();
+  });
+  render();
+}
+
+function render(){
+  const shown = EXPECT.filter(BANDS.find(b=>b.key===band).test);
+  const total = people.length * shown.length;
+  let owned = 0, done = 0;
+  const groups = {};
+  for(const p of people){
+    const mine = have[p.code] || [];
+    const n = shown.filter(s => mine.includes(s)).length;
+    owned += n;
+    if(n === shown.length) done++;
+    (groups[p.groupLabel] ||= []).push({p, mine, n, of: shown.length});
+  }
+  document.getElementById('sum').innerHTML = `
+    <div><b>${people.length}</b><span>인물</span></div>
+    <div><b>${owned}<span style="color:var(--faint)">/${total}</span></b><span>보유 에셋</span></div>
+    <div><b>${total?Math.round(owned/total*100):0}%</b><span>진행률</span></div>
+    <div><b>${done}</b><span>완성 인물</span></div>`;
+
+  document.getElementById('list').innerHTML = Object.entries(groups).map(([label, rows]) => `
+    <div class="grp">${label}</div>
+    ${rows.map(({p, mine, n, of}) => `
+      <div class="row">
+        <div class="who">
+          <div class="nm">${p.name}</div>
+          <div class="cd">${p.code}</div>
+          <div class="pg"><i style="width:${of?n/of*100:0}%"></i></div>
+          <div class="pct">${n} / ${of}</div>
+        </div>
+        <div class="cells">
+          ${shown.map(s => {
+            const url = `${BASE}/${p.code}/D/${s}.webp`;
+            const nsfw = Number(s) >= 301 ? ' nsfw' : '';
+            return mine.includes(s)
+              ? `<div class="cell${nsfw}"><a href="${url}" target="_blank" rel="noreferrer">
+                   <img src="${url}" alt="${p.name} ${s}" loading="lazy" decoding="async">
+                   <span class="n">${s}</span></a></div>`
+              : `<div class="cell miss${nsfw}"><span class="n">${s}</span></div>`;
+          }).join('')}
+        </div>
+      </div>`).join('')}`).join('');
+}
+boot();
+</script>
+</body>
+</html>
