@@ -1,107 +1,198 @@
 {
-"AB": [
+"AB": {
+"shots": [
 "01"
 ],
-"AC": [
+"sex": null
+},
+"AC": {
+"shots": [
 "01"
 ],
-"AR": [
+"sex": "여성"
+},
+"AR": {
+"shots": [
 "01"
 ],
-"AZ": [
+"sex": null
+},
+"AZ": {
+"shots": [
 "01"
 ],
-"CM": [
+"sex": null
+},
+"CM": {
+"shots": [
 "01"
 ],
-"CS": [
+"sex": "여성"
+},
+"CS": {
+"shots": [
 "01",
 "101",
 "102",
 "103"
 ],
-"DN": [
+"sex": "여성"
+},
+"DN": {
+"shots": [
 "01"
 ],
-"DP": [
+"sex": null
+},
+"DP": {
+"shots": [
 "01"
 ],
-"GN": [
+"sex": null
+},
+"GN": {
+"shots": [
 "01"
 ],
-"HN": [
+"sex": "남성"
+},
+"HN": {
+"shots": [
 "01"
 ],
-"HW": [
+"sex": null
+},
+"HW": {
+"shots": [
 "01"
 ],
-"IR": [
+"sex": "여성"
+},
+"IR": {
+"shots": [
 "01"
 ],
-"IZ": [
+"sex": null
+},
+"IZ": {
+"shots": [
 "01"
 ],
-"JN": [
+"sex": "여성"
+},
+"JN": {
+"shots": [
 "01"
 ],
-"JR": [
+"sex": null
+},
+"JR": {
+"shots": [
 "01"
 ],
-"JS": [
+"sex": null
+},
+"JS": {
+"shots": [
 "01"
 ],
-"KC": [
+"sex": null
+},
+"KC": {
+"shots": [
 "01"
 ],
-"KM": [
+"sex": null
+},
+"KM": {
+"shots": [
 "01"
 ],
-"KS": [
+"sex": null
+},
+"KS": {
+"shots": [
 "01",
 "101",
 "102",
 "103"
 ],
-"KT": [
+"sex": "남성"
+},
+"KT": {
+"shots": [
 "01",
 "101",
 "102",
 "103"
 ],
-"KY": [
+"sex": "남성"
+},
+"KY": {
+"shots": [
 "01",
 "101",
 "102",
 "103"
 ],
-"LM": [
+"sex": "여성"
+},
+"LM": {
+"shots": [
 "01"
 ],
-"LS": [
+"sex": null
+},
+"LS": {
+"shots": [
 "01"
 ],
-"LY": [
+"sex": "여성"
+},
+"LY": {
+"shots": [
 "01"
 ],
-"MR": [
+"sex": null
+},
+"MR": {
+"shots": [
 "01"
 ],
-"MY": [
+"sex": null
+},
+"MY": {
+"shots": [
 "01"
 ],
-"PT": [
+"sex": null
+},
+"PT": {
+"shots": [
 "01"
 ],
-"RH": [
+"sex": null
+},
+"RH": {
+"shots": [
 "01"
 ],
-"RP": [
+"sex": null
+},
+"RP": {
+"shots": [
 "01"
 ],
-"SH": [
+"sex": null
+},
+"SH": {
+"shots": [
 "01"
 ],
-"SY": [
+"sex": "여성"
+},
+"SY": {
+"shots": [
 "01",
 "02",
 "03",
@@ -132,16 +223,30 @@
 "103",
 "301"
 ],
-"TY": [
+"sex": "여성"
+},
+"TY": {
+"shots": [
 "01"
 ],
-"UR": [
+"sex": "여성"
+},
+"UR": {
+"shots": [
 "01"
 ],
-"YD": [
+"sex": null
+},
+"YD": {
+"shots": [
 "01"
 ],
-"ZR": [
+"sex": null
+},
+"ZR": {
+"shots": [
 "01"
-]
+],
+"sex": null
+}
 }

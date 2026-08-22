@@ -46,6 +46,8 @@ h1{font-size:26px;margin:0 0 6px;letter-spacing:-.02em}
 .who .cd{font-family:var(--mono);font-size:11px;color:var(--gold);letter-spacing:.08em}
 .who .pg{margin-top:6px;height:4px;background:var(--panel2);overflow:hidden}
 .who .pg i{display:block;height:100%;background:var(--safe)}
+.who .sx{font-family:var(--sans);color:var(--dim);font-size:10px;margin-left:4px}
+.none{color:var(--faint);font-family:var(--mono);font-size:11px;padding:8px 0}
 .who .pct{font-family:var(--mono);font-size:11px;color:var(--dim);margin-top:4px;
   font-variant-numeric:tabular-nums}
 
@@ -71,7 +73,8 @@ footer{margin-top:40px;font-family:var(--mono);font-size:10.5px;letter-spacing:.
 <body>
 <div class="wrap">
   <h1>에셋 제작 현황</h1>
-  <p class="lead">제작 확인용 임시 페이지입니다. 기대 목록=<code>01~25</code> 감정 · <code>101~103</code> 변신·전투 · <code>301</code> NSFW.</p>
+  <p class="lead">제작 확인용 임시 페이지입니다. 예상 물량=감정 <code>25</code> · 변신·전투 <code>3</code> · 일상 <code>7</code> · NSFW <code>36</code>(여성 전용).
+  일상과 NSFW는 상황번호가 아직 배정되지 않아 보유분만 칸으로 보입니다. 성별 미확정 인물은 NSFW를 예상치에서 제외합니다.</p>
 
   <div class="sum" id="sum"></div>
   <div class="bar" id="bar"></div>
@@ -81,17 +84,30 @@ footer{margin-top:40px;font-family:var(--mono);font-size:10.5px;letter-spacing:.
 
 <script>
 const BASE = 'https://srp.issssm.com';
-const EXPECT = [
+const FIXED = [
   ...Array.from({length:25},(_,i)=>String(i+1).padStart(2,'0')),
-  '101','102','103','301'
+  '101','102','103'
 ];
+const QUOTA = {emo:25, battle:3, daily:7, nsfw:36};
 const BANDS = [
-  {key:'all',   label:'전체',      test:()=>true},
-  {key:'emo',   label:'감정 01~25', test:n=>Number(n)<100},
-  {key:'battle',label:'변신·전투',  test:n=>Number(n)>=101&&Number(n)<200},
-  {key:'nsfw',  label:'NSFW 301~', test:n=>Number(n)>=301}
+  {key:'all',    label:'전체',       test:()=>true},
+  {key:'emo',    label:'감정 01~25',  test:n=>Number(n)<100},
+  {key:'battle', label:'변신·전투',   test:n=>Number(n)>=101&&Number(n)<200},
+  {key:'daily',  label:'일상 201~',   test:n=>Number(n)>=201&&Number(n)<300},
+  {key:'nsfw',   label:'NSFW 301~',  test:n=>Number(n)>=301}
 ];
 let band = 'all', people = [], have = {};
+
+function quotaFor(rec, key){
+  const female = rec.sex === '여성';
+  const unknown = !rec.sex;
+  if(key === 'nsfw') return unknown ? null : (female ? QUOTA.nsfw : 0);
+  if(key === 'all'){
+    const n = QUOTA.emo + QUOTA.battle + QUOTA.daily;
+    return unknown ? n : n + (female ? QUOTA.nsfw : 0);
+  }
+  return QUOTA[key];
+}
 
 async function boot(){
   const [cs, as] = await Promise.all([
@@ -112,35 +128,44 @@ async function boot(){
 }
 
 function render(){
-  const shown = EXPECT.filter(BANDS.find(b=>b.key===band).test);
-  const total = people.length * shown.length;
-  let owned = 0, done = 0;
+  const test = BANDS.find(b=>b.key===band).test;
+  let owned = 0, quota = 0, done = 0;
   const groups = {};
   for(const p of people){
-    const mine = have[p.code] || [];
-    const n = shown.filter(s => mine.includes(s)).length;
-    owned += n;
-    if(n === shown.length) done++;
-    (groups[p.groupLabel] ||= []).push({p, mine, n, of: shown.length});
+    const rec = have[p.code] || {shots:[], sex:null};
+    const mine = (rec.shots||[]).filter(test);
+    const q = quotaFor(rec, band);
+    owned += mine.length;
+    if(q !== null) quota += q;
+    if(q !== null && q > 0 && mine.length >= q) done++;
+    // 칸=배정된 번호(감정·변신전투) + 실제 보유분
+    const cells = [...new Set([...FIXED.filter(test), ...mine])]
+      .sort((a,b)=>Number(a)-Number(b));
+    (groups[p.groupLabel] ||= []).push({p, rec, mine, q, cells});
   }
+  const pct = quota ? Math.round(owned/quota*100) : 0;
   document.getElementById('sum').innerHTML = `
     <div><b>${people.length}</b><span>인물</span></div>
-    <div><b>${owned}<span style="color:var(--faint)">/${total}</span></b><span>보유 에셋</span></div>
-    <div><b>${total?Math.round(owned/total*100):0}%</b><span>진행률</span></div>
-    <div><b>${done}</b><span>완성 인물</span></div>`;
+    <div><b>${owned}<span style="color:var(--faint)">/${quota}</span></b><span>보유 / 예상</span></div>
+    <div><b>${pct}%</b><span>진행률</span></div>
+    <div><b>${done}</b><span>예상치 도달</span></div>`;
 
   document.getElementById('list').innerHTML = Object.entries(groups).map(([label, rows]) => `
     <div class="grp">${label}</div>
-    ${rows.map(({p, mine, n, of}) => `
+    ${rows.map(({p, rec, mine, q, cells}) => {
+      const width = q ? Math.min(100, mine.length/q*100) : 0;
+      const note = q === null ? '성별 미확정' : `${mine.length} / ${q}`;
+      const sex = rec.sex ? `<span class="sx">${rec.sex}</span>` : '';
+      return `
       <div class="row">
         <div class="who">
           <div class="nm">${p.name}</div>
-          <div class="cd">${p.code}</div>
-          <div class="pg"><i style="width:${of?n/of*100:0}%"></i></div>
-          <div class="pct">${n} / ${of}</div>
+          <div class="cd">${p.code} ${sex}</div>
+          <div class="pg"><i style="width:${width}%"></i></div>
+          <div class="pct">${note}</div>
         </div>
         <div class="cells">
-          ${shown.map(s => {
+          ${cells.map(s => {
             const url = `${BASE}/${p.code}/D/${s}.webp`;
             const nsfw = Number(s) >= 301 ? ' nsfw' : '';
             return mine.includes(s)
@@ -148,9 +173,9 @@ function render(){
                    <img src="${url}" alt="${p.name} ${s}" loading="lazy" decoding="async">
                    <span class="n">${s}</span></a></div>`
               : `<div class="cell miss${nsfw}"><span class="n">${s}</span></div>`;
-          }).join('')}
+          }).join('') || '<div class="none">배정된 번호 없음</div>'}
         </div>
-      </div>`).join('')}`).join('');
+      </div>`;}).join('')}`).join('');
 }
 boot();
 </script>
