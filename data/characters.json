@@ -30,7 +30,7 @@
   {"code":"SH","name":"셰리","englishName":"Sherry","group":"nymph","groupLabel":"NYMPH","role":"인테그라 · 수학 계통 변신체"},
   {"code":"GN","name":"진","englishName":"Gin","group":"nymph","groupLabel":"NYMPH","role":"아이오딘 · 화학 계통 변신체"},
   {"code":"CM","name":"코스모","englishName":"Cosmo","group":"nymph","groupLabel":"NYMPH","role":"포비아 · 뇌과학 계통 변신체"},
-  {"code":"PT","name":"피트","englishName":"Pete","group":"nymph","groupLabel":"NYMPH","role":"연구원·과학자 · 이즘 개발자"},
+  {"code":"PT","name":"피트","englishName":"Peat","group":"nymph","groupLabel":"NYMPH","role":"연구원·과학자 · 이즘 개발자"},
   {"code":"IZ","name":"이즘","englishName":"IZM","group":"nymph","groupLabel":"NYMPH","role":"여성형 특수 AI · 오퍼레이팅과 전투 보조"},
 
   {"code":"DP","name":"다프네","englishName":"Daphne","group":"gardener","groupLabel":"가드너","role":"티폰 산하 가드너"},
