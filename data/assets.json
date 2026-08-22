@@ -15,13 +15,13 @@
 "shots": [
 "01"
 ],
-"sex": null
+"sex": "여성"
 },
 "AZ": {
 "shots": [
 "01"
 ],
-"sex": null
+"sex": "여성"
 },
 "CM": {
 "shots": [
@@ -48,7 +48,7 @@
 "shots": [
 "01"
 ],
-"sex": null
+"sex": "여성"
 },
 "GN": {
 "shots": [
@@ -60,7 +60,7 @@
 "shots": [
 "01"
 ],
-"sex": null
+"sex": "여성"
 },
 "HW": {
 "shots": [
@@ -72,7 +72,7 @@
 "shots": [
 "01"
 ],
-"sex": null
+"sex": "여성"
 },
 "IZ": {
 "shots": [
@@ -84,7 +84,7 @@
 "shots": [
 "01"
 ],
-"sex": null
+"sex": "여성"
 },
 "JR": {
 "shots": [
@@ -96,7 +96,7 @@
 "shots": [
 "01"
 ],
-"sex": null
+"sex": "여성"
 },
 "KC": {
 "shots": [
@@ -141,7 +141,7 @@
 "shots": [
 "01"
 ],
-"sex": null
+"sex": "여성"
 },
 "LS": {
 "shots": [
@@ -159,13 +159,13 @@
 "shots": [
 "01"
 ],
-"sex": null
+"sex": "여성"
 },
 "MY": {
 "shots": [
 "01"
 ],
-"sex": null
+"sex": "여성"
 },
 "PT": {
 "shots": [
@@ -177,7 +177,7 @@
 "shots": [
 "01"
 ],
-"sex": null
+"sex": "여성"
 },
 "RP": {
 "shots": [
@@ -235,18 +235,18 @@
 "shots": [
 "01"
 ],
-"sex": null
+"sex": "여성"
 },
 "YD": {
 "shots": [
 "01"
 ],
-"sex": null
+"sex": "여성"
 },
 "ZR": {
 "shots": [
 "01"
 ],
-"sex": null
+"sex": "여성"
 }
 }
