@@ -110,11 +110,16 @@ function quotaFor(rec, key){
 }
 
 async function boot(){
+  // 캐시된 옛 형식이 섞이지 않도록 항상 재검증한다
+  const load = (u) => fetch(u, {cache:'no-cache'}).then(r=>r.json());
   const [cs, as] = await Promise.all([
-    fetch('../data/characters.json').then(r=>r.json()),
-    fetch('../data/assets.json').then(r=>r.json()).catch(()=>({}))
+    load('../data/characters.json'),
+    load('../data/assets.json').catch(()=>({}))
   ]);
-  people = cs; have = as;
+  people = cs;
+  // 배열 형식(구버전)도 받아들인다
+  have = Object.fromEntries(Object.entries(as).map(([k,v]) =>
+    [k, Array.isArray(v) ? {shots:v, sex:null} : v]));
   document.getElementById('bar').innerHTML = BANDS.map(b =>
     `<button type="button" data-band="${b.key}" aria-pressed="${b.key===band}">${b.label}</button>`).join('');
   document.getElementById('bar').addEventListener('click', e => {
