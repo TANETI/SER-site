@@ -3,31 +3,31 @@
 "shots": [
 "01"
 ],
-"sex": null
+"sex": "남성"
 },
 "AC": {
 "shots": [
 "01"
 ],
-"sex": null
+"sex": "여성"
 },
 "AR": {
 "shots": [
 "01"
 ],
-"sex": null
+"sex": "여성"
 },
 "AZ": {
 "shots": [
 "01"
 ],
-"sex": null
+"sex": "여성"
 },
 "CM": {
 "shots": [
 "01"
 ],
-"sex": null
+"sex": "여성"
 },
 "CS": {
 "shots": [
@@ -36,79 +36,79 @@
 "102",
 "103"
 ],
-"sex": null
+"sex": "여성"
 },
 "DN": {
 "shots": [
 "01"
 ],
-"sex": null
+"sex": "남성"
 },
 "DP": {
 "shots": [
 "01"
 ],
-"sex": null
+"sex": "여성"
 },
 "GN": {
 "shots": [
 "01"
 ],
-"sex": null
+"sex": "남성"
 },
 "HN": {
 "shots": [
 "01"
 ],
-"sex": null
+"sex": "여성"
 },
 "HW": {
 "shots": [
 "01"
 ],
-"sex": null
+"sex": "여성"
 },
 "IR": {
 "shots": [
 "01"
 ],
-"sex": null
+"sex": "여성"
 },
 "IZ": {
 "shots": [
 "01"
 ],
-"sex": null
+"sex": "여성"
 },
 "JN": {
 "shots": [
 "01"
 ],
-"sex": null
+"sex": "여성"
 },
 "JR": {
 "shots": [
 "01"
 ],
-"sex": null
+"sex": "남성"
 },
 "JS": {
 "shots": [
 "01"
 ],
-"sex": null
+"sex": "여성"
 },
 "KC": {
 "shots": [
 "01"
 ],
-"sex": null
+"sex": "남성"
 },
 "KM": {
 "shots": [
 "01"
 ],
-"sex": null
+"sex": "남성"
 },
 "KS": {
 "shots": [
@@ -117,7 +117,7 @@
 "102",
 "103"
 ],
-"sex": null
+"sex": "남성"
 },
 "KT": {
 "shots": [
@@ -126,7 +126,7 @@
 "102",
 "103"
 ],
-"sex": null
+"sex": "남성"
 },
 "KY": {
 "shots": [
@@ -135,61 +135,61 @@
 "102",
 "103"
 ],
-"sex": null
+"sex": "여성"
 },
 "LM": {
 "shots": [
 "01"
 ],
-"sex": null
+"sex": "여성"
 },
 "LS": {
 "shots": [
 "01"
 ],
-"sex": null
+"sex": "여성"
 },
 "LY": {
 "shots": [
 "01"
 ],
-"sex": null
+"sex": "남성"
 },
 "MR": {
 "shots": [
 "01"
 ],
-"sex": null
+"sex": "여성"
 },
 "MY": {
 "shots": [
 "01"
 ],
-"sex": null
+"sex": "여성"
 },
 "PT": {
 "shots": [
 "01"
 ],
-"sex": null
+"sex": "남성"
 },
 "RH": {
 "shots": [
 "01"
 ],
-"sex": null
+"sex": "여성"
 },
 "RP": {
 "shots": [
 "01"
 ],
-"sex": null
+"sex": "남성"
 },
 "SH": {
 "shots": [
 "01"
 ],
-"sex": null
+"sex": "여성"
 },
 "SY": {
 "shots": [
@@ -223,30 +223,30 @@
 "103",
 "301"
 ],
-"sex": null
+"sex": "여성"
 },
 "TY": {
 "shots": [
 "01"
 ],
-"sex": null
+"sex": "여성"
 },
 "UR": {
 "shots": [
 "01"
 ],
-"sex": null
+"sex": "여성"
 },
 "YD": {
 "shots": [
 "01"
 ],
-"sex": null
+"sex": "여성"
 },
 "ZR": {
 "shots": [
 "01"
 ],
-"sex": null
+"sex": "여성"
 }
 }
