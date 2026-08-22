@@ -83,7 +83,14 @@ h1{font-size:26px;margin:0 0 6px;letter-spacing:-.02em}
 .lb .prev{left:12px;top:50%;transform:translateY(-50%)}
 .lb .next{right:12px;top:50%;transform:translateY(-50%)}
 .lb .close{right:12px;top:12px;font-size:18px}
-@media(max-width:640px){.lb{padding:52px 12px}.lb .prev{left:4px}.lb .next{right:4px}}
+@media(max-width:640px){
+  /* 좁은 화면에서는 화살표가 그림을 덮으므로 아래로 내린다 */
+  .lb{padding:40px 10px 100px}
+  .lb .prev,.lb .next{top:auto;bottom:18px;transform:none;width:56px;height:46px}
+  .lb .prev{left:calc(50% - 88px)}
+  .lb .next{right:calc(50% - 88px)}
+  .lb .cap{bottom:76px}
+}
 footer{margin-top:40px;font-family:var(--mono);font-size:10.5px;letter-spacing:.12em;color:var(--faint)}
 @media(max-width:640px){
   body{padding:22px 14px 60px}
@@ -234,9 +241,14 @@ const lbImg = document.getElementById('lb-img');
 const lbCap = document.getElementById('lb-cap');
 let shelf = [], at = 0, who = '';
 
+function warm(i){
+  const item = shelf[(i + shelf.length) % shelf.length];
+  if(item){ const im = new Image(); im.src = item.url; }
+}
 function show(i){
   at = (i + shelf.length) % shelf.length;
   const {url, code, shot, name} = shelf[at];
+  warm(at + 1); warm(at - 1);
   lbImg.src = url;
   lbImg.alt = `${name} ${shot}`;
   lbCap.innerHTML = `<b>${name}</b> · ${code} / D / ${shot} · ${at+1} / ${shelf.length}`;
@@ -262,6 +274,16 @@ document.addEventListener('click', e => {
   if(e.target.closest('.lb .next')){ show(at+1); return; }
   if(e.target.closest('.lb .close') || e.target === lb){ close(); }
 });
+// 좌우 스와이프로도 넘긴다
+let swipeFrom = null;
+lb.addEventListener('touchstart', e => { swipeFrom = e.changedTouches[0].clientX; }, {passive:true});
+lb.addEventListener('touchend', e => {
+  if(swipeFrom === null) return;
+  const dx = e.changedTouches[0].clientX - swipeFrom;
+  swipeFrom = null;
+  if(Math.abs(dx) > 40) show(dx < 0 ? at + 1 : at - 1);
+}, {passive:true});
+
 document.addEventListener('keydown', e => {
   if(!lb.classList.contains('on')) return;
   if(e.key === 'Escape') close();
