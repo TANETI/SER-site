@@ -133,6 +133,8 @@ const FIXED = [
   '101','102','103'
 ];
 const QUOTA = {emo:25, battle:3, daily:7, nsfw:36};
+// 예로니모만 봉독 장면이 하나 더 있다
+const BATTLE = {JR:4};
 const BANDS = [
   {key:'all',    label:'전체',       test:()=>true},
   {key:'emo',    label:'감정 01~25',  test:n=>Number(n)<100},
@@ -142,12 +144,14 @@ const BANDS = [
 ];
 let band = 'all', people = [], have = {}, names = {};
 
-function quotaFor(rec, key){
+function quotaFor(rec, key, code){
   const female = rec.sex === '여성';
   const unknown = !rec.sex;
+  const battle = BATTLE[code] || QUOTA.battle;
+  if(key === 'battle') return battle;
   if(key === 'nsfw') return unknown ? null : (female ? QUOTA.nsfw : 0);
   if(key === 'all'){
-    const n = QUOTA.emo + QUOTA.battle + QUOTA.daily;
+    const n = QUOTA.emo + battle + QUOTA.daily;
     return unknown ? n : n + (female ? QUOTA.nsfw : 0);
   }
   return QUOTA[key];
@@ -185,12 +189,13 @@ function render(){
   for(const p of people){
     const rec = have[p.code] || {shots:[], sex:null};
     const mine = (rec.shots||[]).filter(test);
-    const q = quotaFor(rec, band);
+    const q = quotaFor(rec, band, p.code);
     owned += mine.length;
     if(q !== null) quota += q;
     if(q !== null && q > 0 && mine.length >= q) done++;
     // 칸=배정된 번호(감정·변신전투) + 실제 보유분
-    const cells = [...new Set([...FIXED.filter(test), ...mine])]
+    const extra = (BATTLE[p.code] || 0) > 3 ? ['104'] : [];
+    const cells = [...new Set([...FIXED.filter(test), ...extra.filter(test), ...mine])]
       .sort((a,b)=>Number(a)-Number(b));
     (groups[p.groupLabel] ||= []).push({p, rec, mine, q, cells});
   }
