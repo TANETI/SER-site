@@ -20,10 +20,11 @@ function render() {
 
   grid.innerHTML = visible.map((character) => `
     <article class="character-card">
-      <div class="portrait"><img src="https://srp.issssm.com/${character.code}/D/01.webp" alt="${character.name}" width="768" height="960" loading="lazy" decoding="async"></div>
+      <a class="portrait" href="./gallery/#${character.code}" title="${character.name} 제작 현황 보기">
+        <img src="https://srp.issssm.com/${character.code}/D/01.webp" alt="${character.name}" width="768" height="960" loading="lazy" decoding="async"></a>
       <div class="character-info">
         <p class="character-group">${character.groupLabel}</p>
-        <h3 class="character-name">${character.name}<span>${character.code}</span></h3>
+        <h3 class="character-name"><a href="./gallery/#${character.code}">${character.name}</a><span>${character.code}</span></h3>
         <p class="character-english-name" lang="en">${character.englishName}</p>
         <p class="character-role">${character.role}</p>
         <button class="copy-button" type="button" data-copy-code="${character.code}">이미지 Markdown 복사</button>

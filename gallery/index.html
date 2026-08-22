@@ -66,6 +66,24 @@ h1{font-size:26px;margin:0 0 6px;letter-spacing:-.02em}
 .cell.nsfw{border-color:var(--danger)}
 .cell a{display:block;width:100%;height:100%}
 
+.row{scroll-margin-top:16px}
+.row.hit{background:rgba(195,155,78,.07);outline:1px solid var(--gold);outline-offset:6px}
+
+.lb{position:fixed;inset:0;background:rgba(6,9,13,.94);display:none;z-index:50;
+  align-items:center;justify-content:center;padding:56px 64px}
+.lb.on{display:flex}
+.lb img{max-width:100%;max-height:100%;object-fit:contain;display:block}
+.lb .cap{position:absolute;left:0;right:0;bottom:16px;text-align:center;
+  font-family:var(--mono);font-size:12px;color:var(--dim);letter-spacing:.1em}
+.lb .cap b{color:var(--strong);font-weight:500}
+.lb button{position:absolute;background:none;border:1px solid var(--line);color:var(--ink);
+  font:inherit;font-size:22px;line-height:1;width:44px;height:44px;cursor:pointer;
+  border-radius:3px;background:rgba(21,27,35,.85)}
+.lb button:hover{border-color:var(--gold);color:var(--gold)}
+.lb .prev{left:12px;top:50%;transform:translateY(-50%)}
+.lb .next{right:12px;top:50%;transform:translateY(-50%)}
+.lb .close{right:12px;top:12px;font-size:18px}
+@media(max-width:640px){.lb{padding:52px 12px}.lb .prev{left:4px}.lb .next{right:4px}}
 footer{margin-top:40px;font-family:var(--mono);font-size:10.5px;letter-spacing:.12em;color:var(--faint)}
 @media(max-width:640px){
   body{padding:22px 14px 60px}
@@ -87,6 +105,13 @@ footer{margin-top:40px;font-family:var(--mono);font-size:10.5px;letter-spacing:.
   <div class="sum" id="sum"></div>
   <div class="bar" id="bar"></div>
   <div id="list"></div>
+  <div class="lb" id="lb" role="dialog" aria-modal="true" aria-label="에셋 크게 보기">
+    <button class="prev" type="button" aria-label="이전">‹</button>
+    <img id="lb-img" alt="">
+    <button class="next" type="button" aria-label="다음">›</button>
+    <button class="close" type="button" aria-label="닫기">✕</button>
+    <p class="cap" id="lb-cap"></p>
+  </div>
   <footer>SERAPH PROJECT · ASSET STATUS · 빌드 시각 기준</footer>
 </div>
 
@@ -170,7 +195,7 @@ function render(){
       const note = q === null ? '성별 미확정' : `${mine.length} / ${q}`;
       const sex = rec.sex ? `<span class="sx">${rec.sex}</span>` : '';
       return `
-      <div class="row">
+      <div class="row" id="${p.code}">
         <div class="who">
           <div class="nm">${p.name}</div>
           <div class="cd">${p.code} ${sex}</div>
@@ -182,7 +207,7 @@ function render(){
             const url = `${BASE}/${p.code}/D/${s}.webp`;
             const nsfw = Number(s) >= 301 ? ' nsfw' : '';
             return mine.includes(s)
-              ? `<div class="cell${nsfw}"><a href="${url}" target="_blank" rel="noreferrer">
+              ? `<div class="cell${nsfw}"><a href="${url}" data-code="${p.code}" data-shot="${s}">
                    <img src="${url}" alt="${p.name} ${s}" loading="lazy" decoding="async">
                    <span class="n">${s}</span></a></div>`
               : `<div class="cell miss${nsfw}"><span class="n">${s}</span></div>`;
@@ -190,7 +215,61 @@ function render(){
         </div>
       </div>`;}).join('')}`).join('');
 }
-boot();
+
+// ── 앵커로 들어온 인물 강조
+function focusHash(){
+  const code = location.hash.replace('#','');
+  if(!code) return;
+  const row = document.getElementById(code);
+  if(!row) return;
+  row.scrollIntoView({block:'start', behavior:'smooth'});
+  row.classList.add('hit');
+  setTimeout(()=>row.classList.remove('hit'), 2400);
+}
+window.addEventListener('hashchange', focusHash);
+
+// ── 라이트박스
+const lb = document.getElementById('lb');
+const lbImg = document.getElementById('lb-img');
+const lbCap = document.getElementById('lb-cap');
+let shelf = [], at = 0, who = '';
+
+function show(i){
+  at = (i + shelf.length) % shelf.length;
+  const {url, code, shot, name} = shelf[at];
+  lbImg.src = url;
+  lbImg.alt = `${name} ${shot}`;
+  lbCap.innerHTML = `<b>${name}</b> · ${code} / D / ${shot} · ${at+1} / ${shelf.length}`;
+}
+function open(code, shot){
+  const rec = have[code] || {shots:[]};
+  const name = (people.find(p=>p.code===code)||{}).name || code;
+  shelf = (rec.shots||[]).map(s => ({url:`${BASE}/${code}/D/${s}.webp`, code, shot:s, name}));
+  who = code;
+  show(shelf.findIndex(x=>x.shot===shot));
+  lb.classList.add('on');
+  document.body.style.overflow = 'hidden';
+}
+function close(){
+  lb.classList.remove('on');
+  lbImg.src = '';
+  document.body.style.overflow = '';
+}
+document.addEventListener('click', e => {
+  const link = e.target.closest('.cells a[data-shot]');
+  if(link){ e.preventDefault(); open(link.dataset.code, link.dataset.shot); return; }
+  if(e.target.closest('.lb .prev')){ show(at-1); return; }
+  if(e.target.closest('.lb .next')){ show(at+1); return; }
+  if(e.target.closest('.lb .close') || e.target === lb){ close(); }
+});
+document.addEventListener('keydown', e => {
+  if(!lb.classList.contains('on')) return;
+  if(e.key === 'Escape') close();
+  if(e.key === 'ArrowLeft') show(at-1);
+  if(e.key === 'ArrowRight') show(at+1);
+});
+
+boot().then(focusHash);
 </script>
 </body>
 </html>
