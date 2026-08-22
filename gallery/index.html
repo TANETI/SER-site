@@ -55,7 +55,11 @@ h1{font-size:26px;margin:0 0 6px;letter-spacing:-.02em}
 .who .pct{font-family:var(--mono);font-size:11px;color:var(--dim);margin-top:4px;
   font-variant-numeric:tabular-nums}
 
-.cells{display:grid;grid-template-columns:repeat(auto-fill,minmax(56px,1fr));gap:4px}
+.cells{display:grid;grid-template-columns:repeat(auto-fill,minmax(72px,1fr));gap:6px}
+.shot .lbl{display:block;margin-top:3px;font-size:10.5px;line-height:1.35;color:var(--dim);
+  text-align:center;word-break:keep-all}
+.shot .lbl b{font-family:var(--mono);color:var(--faint);font-weight:400;margin-right:3px}
+.shot.off .lbl{color:var(--faint)}
 .cell{position:relative;aspect-ratio:1;background:var(--panel);border:1px solid var(--line);
   display:flex;align-items:center;justify-content:center;overflow:hidden}
 .cell img{width:100%;height:100%;object-fit:cover;display:block}
@@ -136,7 +140,7 @@ const BANDS = [
   {key:'daily',  label:'일상 201~',   test:n=>Number(n)>=201&&Number(n)<300},
   {key:'nsfw',   label:'NSFW 301~',  test:n=>Number(n)>=301}
 ];
-let band = 'all', people = [], have = {};
+let band = 'all', people = [], have = {}, names = {};
 
 function quotaFor(rec, key){
   const female = rec.sex === '여성';
@@ -152,10 +156,12 @@ function quotaFor(rec, key){
 async function boot(){
   // 캐시된 옛 형식이 섞이지 않도록 항상 재검증한다
   const load = (u) => fetch(u, {cache:'no-cache'}).then(r=>r.json());
-  const [cs, as] = await Promise.all([
+  const [cs, as, ns] = await Promise.all([
     load('../data/characters.json'),
-    load('../data/assets.json').catch(()=>({}))
+    load('../data/assets.json').catch(()=>({})),
+    load('../data/shots.json').catch(()=>({}))
   ]);
+  names = ns;
   people = cs;
   // 배열 형식(구버전)도 받아들인다
   have = Object.fromEntries(Object.entries(as).map(([k,v]) =>
@@ -213,11 +219,14 @@ function render(){
           ${cells.map(s => {
             const url = `${BASE}/${p.code}/D/${s}.webp`;
             const nsfw = Number(s) >= 301 ? ' nsfw' : '';
+            const label = names[s] || '';
+            const cap = `<span class="lbl"><b>${s}</b>${label}</span>`;
             return mine.includes(s)
-              ? `<div class="cell${nsfw}"><a href="${url}" data-code="${p.code}" data-shot="${s}">
-                   <img src="${url}" alt="${p.name} ${s}" loading="lazy" decoding="async">
-                   <span class="n">${s}</span></a></div>`
-              : `<div class="cell miss${nsfw}"><span class="n">${s}</span></div>`;
+              ? `<div class="shot"><div class="cell${nsfw}">
+                   <a href="${url}" data-code="${p.code}" data-shot="${s}" title="${label}">
+                   <img src="${url}" alt="${p.name} ${label}" loading="lazy" decoding="async"></a>
+                   </div>${cap}</div>`
+              : `<div class="shot off"><div class="cell miss${nsfw}"></div>${cap}</div>`;
           }).join('') || '<div class="none">배정된 번호 없음</div>'}
         </div>
       </div>`;}).join('')}`).join('');
@@ -251,7 +260,8 @@ function show(i){
   warm(at + 1); warm(at - 1);
   lbImg.src = url;
   lbImg.alt = `${name} ${shot}`;
-  lbCap.innerHTML = `<b>${name}</b> · ${code} / D / ${shot} · ${at+1} / ${shelf.length}`;
+  const label = names[shot] ? ` · ${names[shot]}` : '';
+  lbCap.innerHTML = `<b>${name}</b>${label} · ${code} / D / ${shot} · ${at+1} / ${shelf.length}`;
 }
 function open(code, shot){
   const rec = have[code] || {shots:[]};
