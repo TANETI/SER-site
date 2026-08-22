@@ -5,11 +5,11 @@
 | 경로 | 내용 |
 | --- | --- |
 | `index.html` | GitHub Pages 진입 페이지 |
-| `CNAME` | 현재 임시 사용자 도메인 |
+| `CNAME` | 개발·테스트 사이트 도메인 |
 | `assets/css/` | 스타일시트 |
 | `assets/js/` | 사이트 스크립트 |
-| `assets/characters/` | 캐릭터별 공개 WebP 이미지 |
 | `data/` | 사이트에서 읽는 캐릭터 데이터 |
 | `guidebook/` | 세계관 가이드북 |
 
 설정 원본과 제작 도구는 `SER` 저장소에서 관리합니다.
+공개 WebP 이미지는 `SER-assets` 저장소와 `srp.issssm.com`에서 제공합니다.
