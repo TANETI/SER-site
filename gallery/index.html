@@ -141,6 +141,7 @@ const BY_GROUP = {
   church:  ['102','103','104','105','106']
 };
 const OWN = {JR:['120']};            // 예로니모의 고유 클라비스
+const DAILY = ['201'];               // 번호가 배정된 일상 에셋
 const battleSet = (p) => [...(BY_GROUP[p.group] || ['101','102','103']), ...(OWN[p.code] || [])];
 const BANDS = [
   {key:'all',    label:'전체',       test:()=>true},
@@ -201,7 +202,7 @@ function render(){
     if(q !== null) quota += q;
     if(q !== null && q > 0 && mine.length >= q) done++;
     // 칸=배정된 번호(감정·변신전투) + 실제 보유분
-    const fixed = [...FIXED.filter(s => Number(s) < 100), ...battleSet(p)];
+    const fixed = [...FIXED.filter(s => Number(s) < 100), ...battleSet(p), ...DAILY];
     const cells = [...new Set([...fixed.filter(test), ...mine])]
       .sort((a,b)=>Number(a)-Number(b));
     (groups[p.groupLabel] ||= []).push({p, rec, mine, q, cells});
