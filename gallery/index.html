@@ -133,8 +133,9 @@ const FIXED = [
   '101','102','103'
 ];
 const QUOTA = {emo:25, battle:3, daily:7, nsfw:36};
-// 예로니모만 봉독 장면이 하나 더 있다
-const BATTLE = {JR:4};
+// 성당교회는 변신 대신 클라비스 봉독. 예로니모만 고유 클라비스가 하나 더 있다
+const CHURCH = ['104','105','106','107'];
+const SPECIAL = {MR:CHURCH, RP:CHURCH, JR:[...CHURCH,'120']};
 const BANDS = [
   {key:'all',    label:'전체',       test:()=>true},
   {key:'emo',    label:'감정 01~25',  test:n=>Number(n)<100},
@@ -147,7 +148,7 @@ let band = 'all', people = [], have = {}, names = {};
 function quotaFor(rec, key, code){
   const female = rec.sex === '여성';
   const unknown = !rec.sex;
-  const battle = BATTLE[code] || QUOTA.battle;
+  const battle = SPECIAL[code] ? SPECIAL[code].length : QUOTA.battle;
   if(key === 'battle') return battle;
   if(key === 'nsfw') return unknown ? null : (female ? QUOTA.nsfw : 0);
   if(key === 'all'){
@@ -194,8 +195,11 @@ function render(){
     if(q !== null) quota += q;
     if(q !== null && q > 0 && mine.length >= q) done++;
     // 칸=배정된 번호(감정·변신전투) + 실제 보유분
-    const extra = (BATTLE[p.code] || 0) > 3 ? ['104'] : [];
-    const cells = [...new Set([...FIXED.filter(test), ...extra.filter(test), ...mine])]
+    // 성당교회는 101~103 대신 봉독 번호를 쓴다
+    const fixed = SPECIAL[p.code]
+      ? [...FIXED.filter(s => Number(s) < 100), ...SPECIAL[p.code]]
+      : FIXED;
+    const cells = [...new Set([...fixed.filter(test), ...mine])]
       .sort((a,b)=>Number(a)-Number(b));
     (groups[p.groupLabel] ||= []).push({p, rec, mine, q, cells});
   }
