@@ -172,7 +172,12 @@ const BANDS = [
   { key: 'daily',  label: '일상 201~',  test: (n) => Number(n) >= 201 && Number(n) < 300 },
   { key: 'nsfw',   label: 'NSFW 301~', test: (n) => Number(n) >= 301 },
 ];
-let band = 'all', showMiss = true, people = [], have = {}, names = {};
+/* 빈 칸 토글은 사람마다 답이 다르다. 고른 값을 기억한다. */
+const PREF = 'ser.gallery.showMiss';
+const remember = (v) => { try { localStorage.setItem(PREF, v ? '1' : '0'); } catch {} };
+const recall = () => { try { const v = localStorage.getItem(PREF); return v === null ? true : v === '1'; } catch { return true; } };
+
+let band = 'all', showMiss = recall(), people = [], have = {}, names = {};
 
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const hatchFor = (ratio) => 'hatch d' + Math.max(1, Math.min(8, Math.round(ratio * 8) || 1));
@@ -206,13 +211,14 @@ async function boot() {
   const tools = document.getElementById('tools');
   tools.innerHTML = BANDS.map((b) =>
     '<button type="button" data-band="' + b.key + '" aria-pressed="' + (b.key === band) + '">' + b.label + '</button>').join('') +
-    '<span class="sp"></span><button type="button" id="toggle-miss" aria-pressed="true">빈 칸 보기</button>';
+    '<span class="sp"></span><button type="button" id="toggle-miss" aria-pressed="' + showMiss + '">빈 칸 보기</button>';
   tools.addEventListener('click', (event) => {
     const button = event.target.closest('button');
     if (!button) return;
     if (button.id === 'toggle-miss') {
       showMiss = !showMiss;
       button.setAttribute('aria-pressed', String(showMiss));
+      remember(showMiss);
     } else {
       band = button.dataset.band;
       tools.querySelectorAll('[data-band]').forEach((x) =>
