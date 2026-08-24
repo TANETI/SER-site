@@ -331,11 +331,13 @@ footer a { display: inline-block; min-width: 44px; padding: 13px 0; text-align: 
 
 @media (max-width: 900px) {
   .shell { grid-template-columns: minmax(0, 1fr) }
-  aside { position: sticky; top: 0; z-index: 12; height: auto; overflow: visible;
-    padding: 12px 18px 14px; border-right: 0; border-bottom: 1px solid var(--z4);
+  aside { position: sticky; top: 0; z-index: 12; height: auto; max-height: 100dvh; overflow-y: auto;
+    padding: 4px 18px 6px; border-right: 0; border-bottom: 1px solid var(--z4);
     background: color-mix(in srgb, var(--paper) 95%, transparent); backdrop-filter: blur(6px) }
-  aside .bt { margin-bottom: 10px }
-  aside input { margin-bottom: 8px }
+  aside .brand, aside .bt { display: none }
+  aside .out { margin: 0 }
+  aside input { margin: 8px 0 }
+  aside summary { min-height: 46px }
   aside nav ul { display: flex; flex-wrap: wrap; gap: 2px; padding-top: 6px }
   aside nav a { border-left: 0; border-bottom: 2px solid transparent; padding: 0 10px }
   aside nav a.on { border-bottom-color: var(--mag) }
@@ -355,10 +357,10 @@ footer a { display: inline-block; min-width: 44px; padding: 13px 0; text-align: 
   <div class="out"><a href="../">← 세계관</a><a href="../gallery/">제작 현황</a></div>
   <div class="brand"><b>SER</b></div>
   <div class="bt">세계관 가이드북</div>
-  <label class="sr-only" for="q">설정 검색</label>
-  <input id="q" type="search" placeholder="설정 검색 (영창문 포함)">
   <details class="toc" open>
-    <summary>목차 · 14절</summary>
+    <summary>목차 · 검색</summary>
+    <label class="sr-only" for="q">설정 검색</label>
+    <input id="q" type="search" placeholder="설정 검색 (영창문 포함)">
     <nav aria-label="문서 목차"><ul><li><a href="#premise"><span class="n">01</span>기획 방향</a></li><li><a href="#origin"><span class="n">02</span>신과 고대사</a></li><li><a href="#orthros"><span class="n">03</span>오르트로스</a></li><li><a href="#goldentime"><span class="n">04</span>골든타임과 정화</a></li><li><a href="#taskforce"><span class="n">05</span>괴이사건대책반</a></li><li><a href="#church"><span class="n">06</span>성당교회</a></li><li><a href="#clavis"><span class="n">07</span>클라비스 목록</a></li><li><a href="#seraph"><span class="n">08</span>세라프와 세라피안</a></li><li><a href="#nymph"><span class="n">09</span>NYMPH</a></li><li><a href="#response"><span class="n">10</span>사건 대응 흐름</a></li><li><a href="#core"><span class="n">11</span>핵심 대칭</a></li><li><a href="#start"><span class="n">12</span>시작과 모드</a></li><li><a href="#index"><span class="n">13</span>인물 색인</a></li><li><a href="#assets"><span class="n">14</span>제작용 에셋</a></li></ul></nav>
   </details>
 </aside>
