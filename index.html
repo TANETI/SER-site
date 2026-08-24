@@ -3,99 +3,201 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="가칭 세라프 프로젝트의 세계관, 세력, 인물을 정리한 공식 가이드입니다.">
-  <meta name="theme-color" content="#10141d">
+  <meta name="robots" content="noindex">
+  <meta name="description" content="가칭 세라프 프로젝트의 세계관, 세력, 인물 명부와 에셋 제작 현황.">
+  <meta name="theme-color" content="#e6e5e0">
   <title>가칭 세라프 프로젝트</title>
   <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="preconnect" href="https://srp.issssm.com" crossorigin>
   <link rel="stylesheet" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Gothic+A1:wght@400;700;800;900&family=Azeret+Mono:wght@400;500;600&display=swap">
+  <link rel="stylesheet" href="./assets/css/tokens.css">
   <link rel="stylesheet" href="./assets/css/styles.css">
+  <script src="./assets/js/quota.js" defer></script>
   <script src="./assets/js/app.js" defer></script>
 </head>
 <body>
   <a class="skip-link" href="#content">본문으로 건너뛰기</a>
-  <header class="site-header">
-    <a class="brand" href="#top" aria-label="가칭 세라프 프로젝트 홈">
-      <span class="brand-mark" aria-hidden="true">S</span>
-      <span>가칭 세라프 프로젝트</span>
+
+  <aside class="rail" aria-hidden="true">
+    <b>ZONE RAMP</b>
+    <ol>
+      <li><i style="background:var(--z0)"></i>0</li>
+      <li><i style="background:var(--z1)"></i>I</li>
+      <li><i style="background:var(--z2)"></i>II</li>
+      <li><i style="background:var(--z3)"></i>III</li>
+      <li><i style="background:var(--z4)"></i>IV</li>
+      <li><i style="background:var(--z5)"></i>V</li>
+      <li><i style="background:var(--z6)"></i>VI</li>
+      <li><i style="background:var(--z7)"></i>VII</li>
+      <li><i style="background:var(--z8)"></i>VIII</li>
+      <li><i style="background:var(--z9)"></i>IX</li>
+      <li><i style="background:var(--z10)"></i>X</li>
+    </ol>
+  </aside>
+
+  <header class="masthead">
+    <a class="mast-id" href="#top" data-grade="2">
+      <svg class="curve" viewBox="0 0 40 40" aria-hidden="true"><rect x="2.5" y="2.5" width="35" height="35"/><line x1="2.5" y1="20" x2="37.5" y2="20"/><line x1="20" y1="2.5" x2="20" y2="37.5"/><path d="M3 35 L 12 34 L 28 7 L 37 5"/></svg>
+      <span class="sr-only">가칭 세라프 프로젝트 홈</span>
+      <b class="full" aria-hidden="true">가칭 세라프 프로젝트</b>
+      <b class="short" aria-hidden="true">SER</b>
     </a>
     <nav aria-label="주요 메뉴">
       <a href="#world">세계관</a>
       <a href="#factions">세력</a>
-      <a href="#roster">인물</a>
+      <a href="#roster">명부</a>
       <a href="./guidebook/">가이드북</a>
       <a href="./gallery/">제작 현황</a>
     </nav>
   </header>
 
   <main id="content">
-    <section class="hero" id="top" aria-labelledby="hero-title">
-      <div class="hero-copy">
-        <p class="eyebrow">SERAPH PROJECT · PROTOTYPE ARCHIVE</p>
-        <h1 id="hero-title">돌아올 수 있는 시간은<br><em>24시간.</em></h1>
-        <p class="hero-lead">욕망에 삼켜진 인간은 오르트로스가 된다. 그 경계가 닫히기 전, 과학과 신앙과 염원이 서로 다른 답을 들고 현장에 도착한다.</p>
-        <div class="hero-actions">
-          <a class="button primary" href="#world">세계관 빠르게 보기</a>
-          <a class="button" href="./guidebook/">가이드북 전문</a>
+    <section class="record" id="top" aria-labelledby="hero-title">
+      <div>
+        <h1 id="hero-title">돌아올 수 있는 시간은<br><mark>24시간.</mark></h1>
+        <p class="record-lead">욕망에 삼켜진 인간은 오르트로스가 된다. 그 경계가 닫히기 전, 과학과 신앙과 염원이 서로 다른 답을 들고 현장에 도착한다.</p>
+        <div class="record-actions">
+          <a class="btn key" href="./guidebook/">가이드북 읽기</a>
+          <a class="btn" href="./gallery/">에셋 제작 현황</a>
         </div>
       </div>
-      <aside class="deadline" aria-label="골든타임 진행 단계">
-        <div class="deadline-head"><span>GOLDEN TIME</span><strong>24:00</strong></div>
-        <ol>
-          <li><b>변이 발생</b><span>인간의 정신과 존재가 남아 있음</span></li>
-          <li><b>초동 대응</b><span>대책반의 제압·구속과 신원 특정</span></li>
-          <li><b>정화 가능</b><span>성당교회 또는 세라피안의 개입</span></li>
-          <li class="expired"><b>고착</b><span>강화된 오르트로스, 소멸만 가능</span></li>
-        </ol>
-      </aside>
+
+      <div class="plan">
+        <div class="plan-head">
+          <strong>GOLDEN TIME</strong>
+          <span class="legend">24 : 00</span>
+        </div>
+        <table>
+          <caption class="sr-only">골든타임 네 단계와 각 단계의 상태</caption>
+          <thead>
+            <tr><th scope="col">Step</th><th scope="col">단계</th><th scope="col" class="swatch"><span class="sr-only">계조</span></th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <th scope="row">0<br>ZONE IX</th>
+              <td><b>변이 발생</b><span>인간의 정신과 존재가 남아 있음</span></td>
+              <td class="swatch" style="background:var(--z9)"></td>
+            </tr>
+            <tr>
+              <th scope="row">1<br>ZONE VI</th>
+              <td><b>초동 대응</b><span>대책반의 제압·구속과 신원 특정</span></td>
+              <td class="swatch" style="background:var(--z6)"></td>
+            </tr>
+            <tr>
+              <th scope="row">2<br>ZONE III</th>
+              <td><b>정화 가능</b><span>성당교회 또는 세라피안의 개입</span></td>
+              <td class="swatch" style="background:var(--z3)"></td>
+            </tr>
+            <tr class="gone">
+              <th scope="row">3<br>ZONE 0</th>
+              <td><b>고착</b><span>강화된 오르트로스, 소멸만 가능</span></td>
+              <td class="swatch" style="background:var(--z0)"></td>
+            </tr>
+          </tbody>
+        </table>
+        <div class="plan-foot">
+          <span class="key-mark">KEY · 되돌릴 수 없음</span>
+          <span class="legend">기본 24h · 저항력에 따라 증감</span>
+        </div>
+      </div>
     </section>
 
-    <section class="section" id="world" aria-labelledby="world-title">
-      <div class="section-heading">
-        <div><p class="eyebrow">WORLD GUIDE</p><h2 id="world-title">세계관 핵심</h2></div>
-        <a class="text-link" href="./guidebook/">전체 설정 열기 →</a>
+    <section class="band" id="world" aria-labelledby="world-title">
+      <div class="band-head">
+        <h2 id="world-title">세계관 핵심</h2>
+        <a href="./guidebook/">가이드북 전문 열기 →</a>
       </div>
-      <div class="world-grid">
-        <article><span>01</span><h3>오르트로스</h3><p>과도한 부정적 감정과 뒤틀린 욕망이 한계를 넘을 때 인간이 변이한 존재. 외형과 능력에는 변이 직전의 욕망이 반영된다.</p></article>
-        <article><span>02</span><h3>골든타임</h3><p>변이 후에도 인간이 남아 있는 기간. 기본은 24시간이며 정신적 저항력에 따라 길어지거나 짧아진다.</p></article>
-        <article><span>03</span><h3>정화와 소멸</h3><p>골든타임 안에는 인간으로 되돌릴 수 있다. 경과 후에는 경계가 붕괴하고 오르트로스가 강화되어 소멸만 가능하다.</p></article>
-        <article><span>04</span><h3>하나의 현장, 다른 답</h3><p>대책반은 시간을 벌고, 성당교회는 말씀으로 끝을 정하며, 세라피안은 염원으로 싸운다. NYMPH는 재발 가능성 자체를 제거하려 한다.</p></article>
-      </div>
-    </section>
-
-    <section class="section" id="factions" aria-labelledby="factions-title">
-      <div class="section-heading"><div><p class="eyebrow">FOUR FRONTS</p><h2 id="factions-title">주요 세력</h2></div></div>
-      <div class="faction-grid">
-        <article class="faction seraphian"><p class="faction-code">SERAPHIAN</p><h3>세라피안</h3><p>세라프에게 선택되어 계약한 인간. 세라프의 권능과 자신의 염원을 결합해 변신하며 전투부터 정화 또는 소멸까지 단독으로 수행할 수 있다.</p><a href="#roster" data-filter-link="seraphian">인물 보기 →</a></article>
-        <article class="faction task-force"><p class="faction-code">ANOMALY TASK FORCE</p><h3>괴이사건대책반</h3><p>가장 먼저 현장에 도착하는 경찰 소속 조직. 전술 트럭과 E3·E4 슈트로 골든타임 안의 개체를 제압하고 민간인을 보호한다.</p><a href="#roster" data-filter-link="task-force">인물 보기 →</a></article>
-        <article class="faction church"><p class="faction-code">VATICAN CHURCH</p><h3>성당교회 한국지부</h3><p>성경의 성구를 봉독해 Clavis Arche를 구현한다. 오르트로스를 정화하거나 소멸시키는 초자연적 최종 대응을 맡는다.</p><a href="#roster" data-filter-link="church">인물 보기 →</a></article>
-        <article class="faction nymph"><p class="faction-code">NYMPH</p><h3>비인가 지하조직</h3><p>신과 천계의 개입을 부정하는 과학 집단. 정화를 불완전한 해결로 보고 골든타임과 무관하게 오르트로스의 사살을 우선한다.</p><a href="#roster" data-filter-link="nymph">인물 보기 →</a></article>
+      <div class="notes">
+        <div><h3>오르트로스</h3><p>과도한 부정적 감정과 뒤틀린 욕망이 한계를 넘을 때 인간이 변이한 존재. 외형과 능력에는 변이 직전의 욕망이 반영된다.</p></div>
+        <div><h3>골든타임</h3><p>변이 후에도 인간이 남아 있는 기간. 기본은 24시간이며 정신적 저항력에 따라 길어지거나 짧아진다.</p></div>
+        <div><h3>정화와 소멸</h3><p>골든타임 안에는 인간으로 되돌릴 수 있다. 경과 후에는 경계가 붕괴하고 오르트로스가 강화되어 소멸만 가능하다.</p></div>
+        <div><h3>하나의 현장, 다른 답</h3><p>대책반은 시간을 벌고, 성당교회는 말씀으로 끝을 정하며, 세라피안은 염원으로 싸운다. NYMPH는 재발 가능성 자체를 제거하려 한다.</p></div>
       </div>
     </section>
 
-    <section class="section roster-section" id="roster" aria-labelledby="roster-title">
-      <div class="section-heading">
-        <div><p class="eyebrow">CHARACTER INDEX</p><h2 id="roster-title">인물·존재 명부</h2></div>
-        <p class="result-count" id="result-count" aria-live="polite"></p>
+    <section class="band" id="factions" aria-labelledby="factions-title">
+      <div class="band-head">
+        <h2 id="factions-title">세력</h2>
+        <span class="legend-ko">연조 ← 계조 → 경조</span>
+      </div>
+      <p class="record-lead" style="margin:0 0 22px">세력은 색이 아니라 계조로 갈린다. 곡선이 완만할수록 중간톤이 넓다 — 되돌릴 여지가 남아 있는 쪽이다. 곡선이 설수록 중간톤이 사라지고 흑과 백만 남는다.</p>
+      <div class="grades">
+        <div data-grade="0">
+          <svg class="curve" viewBox="0 0 40 40" aria-hidden="true"><rect x="2.5" y="2.5" width="35" height="35"/><line x1="2.5" y1="20" x2="37.5" y2="20"/><line x1="20" y1="2.5" x2="20" y2="37.5"/><path d="M3 35 L 7 34 L 33 7 L 37 5"/></svg>
+          <div class="who"><h3>성당교회 한국지부</h3><p class="grade"><b>0호</b><i>M 0 · 연조</i></p></div>
+          <p>성경의 성구를 봉독해 클라비스 아르케를 구현한다. 오르트로스를 정화하거나 소멸시키는 초자연적 최종 대응을 맡는다.</p>
+          <a class="go" href="#g-church">명부 3명 →</a>
+        </div>
+        <div data-grade="1">
+          <svg class="curve" viewBox="0 0 40 40" aria-hidden="true"><rect x="2.5" y="2.5" width="35" height="35"/><line x1="2.5" y1="20" x2="37.5" y2="20"/><line x1="20" y1="2.5" x2="20" y2="37.5"/><path d="M3 35 L 9 34 L 31 7 L 37 5"/></svg>
+          <div class="who"><h3>세라프</h3><p class="grade"><b>1호</b><i>M 15</i></p></div>
+          <p>계약자를 찾아 하늘을 떠도는 존재. 그 사람이 가장 아끼는 물건에 깃들어 말을 걸고, 계약이 성립하면 인간에게 변신과 권능을 넘긴다.</p>
+          <a class="go" href="#g-seraph">명부 10명 →</a>
+        </div>
+        <div data-grade="2">
+          <svg class="curve" viewBox="0 0 40 40" aria-hidden="true"><rect x="2.5" y="2.5" width="35" height="35"/><line x1="2.5" y1="20" x2="37.5" y2="20"/><line x1="20" y1="2.5" x2="20" y2="37.5"/><path d="M3 35 L 12 34 L 28 7 L 37 5"/></svg>
+          <div class="who"><h3>세라피안</h3><p class="grade"><b>2호</b><i>M 30 · 표준</i></p></div>
+          <p>세라프에게 선택되어 계약한 인간. 세라프의 권능과 자신의 염원을 결합해 변신하며, 전투부터 정화 또는 소멸까지 단독으로 수행할 수 있다.</p>
+          <a class="go" href="#g-seraphian">명부 6명 →</a>
+        </div>
+        <div data-grade="2.5">
+          <svg class="curve" viewBox="0 0 40 40" aria-hidden="true"><rect x="2.5" y="2.5" width="35" height="35"/><line x1="2.5" y1="20" x2="37.5" y2="20"/><line x1="20" y1="2.5" x2="20" y2="37.5"/><path d="M3 35 L 14 34 L 26 7 L 37 5"/></svg>
+          <div class="who"><h3>괴이사건대책반</h3><p class="grade"><b>2½호</b><i>M 45</i></p></div>
+          <p>가장 먼저 현장에 도착하는 경찰 소속 조직. 전술 트럭과 E3·E4 슈트로 골든타임 안의 개체를 제압하고 민간인을 보호한다.</p>
+          <a class="go" href="#g-task-force">명부 5명 →</a>
+        </div>
+        <div data-grade="3.5">
+          <svg class="curve" viewBox="0 0 40 40" aria-hidden="true"><rect x="2.5" y="2.5" width="35" height="35"/><line x1="2.5" y1="20" x2="37.5" y2="20"/><line x1="20" y1="2.5" x2="20" y2="37.5"/><path d="M3 35 L 16 34 L 24 7 L 37 5"/></svg>
+          <div class="who"><h3>NYMPH</h3><p class="grade"><b>3½호</b><i>M 90</i></p></div>
+          <p>신과 천계의 개입을 부정하는 비인가 지하 과학 집단. 정화를 불완전한 해결로 보고, 골든타임과 무관하게 오르트로스의 사살을 우선한다.</p>
+          <a class="go" href="#g-nymph">명부 5명 →</a>
+        </div>
+        <div data-grade="5">
+          <svg class="curve" viewBox="0 0 40 40" aria-hidden="true"><rect x="2.5" y="2.5" width="35" height="35"/><line x1="2.5" y1="20" x2="37.5" y2="20"/><line x1="20" y1="2.5" x2="20" y2="37.5"/><path d="M3 35 L 18 34 L 22 7 L 37 5"/></svg>
+          <div class="who"><h3>가드너</h3><p class="grade"><b>5호</b><i>M 200 · 경조</i></p></div>
+          <p>티폰 산하의 클리파 가운데 특별히 강한 넷. 인간이 아니며, 욕망을 퍼뜨려 오르트로스의 발생 자체를 촉진한다.</p>
+          <a class="go" href="#g-gardener">명부 4명 →</a>
+        </div>
+        <div data-grade="—">
+          <svg class="curve solid" viewBox="0 0 40 40" aria-hidden="true"><rect x="2.5" y="2.5" width="35" height="35"/><line x1="2.5" y1="20" x2="37.5" y2="20"/><line x1="20" y1="2.5" x2="20" y2="37.5"/><path d="M20 36 L 20 4"/></svg>
+          <div class="who"><h3>핵심 존재</h3><p class="grade"><b>필터 없음</b><i>직접 광원</i></p></div>
+          <p>티폰과 아르케. 계조를 거치지 않는 광원 자체이며, 권능은 이 둘만이 쓴다.</p>
+          <a class="go" href="#g-core">명부 2명 →</a>
+        </div>
+      </div>
+    </section>
+
+    <section class="band" id="roster" aria-labelledby="roster-title">
+      <div class="band-head">
+        <h2 id="roster-title">인물 명부</h2>
+        <span class="legend">CONTACT SHEET · 35</span>
       </div>
       <div class="roster-tools">
-        <label class="search"><span class="sr-only">이름, 코드, 역할 검색</span><input id="character-search" type="search" placeholder="이름, 코드, 역할 검색" autocomplete="off"></label>
-        <div class="filters" role="group" aria-label="소속 필터">
-          <button type="button" class="active" data-filter="all" aria-pressed="true">전체</button>
-          <button type="button" data-filter="seraphian" aria-pressed="false">세라피안</button>
-          <button type="button" data-filter="seraph" aria-pressed="false">세라프</button>
-          <button type="button" data-filter="task-force" aria-pressed="false">대책반</button>
-          <button type="button" data-filter="church" aria-pressed="false">성당교회</button>
-          <button type="button" data-filter="nymph" aria-pressed="false">NYMPH</button>
-          <button type="button" data-filter="gardener" aria-pressed="false">가드너</button>
-          <button type="button" data-filter="core" aria-pressed="false">핵심 존재</button>
-        </div>
+        <label class="sr-only" for="q">이름, 코드, 역할 검색</label>
+        <input id="q" type="search" placeholder="이름 · 코드 · 역할 검색" autocomplete="off">
+        <p id="count" aria-live="polite"></p>
       </div>
-      <div class="character-grid" id="character-grid" aria-busy="true"></div>
-      <div class="empty" id="empty-state" hidden><p>조건에 맞는 인물이 없습니다.</p><button type="button" id="reset-filter">전체 명부 보기</button></div>
-      <p class="copy-status" id="copy-status" aria-live="polite"></p>
+      <div id="sheets" aria-busy="true"></div>
+      <div class="empty" id="empty" hidden>
+        <p>조건에 맞는 인물이 없습니다.</p>
+        <button class="btn" type="button" id="reset" style="margin-top:14px">전체 명부 보기</button>
+      </div>
+      <p class="legend" id="say" aria-live="polite" style="min-height:18px;margin-top:12px"></p>
     </section>
   </main>
 
-  <footer><p>가칭 세라프 프로젝트 · 제목 및 공개 범위는 추후 변경될 수 있습니다.</p><a href="https://github.com/TANETI/SER-site">GitHub</a></footer>
+  <nav class="circuit" aria-label="다른 화면">
+    <a href="./guidebook/"><b>세계관 가이드북 →</b><span>14개 절의 확정 설정 정본. 성구와 영창 전문 포함.</span></a>
+    <a href="./gallery/"><b>에셋 제작 현황 →</b><span>인물별·번호대역별로 무엇이 나왔고 무엇이 남았는지.</span></a>
+  </nav>
+
+  <footer>
+    <span>가칭 세라프 프로젝트 · SER</span>
+    <span>제목은 가칭이며 공개 범위는 미정</span>
+    <a href="https://github.com/TANETI/SER-site">GitHub</a>
+  </footer>
 </body>
 </html>

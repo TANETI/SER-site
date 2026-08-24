@@ -3,221 +3,363 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="color-scheme" content="dark">
+<meta name="robots" content="noindex">
+<meta name="theme-color" content="#e6e5e0">
 <title>SER 세계관 가이드북</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Song+Myung&family=IBM+Plex+Sans+KR:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+<link rel="stylesheet" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Song+Myung&family=Gothic+A1:wght@400;700;800;900&family=Azeret+Mono:wght@400;500;600&display=swap">
 <style>
-/* SER 가이드북 — 전례서와 작전 문서 사이.
-   명조=성구, 산세리프=서술, 모노=계기와 번호. */
-:root{
-  --serif:"Song Myung","Nanum Myeongjo","Batang",serif;
-  --sans:"IBM Plex Sans KR","Pretendard","Malgun Gothic",sans-serif;
-  --mono:"IBM Plex Mono","D2Coding",ui-monospace,monospace;
+/* 노광 기록 — 세 화면이 공유하는 단 하나의 토큰층.
+   이 파일은 site/ 의 두 화면이 <link> 로 읽고, 가이드북은 build_site.py 가 그대로 인라인한다.
+   토큰을 고칠 곳은 여기 한 곳뿐이다. */
 
-  --bg:#0E1319; --panel:#151B23; --panel2:#1A212A;
-  --line:#27313D; --rule:#394656;
-  --ink:#E8EBEF; --strong:#FBFCFD; --dim:#98A3B1; --faint:#66717E;
+:root {
+  /* 존 램프 — 화면의 모든 무채색은 이 열한 칸 중 하나에 스냅한다. 사이 값을 만들지 않는다. */
+  --z0:  #16171a;
+  --z1:  #24262a;
+  --z2:  #34373c;
+  --z3:  #45484e;
+  --z4:  #575b61;
+  --z5:  #6b6f76;
+  --z6:  #82868d;
+  --z7:  #9a9ea4;
+  --z8:  #b4b7bc;
+  --z9:  #cfd1d4;
+  --z10: #e9eaeb;
 
-  --gold:#C39B4E;
-  --steel:#7396B5;
-  --violet:#8B7BC4;
-  --danger:#BF574F;
-  --safe:#5C9C85;
+  /* 지본과 시트 — 라이트박스 위에 겹쳐 놓인 종이. 어두운 방이 아니라 백라이트 쪽이다. */
+  --paper: #e6e5e0;
+  --sheet: #f0efeb;
+  --clear: #f9f8f6;
+  --ink:   var(--z0);
+  --rule:  #c9c8c2;
 
-  --side:252px; --measure:68ch;
+  /* 필터 — 이 화면에서 유일한 유채색. 계조 등급과 활성 상태에만 쓴다. 장식으로 쓰지 않는다. */
+  --mag: #d4007a;
+  --mag-ink: #a8005f;
+  --mag-soft: #f7d6e8;
+
+  --face-display: 'Gothic A1', 'Pretendard Variable', Pretendard, sans-serif;
+  --face-text: 'Pretendard Variable', Pretendard, system-ui, sans-serif;
+  --face-data: 'Azeret Mono', ui-monospace, monospace;
+
+  --page: 1240px;
+  --gutter: clamp(16px, 4vw, 40px);
+  color-scheme: light;
+  accent-color: var(--mag);
 }
-*{box-sizing:border-box}
-html{scroll-behavior:smooth;scroll-padding-top:28px}
-body{margin:0;background:var(--bg);color:var(--ink);
-  font-family:var(--sans);font-size:16px;line-height:1.75;
-  -webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
-h1,h2,h3,h4{font-family:var(--serif);font-weight:400;margin:0;text-wrap:balance}
-p{margin:0 0 .8em}
-p:last-child{margin-bottom:0}
-a{color:inherit}
-strong{color:var(--strong);font-weight:600}
-code{font-family:var(--mono);font-size:.86em;color:var(--steel)}
-:focus-visible{outline:2px solid var(--steel);outline-offset:3px}
 
-.shell{display:grid;grid-template-columns:var(--side) minmax(0,1fr);min-height:100vh}
-
-aside{position:sticky;top:0;align-self:start;height:100vh;overflow-y:auto;
-  padding:30px 0 30px 26px;border-right:1px solid var(--line);background:var(--bg)}
-aside .brand{font-family:var(--mono);font-size:10.5px;letter-spacing:.42em;color:var(--gold)}
-aside .bt{font-family:var(--serif);font-size:21px;margin:10px 0 20px;padding-right:26px}
-aside input{width:calc(100% - 26px);padding:9px 11px;margin-bottom:22px;
-  border:1px solid var(--line);border-radius:2px;background:var(--panel);
-  color:var(--ink);font:inherit;font-size:13px}
-aside input::placeholder{color:var(--faint)}
-aside ul{list-style:none;margin:0;padding:0}
-aside a{display:grid;grid-template-columns:22px 1fr;gap:10px;align-items:baseline;
-  padding:6px 26px 6px 12px;margin-left:-14px;text-decoration:none;color:var(--dim);
-  font-size:13.5px;border-left:2px solid transparent;transition:color .18s,border-color .18s}
-aside a:hover{color:var(--ink)}
-aside a.on{color:var(--strong);border-left-color:var(--gold)}
-aside .n{font-family:var(--mono);font-size:11px;color:var(--faint);font-variant-numeric:tabular-nums}
-aside a.on .n{color:var(--gold)}
-
-main{min-width:0;padding:0 44px 100px}
-.inner{max-width:940px;margin:0 auto}
-
-.hero{padding:96px 0 46px;border-bottom:2px solid var(--rule)}
-.hero .eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:.4em;
-  color:var(--gold);text-transform:uppercase;margin-bottom:26px}
-.hero h1{font-size:clamp(38px,6vw,68px);line-height:1.22}
-.hero h1 em{font-style:normal;color:var(--gold)}
-.hero .sub{margin-top:24px;max-width:60ch;color:var(--dim);font-size:16px}
-.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));
-  margin-top:40px;border-top:1px solid var(--line)}
-.stat{padding:16px 18px 16px 0;border-right:1px solid var(--line)}
-.stat:last-child{border-right:0}
-.stat b{display:block;font-family:var(--serif);font-size:23px;color:var(--strong);
-  font-variant-numeric:tabular-nums}
-.stat span{display:block;margin-top:4px;font-family:var(--mono);font-size:10px;
-  letter-spacing:.14em;color:var(--faint);text-transform:uppercase}
-
-section{padding:64px 0 8px}
-section+section{border-top:1px solid var(--line)}
-.shead{display:grid;grid-template-columns:auto 1fr;align-items:baseline;gap:16px;margin-bottom:14px}
-.sno{font-family:var(--mono);font-size:12px;letter-spacing:.16em;color:var(--gold);
-  font-variant-numeric:tabular-nums}
-.shead h2{font-size:clamp(26px,3.4vw,36px);line-height:1.3}
-.lead{color:var(--dim);max-width:var(--measure);margin-bottom:28px;font-size:16px}
-h4{font-size:19px;margin:40px 0 14px;padding-bottom:8px;border-bottom:1px solid var(--line);color:var(--strong)}
-.eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:.22em;color:var(--steel);margin-bottom:12px}
-
-.grid{display:grid;gap:12px;margin:20px 0}
-.g2{grid-template-columns:repeat(auto-fit,minmax(280px,1fr))}
-.g3{grid-template-columns:repeat(auto-fit,minmax(230px,1fr))}
-.g4{grid-template-columns:repeat(auto-fit,minmax(196px,1fr))}
-
-.card{position:relative;padding:20px;background:var(--panel);
-  border:1px solid var(--line);border-top:2px solid var(--rule);transition:background .18s}
-.card:hover{background:var(--panel2)}
-.card h3{font-size:18px;margin-bottom:8px;color:var(--strong);line-height:1.4}
-.card p,.card li{font-size:14.5px;color:var(--dim)}
-.card ul{margin:0;padding-left:16px}
-.card li{margin:.25em 0}
-.card.safe{border-top-color:var(--safe)}
-.card.danger{border-top-color:var(--danger)}
-.card.gold{border-top-color:var(--gold)}
-.card.violet{border-top-color:var(--violet)}
-.card.accent{border-top-color:var(--steel)}
-.tag{display:block;font-family:var(--mono);font-size:10px;letter-spacing:.2em;
-  text-transform:uppercase;color:var(--faint);margin-bottom:9px}
-
-.note{margin:22px 0;padding:16px 20px;background:var(--panel);border-left:2px solid var(--gold)}
-.note b{color:var(--gold);font-family:var(--serif);font-size:16px}
-.note p{color:var(--dim);font-size:14.8px;margin-top:6px}
-.note.danger{border-left-color:var(--danger)}
-.note.danger b{color:var(--danger)}
-
-.formula{font-family:var(--mono);font-size:12.6px;line-height:2;color:var(--steel);
-  background:var(--panel);padding:14px 18px;margin:18px 0;border-left:2px solid var(--steel)}
-
-blockquote.pull{margin:32px 0 8px;padding:0 0 0 24px;border-left:2px solid var(--gold);
-  font-family:var(--serif);font-size:19px;line-height:1.9;color:var(--strong);white-space:pre-line}
-
-.rite{margin:22px 0;padding:24px 26px;background:var(--panel);border-top:2px solid var(--line)}
-.rite.safe{border-top-color:var(--safe)}
-.rite.danger{border-top-color:var(--danger)}
-.rite.gold{border-top-color:var(--gold)}
-.rite.violet{border-top-color:var(--violet)}
-.rite h3{font-size:19.5px;margin-bottom:14px;line-height:1.5;color:var(--strong)}
-.rite ul{margin:14px 0 0;padding-left:17px}
-.rite li{font-size:14.6px;color:var(--dim);margin:.35em 0}
-blockquote.scripture{margin:0 0 12px;padding:0 0 0 18px;border-left:1px solid var(--gold);
-  font-family:var(--serif);font-size:15.5px;line-height:1.9;color:#DCCDA8;white-space:pre-line}
-
-.fold{margin-top:18px;border-top:1px solid var(--line)}
-.fold>summary{list-style:none;cursor:pointer;display:flex;align-items:center;gap:10px;padding:12px 0;
-  font-family:var(--mono);font-size:11px;letter-spacing:.18em;text-transform:uppercase;
-  color:var(--steel);user-select:none}
-.fold>summary::-webkit-details-marker{display:none}
-.fold>summary::before{content:"+";font-family:var(--mono);color:var(--faint)}
-.fold[open]>summary::before{content:"2"}
-.fold>summary:hover{color:var(--ink)}
-.fold>summary .meta{margin-left:auto;color:var(--faint);letter-spacing:.1em}
-
-.chant{margin:0 0 18px;padding:24px 26px;background:#0B1017;
-  border-left:1px solid var(--gold);border-right:1px solid var(--line);
-  font-family:var(--serif);font-size:15.5px;line-height:2.05;color:#EAEDF1;white-space:pre-line}
-.chant strong{color:var(--gold);font-weight:400}
-
-.tl{position:relative;margin:24px 0;padding-left:24px;list-style:none}
-.tl::before{content:"";position:absolute;left:3px;top:10px;bottom:10px;width:1px;background:var(--rule)}
-.tl li{position:relative;margin-bottom:20px}
-.tl li::before{content:"";position:absolute;left:-24px;top:11px;width:7px;height:7px;background:var(--gold)}
-.tl b{display:block;font-family:var(--serif);font-size:17px;color:var(--strong)}
-.tl span{color:var(--dim);font-size:14.5px}
-
-.ranks{display:flex;gap:1px;margin:20px 0 8px;background:var(--line);border:1px solid var(--line)}
-.ranks div{flex:1;text-align:center;padding:13px 4px;background:var(--panel);
-  font-family:var(--mono);font-size:12.5px;color:var(--dim);font-variant-numeric:tabular-nums}
-.ranks .r-lo{color:var(--safe)}
-.ranks .r-mid{color:var(--gold)}
-.ranks .r-hi{color:var(--danger)}
-.ranks .r-top{color:var(--strong);background:#33222A}
-
-.bar{height:10px;overflow:hidden;display:flex;margin:20px 0 8px;border:1px solid var(--line)}
-.bar i{display:block;height:100%;transform-origin:left;
-  animation:fill 1s .1s backwards cubic-bezier(.3,.8,.3,1)}
-@keyframes fill{from{transform:scaleX(0)}to{transform:scaleX(1)}}
-.bar .b1{flex:8;background:var(--safe)}
-.bar .b2{flex:78;background:var(--gold);animation-delay:.3s}
-.bar .b3{flex:14;background:var(--danger);animation-delay:.6s}
-.barlabels{display:flex;font-family:var(--mono);font-size:10.5px;letter-spacing:.1em;color:var(--faint)}
-.barlabels span{flex:1}
-.barlabels span:nth-child(2){flex:9.6;text-align:center}
-.barlabels span:nth-child(3){flex:1.8;text-align:right}
-
-.roster{display:grid;gap:1px;margin:18px 0;background:var(--line);border:1px solid var(--line)}
-.row{display:flex;align-items:baseline;gap:14px;flex-wrap:wrap;padding:12px 16px;
-  background:var(--panel);transition:background .18s}
-.row:hover{background:var(--panel2)}
-.row .code{font-family:var(--mono);font-size:11px;color:var(--gold);min-width:30px;letter-spacing:.08em}
-.row .nm{font-family:var(--serif);font-size:16px;min-width:70px;color:var(--strong)}
-.row .ds{color:var(--dim);font-size:14px}
-.row .arrow{color:var(--faint);font-family:var(--mono)}
-
-.empty{display:none;padding:48px 0;color:var(--faint);font-family:var(--mono);font-size:13px}
-.empty.on{display:block}
-footer{margin-top:64px;padding:24px 0 0;border-top:1px solid var(--line);
-  color:var(--faint);font-family:var(--mono);font-size:11px;letter-spacing:.16em}
-
-@media (max-width:900px){
-  .shell{grid-template-columns:1fr}
-  aside{position:static;height:auto;border-right:0;border-bottom:1px solid var(--line);padding:22px 18px}
-  aside .bt{padding-right:0}
-  aside input{width:100%}
-  aside ul{display:flex;flex-wrap:wrap;gap:2px}
-  aside a{padding:6px 10px;margin-left:0;border-left:0;border-bottom:2px solid transparent}
-  aside a.on{border-bottom-color:var(--gold)}
-  main{padding:0 18px 72px}
-  .hero{padding:52px 0 34px}
-  .stat{border-right:0;border-bottom:1px solid var(--line)}
+/* 해치 — 미보유·부재·충돌을 나르는 척도. 밀도가 곧 수치다.
+   .hatch 는 --d(선 간격)와 --w(선 굵기)로 여덟 단계를 만든다. */
+.hatch {
+  background-image: repeating-linear-gradient(
+    45deg,
+    var(--hatch-ink, var(--z4)) 0 var(--w, 1px),
+    transparent var(--w, 1px) var(--d, 7px)
+  );
 }
-@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
-@media print{
-  body{background:#fff;color:#000}
-  aside{display:none}
-  .card,.rite,.note,.chant,.row{break-inside:avoid}
+.hatch.d1 { --d: 11px; --w: .5px }
+.hatch.d2 { --d: 9px;  --w: .5px }
+.hatch.d3 { --d: 7px;  --w: .75px }
+.hatch.d4 { --d: 6px;  --w: 1px }
+.hatch.d5 { --d: 5px;  --w: 1px }
+.hatch.d6 { --d: 4px;  --w: 1.25px }
+.hatch.d7 { --d: 3px;  --w: 1.25px }
+.hatch.d8 { --d: 2.5px; --w: 1.5px }
+/* 직각으로 겹친 두 해치 = 충돌. 해당 없음·모순을 뜻하며 미보유와 다르다. */
+.hatch.conflict {
+  background-image:
+    repeating-linear-gradient(45deg,  var(--z5) 0 1px, transparent 1px 6px),
+    repeating-linear-gradient(-45deg, var(--z5) 0 1px, transparent 1px 6px);
+}
+
+*, *::before, *::after { box-sizing: border-box }
+
+html {
+  scroll-behavior: smooth;
+  scroll-padding-top: 96px;
+  -webkit-text-size-adjust: 100%;
+}
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto }
+  *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important }
+}
+
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--face-text);
+  font-size: 16px;
+  line-height: 1.7;
+  font-variant-numeric: tabular-nums;
+}
+
+/* 한국어는 어절 중간에서 끊지 않는다. 이 한 줄이 없어서 지금 히어로가 «있 / 는» 으로 쪼개진다. */
+h1, h2, h3, h4, h5, h6, p, li, td, th, dd, dt, figcaption, label, button, a {
+  word-break: keep-all;
+  overflow-wrap: anywhere;
+}
+h1, h2, h3, h4 { margin: 0; font-family: var(--face-display); font-weight: 800; line-height: 1.12; letter-spacing: -.02em }
+p { margin: 0 }
+a { color: inherit }
+img { display: block; max-width: 100%; -webkit-user-drag: none; user-select: none }
+button, input, select { font: inherit; color: inherit }
+
+/* 라틴·숫자·계기값 전용. 한글에는 절대 쓰지 않는다 — 모노에 한글 글리프가 없어 자간만 남는다. */
+.data {
+  font-family: var(--face-data);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: .02em;
+}
+.legend {
+  font-family: var(--face-data);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: .16em;
+  text-transform: uppercase;
+  color: var(--z3);
+}
+/* 한글 범례는 모노를 쓰지 않고 자간도 벌리지 않는다. */
+.legend-ko {
+  font-family: var(--face-text);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0;
+  color: var(--z3);
+}
+
+/* 브라우저가 그리는 표면도 이 세계에 속한다. */
+::selection { background: var(--mag); color: var(--clear) }
+:focus-visible { outline: 2px solid var(--mag); outline-offset: 2px }
+input { caret-color: var(--mag) }
+* { scrollbar-width: thin; scrollbar-color: var(--z6) var(--z10) }
+*::-webkit-scrollbar { width: 10px; height: 10px }
+*::-webkit-scrollbar-track { background: var(--z10) }
+*::-webkit-scrollbar-thumb { background: var(--z6); border: 2px solid var(--z10) }
+*::-webkit-scrollbar-thumb:hover { background: var(--z4) }
+
+/* 손가락이 닿는 것은 44px 아래로 내려가지 않는다. */
+a.tap, button, [role="button"], input[type="search"], summary {
+  min-height: 44px;
+}
+
+.skip-link {
+  position: fixed; z-index: 60; top: 8px; left: 8px;
+  display: flex; align-items: center;
+  padding: 10px 16px;
+  background: var(--ink); color: var(--clear);
+  transform: translateY(-160%);
+}
+.skip-link:focus { transform: none }
+.sr-only {
+  position: absolute; width: 1px; height: 1px; padding: 0;
+  overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0;
+}
+
+/* ── 세력 = 필터 호수 ────────────────────────────────────────────────
+   세력을 색이 아니라 계조 곡선으로 가른다.
+   저호수(성당교회)는 중간톤이 넓고 부드럽다 — 되돌릴 여지가 남아 있는 쪽.
+   고호수(가드너)는 중간톤이 없고 흑과 백만 남는다 — 욕망만 남은 쪽.
+   호수는 괘선 톤·라벨 톤·특성 곡선 셋을 동시에 정한다. 본문 대비는 호수와 무관하게 항상 지킨다. */
+
+[data-grade] { --g-rule: var(--z7); --g-label: var(--z3); --g-fill: var(--z9) }
+[data-grade="0"]   { --g-rule: var(--z8); --g-label: var(--z4); --g-fill: var(--z10) }
+[data-grade="1"]   { --g-rule: var(--z8); --g-label: var(--z4); --g-fill: var(--z10) }
+[data-grade="2"]   { --g-rule: var(--z7); --g-label: var(--z3); --g-fill: var(--z9) }
+[data-grade="2.5"] { --g-rule: var(--z7); --g-label: var(--z3); --g-fill: var(--z9) }
+[data-grade="3.5"] { --g-rule: var(--z5); --g-label: var(--z2); --g-fill: var(--z8) }
+[data-grade="5"]   { --g-rule: var(--z2); --g-label: var(--z0); --g-fill: var(--z6) }
+[data-grade="—"]   { --g-rule: var(--z1); --g-label: var(--z0); --g-fill: var(--mag) }
+
+.curve { display: block; width: 34px; height: 34px; flex: none }
+.curve rect { fill: none; stroke: var(--g-rule); stroke-width: 1 }
+.curve line { stroke: var(--g-rule); stroke-width: .5 }
+.curve path { fill: none; stroke: var(--g-label); stroke-width: 1.9; stroke-linejoin: round; stroke-linecap: round }
+.curve.solid path { stroke: var(--mag) }
+
+.grade {
+  display: inline-flex; align-items: center; gap: 7px;
+  font-family: var(--face-data); font-size: 11px; font-weight: 600;
+  letter-spacing: .08em; color: var(--g-label);
+}
+.grade b { font-weight: 600 }
+.grade i { font-style: normal; color: var(--z3) }
+
+/* SER 가이드북 — 노광 기록의 독서면.
+   명조=성구와 영창, 산세리프=서술, 모노=계기와 번호. 토큰은 위에 인라인된 한 벌뿐이다. */
+:root { --serif: "Song Myung", "Nanum Myeongjo", "Batang", serif }
+
+.shell { display: grid; grid-template-columns: 292px minmax(0, 1fr); min-height: 100vh }
+main, .inner, aside { min-width: 0 }
+aside {
+  position: sticky; top: 0; align-self: start; height: 100vh; overflow-y: auto;
+  padding: 20px 20px 32px; border-right: 1px solid var(--z4); background: var(--sheet);
+}
+aside .out { display: flex; flex-wrap: wrap; gap: 2px; margin-bottom: 16px }
+aside .out a {
+  display: inline-flex; align-items: center; min-height: 44px; padding: 0 12px;
+  border: 1px solid var(--z6); font-size: 12px; font-weight: 700; color: var(--z2); text-decoration: none;
+}
+aside .out a:hover { border-color: var(--ink); background: var(--clear) }
+aside .brand { display: flex; align-items: center; gap: 9px; margin-bottom: 3px }
+aside .brand b { font-family: var(--face-display); font-size: 16px; font-weight: 900; letter-spacing: -.01em }
+aside .bt { margin-bottom: 16px; font-size: 12px; font-weight: 700; color: var(--z3) }
+aside input { width: 100%; min-height: 44px; padding: 0 12px; margin-bottom: 16px; border: 1px solid var(--z5); background: var(--clear) }
+aside nav ul { margin: 0; padding: 0; list-style: none }
+aside nav a {
+  display: flex; align-items: center; gap: 10px; min-height: 44px; padding: 0 10px;
+  border-left: 1px solid var(--rule); font-size: 13px; color: var(--z2); text-decoration: none;
+}
+aside nav a:hover { background: var(--clear); color: var(--ink) }
+aside nav a.on { border-left-color: var(--mag); background: var(--clear); color: var(--ink); font-weight: 700 }
+aside nav .n { font-family: var(--face-data); font-size: 10px; color: var(--z4) }
+aside nav a.on .n { color: var(--mag-ink) }
+aside summary { display: flex; align-items: center; min-height: 44px; font-size: 12px; font-weight: 700; color: var(--z3); cursor: pointer }
+aside > details { border: 0 }
+
+main { padding: 0 clamp(20px, 4vw, 56px) 88px }
+.inner { max-width: 780px; margin-inline: auto }
+
+.hero { padding: clamp(48px, 7vw, 84px) 0 34px }
+.hero h1 { font-size: clamp(32px, 5.4vw, 62px); font-weight: 900; line-height: 1.06; letter-spacing: -.035em }
+.hero h1 em { font-style: normal; color: var(--mag) }
+.hero .sub { max-width: 62ch; margin-top: 20px; color: var(--z2) }
+.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(148px, 1fr)); margin-top: 30px; border: 1px solid var(--z3); background: var(--sheet) }
+.stat { padding: 13px 15px; border-right: 1px solid var(--rule) }
+.stat:last-child { border-right: 0 }
+.stat b { display: block; font-family: var(--face-display); font-size: 19px; font-weight: 800; letter-spacing: -.02em }
+.stat span { display: block; margin-top: 2px; font-size: 12px; color: var(--z3) }
+
+section { padding: 40px 0; border-top: 1px solid var(--z4) }
+.shead { display: flex; align-items: baseline; gap: 12px; margin-bottom: 14px }
+.shead .sno { font-family: var(--face-data); font-size: 12px; font-weight: 600; color: var(--mag-ink); letter-spacing: .06em }
+.shead h2 { font-size: clamp(21px, 2.8vw, 27px); font-weight: 900; letter-spacing: -.025em }
+.lead { max-width: 68ch; margin-bottom: 20px; color: var(--z2) }
+section h3 { margin: 30px 0 10px; font-size: 17px; font-weight: 800 }
+section h4 { margin: 22px 0 8px; font-size: 14.5px; font-weight: 800; color: var(--z2) }
+section p { max-width: 70ch; margin: 0 0 12px }
+section ul, section ol { max-width: 70ch; margin: 0 0 14px; padding-left: 20px }
+section li { margin-bottom: 5px }
+
+.grid { display: grid; gap: 1px; margin: 16px 0; background: var(--rule); border: 1px solid var(--rule) }
+.grid.g2 { grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)) }
+.grid.g3 { grid-template-columns: repeat(auto-fit, minmax(196px, 1fr)) }
+.grid.g4 { grid-template-columns: repeat(auto-fit, minmax(158px, 1fr)) }
+
+.card { padding: 15px 16px; background: var(--sheet) }
+.card h3 { margin: 0 0 6px; font-size: 15px }
+.card p { margin: 0; font-size: 13.5px; color: var(--z2) }
+.card .tag { display: block; margin-bottom: 7px; font-family: var(--face-data); font-size: 10px;
+  font-weight: 500; letter-spacing: .14em; text-transform: uppercase; color: var(--z4) }
+/* 강조는 색이 아니라 상단 표지의 밀도로 준다. */
+.card.accent { box-shadow: inset 0 3px 0 var(--z6) }
+.card.gold   { box-shadow: inset 0 3px 0 var(--z2) }
+.card.safe   { box-shadow: inset 0 3px 0 var(--z8) }
+.card.violet { box-shadow: inset 0 3px 0 var(--z4) }
+.card.danger { background: var(--mag-soft); box-shadow: inset 0 3px 0 var(--mag) }
+.card.danger p, .card.danger h3 { color: var(--mag-ink) }
+
+.rite { padding: 15px 16px; background: var(--sheet) }
+.rite.gold   { box-shadow: inset 0 3px 0 var(--z2) }
+.rite.safe   { box-shadow: inset 0 3px 0 var(--z8) }
+.rite.violet { box-shadow: inset 0 3px 0 var(--z4) }
+.rite.danger { background: var(--mag-soft); box-shadow: inset 0 3px 0 var(--mag); color: var(--mag-ink) }
+
+.note { margin: 16px 0; padding: 13px 15px; border: 1px solid var(--z6); background: var(--sheet); font-size: 13.5px }
+.note.danger { border: 1px solid var(--mag); background: var(--mag-soft); color: var(--mag-ink) }
+.pull { margin: 22px 0; padding: 16px 18px; border-top: 1px solid var(--z3); border-bottom: 1px solid var(--z3);
+  font-family: var(--serif); font-size: 18px; line-height: 1.75 }
+.formula { margin: 14px 0; padding: 11px 14px; border: 1px solid var(--rule); background: var(--clear);
+  font-family: var(--face-data); font-size: 12px; color: var(--z2); overflow-x: auto; white-space: nowrap }
+
+/* 성구와 영창 — 페이지 안의 다른 물질 */
+.scripture {
+  margin: 18px 0; padding: 14px 0 14px 20px; border-left: 1px solid var(--mag);
+  font-family: var(--serif); font-size: 17px; line-height: 1.95; color: var(--z1); white-space: pre-line;
+}
+details.fold { margin: 14px 0; border: 1px solid var(--z6); background: var(--sheet) }
+details.fold summary { display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: 0 14px; min-height: 46px; cursor: pointer; list-style: none }
+details.fold summary::-webkit-details-marker { display: none }
+details.fold .lbl { font-size: 13px; font-weight: 700 }
+details.fold .meta { font-family: var(--face-data); font-size: 11px; color: var(--z4) }
+.chant { padding: 4px 16px 16px; border-top: 1px solid var(--rule); background: var(--clear);
+  font-family: var(--serif); font-size: 16px; line-height: 2.05; white-space: pre-line }
+
+/* 등급 — 존 램프에 그대로 얹는다 */
+.ranks { display: grid; grid-template-columns: repeat(9, 1fr); gap: 1px; margin: 16px 0; background: var(--rule); border: 1px solid var(--rule) }
+.ranks div { padding: 9px 6px; text-align: center; font-size: 12px; font-weight: 700; background: var(--clear) }
+.ranks .r-lo  { background: var(--z10) }
+.ranks .r-mid { background: var(--z8) }
+.ranks .r-hi  { background: var(--z4); color: var(--clear) }
+.ranks .r-top { background: var(--mag); color: var(--clear) }
+
+.bar { display: flex; height: 26px; margin: 14px 0 4px; border: 1px solid var(--rule); overflow: hidden }
+.bar i { display: block; height: 100% }
+.bar .b1 { background: var(--z9) }
+.bar .b2 { background: var(--z5) }
+.bar .b3 { background: var(--mag) }
+.barlabels { display: flex; justify-content: space-between; font-family: var(--face-data); font-size: 11px; color: var(--z3) }
+
+.tl { margin: 16px 0; padding: 0; list-style: none; border-top: 1px solid var(--rule) }
+.tl li { padding: 11px 0 11px 16px; border-bottom: 1px solid var(--rule); border-left: 1px solid var(--z6); font-size: 13.5px }
+
+.roster { margin: 14px 0; border: 1px solid var(--rule) }
+.roster .row { display: grid; grid-template-columns: 46px minmax(0, 1fr); gap: 3px 12px; padding: 10px 12px;
+  border-bottom: 1px solid var(--rule); align-items: baseline; font-size: 13px }
+@media (min-width: 720px) { .roster .row { grid-template-columns: 46px 116px minmax(0, 1fr) 20px minmax(0, 150px) } }
+.roster .row:last-child { border-bottom: 0 }
+.roster .row:nth-child(even) { background: var(--sheet) }
+.roster .code { font-family: var(--face-data); font-size: 11px; font-weight: 600; color: var(--z2) }
+.roster .nm { font-weight: 700 }
+.roster .ds { color: var(--z3); font-size: 12.5px }
+.roster .arrow { color: var(--z3); text-align: center }
+
+#empty { display: none; padding: 18px 0; color: var(--z3) }
+#empty.on { display: block }
+footer { margin-top: 60px; padding: 22px 0 0; border-top: 1px solid var(--z4);
+  font-family: var(--face-data); font-size: 11px; letter-spacing: .12em; color: var(--z4) }
+footer a { display: inline-block; min-width: 44px; padding: 13px 0; text-align: center; color: var(--z2) }
+
+@media (max-width: 900px) {
+  .shell { grid-template-columns: minmax(0, 1fr) }
+  aside { position: sticky; top: 0; z-index: 12; height: auto; overflow: visible;
+    padding: 12px 18px 14px; border-right: 0; border-bottom: 1px solid var(--z4);
+    background: color-mix(in srgb, var(--paper) 95%, transparent); backdrop-filter: blur(6px) }
+  aside .bt { margin-bottom: 10px }
+  aside input { margin-bottom: 8px }
+  aside nav ul { display: flex; flex-wrap: wrap; gap: 2px; padding-top: 6px }
+  aside nav a { border-left: 0; border-bottom: 2px solid transparent; padding: 0 10px }
+  aside nav a.on { border-bottom-color: var(--mag) }
+  main { padding: 0 18px 72px }
+  .stat { border-right: 0; border-bottom: 1px solid var(--rule) }
+}
+@media print {
+  body { background: #fff }
+  aside { display: none }
+  .card, .rite, .note, .chant, .roster .row { break-inside: avoid }
 }
 </style>
 </head>
 <body>
 <div class="shell">
 <aside>
-  <div class="brand">SER</div>
+  <div class="out"><a href="../">← 세계관</a><a href="../gallery/">제작 현황</a></div>
+  <div class="brand"><b>SER</b></div>
   <div class="bt">세계관 가이드북</div>
-  <input id="q" type="search" placeholder="설정 검색 (영창문 포함)" aria-label="설정 검색">
-  <ul><li><a href="#premise"><span class="n">01</span>기획 방향</a></li><li><a href="#origin"><span class="n">02</span>신과 고대사</a></li><li><a href="#orthros"><span class="n">03</span>오르트로스</a></li><li><a href="#goldentime"><span class="n">04</span>골든타임과 정화</a></li><li><a href="#taskforce"><span class="n">05</span>괴이사건대책반</a></li><li><a href="#church"><span class="n">06</span>성당교회</a></li><li><a href="#clavis"><span class="n">07</span>클라비스 목록</a></li><li><a href="#seraph"><span class="n">08</span>세라프와 세라피안</a></li><li><a href="#nymph"><span class="n">09</span>NYMPH</a></li><li><a href="#response"><span class="n">10</span>사건 대응 흐름</a></li><li><a href="#core"><span class="n">11</span>핵심 대칭</a></li><li><a href="#start"><span class="n">12</span>시작과 모드</a></li><li><a href="#index"><span class="n">13</span>인물 색인</a></li><li><a href="#assets"><span class="n">14</span>제작용 에셋</a></li></ul>
+  <label class="sr-only" for="q">설정 검색</label>
+  <input id="q" type="search" placeholder="설정 검색 (영창문 포함)">
+  <details class="toc" open>
+    <summary>목차 · 14절</summary>
+    <nav aria-label="문서 목차"><ul><li><a href="#premise"><span class="n">01</span>기획 방향</a></li><li><a href="#origin"><span class="n">02</span>신과 고대사</a></li><li><a href="#orthros"><span class="n">03</span>오르트로스</a></li><li><a href="#goldentime"><span class="n">04</span>골든타임과 정화</a></li><li><a href="#taskforce"><span class="n">05</span>괴이사건대책반</a></li><li><a href="#church"><span class="n">06</span>성당교회</a></li><li><a href="#clavis"><span class="n">07</span>클라비스 목록</a></li><li><a href="#seraph"><span class="n">08</span>세라프와 세라피안</a></li><li><a href="#nymph"><span class="n">09</span>NYMPH</a></li><li><a href="#response"><span class="n">10</span>사건 대응 흐름</a></li><li><a href="#core"><span class="n">11</span>핵심 대칭</a></li><li><a href="#start"><span class="n">12</span>시작과 모드</a></li><li><a href="#index"><span class="n">13</span>인물 색인</a></li><li><a href="#assets"><span class="n">14</span>제작용 에셋</a></li></ul></nav>
+  </details>
 </aside>
 <main><div class="inner">
   <header class="hero">
-    <div class="eyebrow">Canon Guidebook</div>
     <h1>돌아올 수 있는<br><em>시간에 관한 세계</em></h1>
     <p class="sub">욕망에 삼켜진 인간, 그 인간을 되돌리려는 자들, 가능성 자체를 지우려는 자들이 골든타임을 두고 충돌하는 현대 변신 액션 세계관. 이 문서는 현재 확정된 설정만 담습니다.</p>
     <div class="stats">
@@ -320,7 +462,7 @@ footer{margin-top:64px;padding:24px 0 0;border-top:1px solid var(--line);
 </section>
 
 <section id="taskforce" data-searchable><div class="shead"><span class="sno">05</span><h2>괴이사건대책반</h2></div><p class="lead">오르트로스 발생 시 가장 먼저 투입되는 경찰 소속 국가 초동 대응 조직. 초자연적 권능 없이 인간의 과학·군사기술만 사용합니다.</p>
-  <h4>전술 트럭</h4>
+  <h3>전술 트럭</h3>
   <p>군용 8×8 트럭을 개조한 차량으로, 방탄·방폭 컨테이너를 얹었고 현장에서는 이동 지휘소·슈트 격납고·구호소를 겸합니다. 전개 완료까지 약 90초가 걸립니다.</p>
   <div class="formula">현장 진입 → 아웃리거 접지 → 측면 패널 전개 → 관측 마스트 상승 → 착용 플랫폼 개방</div>
   <div class="grid g3">
@@ -803,7 +945,7 @@ Et omnia vanitas.
 </section>
 
 <section id="index" data-searchable><div class="shead"><span class="sno">13</span><h2>인물·명칭 색인</h2></div>
-  <h4>세라피안과 세라프</h4>
+  <h3>세라피안과 세라프</h3>
   <div class="roster">
     <div class="row"><span class="code">SY</span><span class="nm">시연</span><span class="ds">헤(He) · 보라색 · 창조</span><span class="arrow">→</span><span class="ds">하니엘 [HN]</span></div>
     <div class="row"><span class="code">KY</span><span class="nm">김예나</span><span class="ds">자인(Zayin) · 전투 · 싸움</span><span class="arrow">→</span><span class="ds">제르엘 [ZR]</span></div>
@@ -853,12 +995,14 @@ Et omnia vanitas.
   </div>
 </section>
 
-  <footer>SER WORLD GUIDEBOOK · 확정 설정 기준</footer>
+  <footer>SER WORLD GUIDEBOOK · 확정 설정 기준 · <a href="../">세계관</a> · <a href="../gallery/">제작 현황</a></footer>
 </div></main>
 </div>
 <script>
 (function(){
-  var links = [].slice.call(document.querySelectorAll('aside a'));
+  var toc = document.querySelector('details.toc');
+  if(toc && window.matchMedia('(max-width: 900px)').matches) toc.open = false;
+  var links = [].slice.call(document.querySelectorAll('aside nav a'));
   var secs  = links.map(function(a){ return document.querySelector(a.getAttribute('href')); });
   if('IntersectionObserver' in window){
     var spy = new IntersectionObserver(function(es){

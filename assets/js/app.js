@@ -1,84 +1,113 @@
-const grid = document.querySelector('#character-grid');
-const search = document.querySelector('#character-search');
-const count = document.querySelector('#result-count');
-const empty = document.querySelector('#empty-state');
-const status = document.querySelector('#copy-status');
-const filterButtons = [...document.querySelectorAll('[data-filter]')];
+/* 메인 — 인물 명부를 세력별 컨택트 시트로 그린다. */
+const sheets = document.querySelector('#sheets');
+const q = document.querySelector('#q');
+const count = document.querySelector('#count');
+const empty = document.querySelector('#empty');
+const say = document.querySelector('#say');
 
 let characters = [];
-let activeFilter = 'all';
+let assets = {};
 
-const assetMarkdown = (code) => `![](https://srp.issssm.com/${code}/D/01.webp)`;
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const markdown = (code) => `![](https://srp.issssm.com/${code}/D/01.webp)`;
+
+function fail(message) {
+  sheets.setAttribute('aria-busy', 'false');
+  sheets.innerHTML =
+    `<div class="warn"><span>${esc(message)}</span>` +
+    '<button type="button" onclick="location.reload()">다시 불러오기</button></div>';
+}
+
+function frame(character) {
+  const record = assets[character.code] || { shots: [], sex: null };
+  const have = record.shots.length;
+  const fixed = SER.fixedShots(character, record.sex).length;
+  const pct = fixed ? Math.min(100, Math.round((have / fixed) * 100)) : 0;
+  const extra = SER.estimateExtra(record.sex);
+  const title = `${character.name} 에셋 ${have}장 · 확정 ${fixed}칸`;
+  return `<li><a class="frame" href="./gallery/#${character.code}" title="${esc(title)}">
+    <span class="shot"><img src="https://srp.issssm.com/${character.code}/D/01.webp" alt="${esc(character.name)} 01"
+      width="1024" height="1024" loading="lazy" decoding="async"><span class="no">${character.code}</span></span>
+    <span class="nm">${esc(character.name)}</span>
+    <span class="en" lang="en">${esc(character.englishName)}</span>
+    <span class="role">${esc(character.role)}</span>
+    <span class="have"><i><b style="width:${pct}%"></b></i>${have} / ${fixed}${extra ? '+' + extra : ''}</span>
+  </a>
+  <button class="md" type="button" data-code="${character.code}">이미지 주소 복사</button></li>`;
+}
 
 function render() {
-  const term = search.value.trim().toLocaleLowerCase('ko');
-  const visible = characters.filter((character) => {
-    const inGroup = activeFilter === 'all' || character.group === activeFilter;
-    const haystack = `${character.name} ${character.englishName} ${character.code} ${character.role} ${character.groupLabel}`.toLocaleLowerCase('ko');
-    return inGroup && (!term || haystack.includes(term));
-  });
+  const term = q.value.trim().toLocaleLowerCase('ko');
+  const match = (c) =>
+    !term || `${c.name} ${c.englishName} ${c.code} ${c.role} ${c.groupLabel}`.toLocaleLowerCase('ko').includes(term);
+  const visible = characters.filter(match);
 
-  grid.innerHTML = visible.map((character) => `
-    <article class="character-card">
-      <a class="portrait" href="./gallery/#${character.code}" title="${character.name} 제작 현황 보기">
-        <img src="https://srp.issssm.com/${character.code}/D/01.webp" alt="${character.name}" width="768" height="960" loading="lazy" decoding="async"></a>
-      <div class="character-info">
-        <p class="character-group">${character.groupLabel}</p>
-        <h3 class="character-name"><a href="./gallery/#${character.code}">${character.name}</a><span>${character.code}</span></h3>
-        <p class="character-english-name" lang="en">${character.englishName}</p>
-        <p class="character-role">${character.role}</p>
-        <button class="copy-button" type="button" data-copy-code="${character.code}">이미지 Markdown 복사</button>
-      </div>
-    </article>`).join('');
+  sheets.innerHTML = SER.GROUPS.map((group) => {
+    const members = visible.filter((c) => c.group === group.id);
+    if (!members.length) return '';
+    return `<section class="sheet" id="g-${group.id}" data-grade="${group.grade}" aria-labelledby="h-${group.id}">
+      <div class="sheet-head">${SER.curveSvg(group.grade, group.grade === '—' ? 'solid' : '')}
+        <h3 id="h-${group.id}">${esc(group.label)}</h3>
+        <span class="grade"><b>${group.grade === '—' ? '필터 없음' : group.grade + '호'}</b></span>
+        <span class="n">${members.length}명</span></div>
+      <ul class="frames">${members.map(frame).join('')}</ul>
+    </section>`;
+  }).join('');
 
-  grid.setAttribute('aria-busy', 'false');
+  sheets.setAttribute('aria-busy', 'false');
   count.textContent = `${visible.length} / ${characters.length}`;
   empty.hidden = visible.length !== 0;
 }
 
-function setFilter(filter) {
-  activeFilter = filter;
-  filterButtons.forEach((button) => {
-    const selected = button.dataset.filter === filter;
-    button.classList.toggle('active', selected);
-    button.setAttribute('aria-pressed', String(selected));
-  });
-  render();
-}
-
-async function copyMarkdown(code) {
-  const value = assetMarkdown(code);
+async function copy(code, button) {
+  const value = markdown(code);
   try {
     await navigator.clipboard.writeText(value);
-    status.textContent = `${code} 이미지 주소를 복사했습니다.`;
+    button.dataset.done = '1';
+    button.textContent = '복사함';
+    say.textContent = `${code} 이미지 주소를 복사했습니다.`;
+    setTimeout(() => { delete button.dataset.done; button.textContent = '이미지 주소 복사'; }, 1600);
   } catch {
-    status.textContent = value;
+    say.textContent = value;
   }
 }
 
-filterButtons.forEach((button) => button.addEventListener('click', () => setFilter(button.dataset.filter)));
-search.addEventListener('input', render);
-grid.addEventListener('click', (event) => {
-  const button = event.target.closest('[data-copy-code]');
-  if (button) copyMarkdown(button.dataset.copyCode);
+q.addEventListener('input', render);
+document.querySelector('#reset').addEventListener('click', () => { q.value = ''; render(); q.focus(); });
+sheets.addEventListener('click', (event) => {
+  const button = event.target.closest('[data-code]');
+  if (button) copy(button.dataset.code, button);
 });
-document.querySelector('#reset-filter').addEventListener('click', () => {
-  search.value = '';
-  setFilter('all');
-  search.focus();
-});
-document.querySelectorAll('[data-filter-link]').forEach((link) => link.addEventListener('click', () => setFilter(link.dataset.filterLink)));
 
-fetch('./data/characters.json')
-  .then((response) => {
-    if (!response.ok) throw new Error(`HTTP ${response.status}`);
-    return response.json();
-  })
-  .then((data) => {
-    characters = data;
+/* 상단 내비가 지금 읽는 절을 표시한다. */
+const links = [...document.querySelectorAll('.masthead nav a[href^="#"]')];
+if (links.length && 'IntersectionObserver' in window) {
+  const spy = new IntersectionObserver((entries) => {
+    entries.forEach((entry) => {
+      if (!entry.isIntersecting) return;
+      links.forEach((a) => a.toggleAttribute('aria-current', a.getAttribute('href') === `#${entry.target.id}`));
+    });
+  }, { rootMargin: '-56px 0px -70% 0px' });
+  ['world', 'factions', 'roster'].forEach((id) => {
+    const target = document.getElementById(id);
+    if (target) spy.observe(target);
+  });
+}
+
+const json = (url) => fetch(url, { cache: 'no-cache' }).then((r) => {
+  if (!r.ok) throw new Error(`${url} → HTTP ${r.status}`);
+  return r.json();
+});
+
+Promise.all([json('./data/characters.json'), json('./data/assets.json').catch(() => null)])
+  .then(([people, raw]) => {
+    characters = people;
+    if (raw === null) {
+      say.textContent = '보유 현황을 불러오지 못해 0으로 표시합니다.';
+    } else {
+      assets = Object.fromEntries(Object.entries(raw)
+        .map(([code, value]) => [code, Array.isArray(value) ? { shots: value, sex: null } : value]));
+    }
     render();
   })
-  .catch(() => {
-    grid.setAttribute('aria-busy', 'false');
-    grid.innerHTML = '<p>인물 데이터를 불러오지 못했습니다. 페이지를 새로고침해 주세요.</p>';
-  });
+  .catch((error) => fail(`인물 데이터를 불러오지 못했습니다. (${error.message})`));

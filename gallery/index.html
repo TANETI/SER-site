@@ -4,314 +4,358 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex">
-<meta name="theme-color" content="#10141d">
-<title>에셋 제작 현황</title>
+<meta name="theme-color" content="#e6e5e0">
+<title>에셋 제작 현황 · 가칭 세라프 프로젝트</title>
 <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="preconnect" href="https://srp.issssm.com" crossorigin>
 <link rel="stylesheet" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Gothic+A1:wght@400;700;800;900&family=Azeret+Mono:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="../assets/css/tokens.css">
+<script src="../assets/js/quota.js" defer></script>
 <style>
-:root{
-  --bg:#0E1319; --panel:#151B23; --panel2:#1A212A; --line:#27313D;
-  --ink:#E8EBEF; --strong:#FBFCFD; --dim:#98A3B1; --faint:#66717E;
-  --gold:#C39B4E; --steel:#7396B5; --safe:#5C9C85; --danger:#BF574F;
-  --sans:"Pretendard Variable",Pretendard,"Malgun Gothic",sans-serif;
-  --mono:ui-monospace,"D2Coding",monospace;
+.top {
+  position: sticky; z-index: 20; top: 0;
+  display: flex; align-items: center; justify-content: space-between; gap: 16px;
+  padding: 0 var(--gutter); border-bottom: 1px solid var(--z4);
+  background: color-mix(in srgb, var(--paper) 94%, transparent); backdrop-filter: blur(6px);
 }
-*{box-sizing:border-box}
-body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);
-  font-size:15px;line-height:1.6;padding:32px 20px 80px}
-.wrap{max-width:1240px;margin:0 auto}
-h1{font-size:26px;margin:0 0 6px;letter-spacing:-.02em}
-.back{display:flex;gap:14px;margin:0 0 18px}
-.back a{color:var(--dim);text-decoration:none;font-size:13px;
-  padding:6px 12px;border:1px solid var(--line);border-radius:3px;background:var(--panel)}
-.back a:hover{color:var(--strong);border-color:var(--gold)}
-.lead{color:var(--dim);margin:0 0 24px;font-size:14px}
-.lead code{font-family:var(--mono);color:var(--steel)}
+.top nav { display: flex; overflow-x: auto; gap: 2px; scrollbar-width: none }
+.top nav::-webkit-scrollbar { display: none }
+.top a { display: flex; align-items: center; min-height: 52px; padding: 0 12px;
+  font-size: 13px; font-weight: 700; color: var(--z3); text-decoration: none; white-space: nowrap }
+.top a:hover { color: var(--ink); background: var(--sheet) }
+.top .here { color: var(--ink); box-shadow: inset 0 -3px 0 var(--mag) }
 
-.sum{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));
-  border-top:1px solid var(--line);border-bottom:1px solid var(--line);margin-bottom:22px}
-.sum div{padding:14px 16px 14px 0;border-right:1px solid var(--line)}
-.sum div:last-child{border-right:0}
-.sum b{display:block;font-size:22px;color:var(--strong);font-variant-numeric:tabular-nums}
-.sum span{font-family:var(--mono);font-size:10px;letter-spacing:.14em;color:var(--faint);text-transform:uppercase}
+main { width: min(100%, 1500px); margin-inline: auto; padding: 0 var(--gutter) 72px }
+.intro { padding: clamp(28px, 5vw, 52px) 0 22px }
+.intro h1 { font-size: clamp(26px, 4vw, 42px); font-weight: 900; letter-spacing: -.03em }
+.intro p { max-width: 66ch; margin-top: 14px; color: var(--z2); font-size: 15px }
 
-.bar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:24px}
-.bar button{font:inherit;font-size:13px;padding:7px 14px;border:1px solid var(--line);
-  background:var(--panel);color:var(--dim);border-radius:3px;cursor:pointer}
-.bar button:hover{color:var(--ink)}
-.bar button[aria-pressed="true"]{background:var(--gold);border-color:var(--gold);color:#10141d;font-weight:600}
+.kpi { display: grid; grid-template-columns: repeat(auto-fit, minmax(158px, 1fr)); border: 1px solid var(--z3); background: var(--sheet) }
+.kpi div { padding: 14px 16px; border-right: 1px solid var(--rule) }
+.kpi div:last-child { border-right: 0 }
+.kpi b { display: block; font-family: var(--face-data); font-size: 26px; font-weight: 600; letter-spacing: -.02em }
+.kpi b i { font-style: normal; font-size: 15px; color: var(--z4) }
+.kpi b.est { font-size: 20px; color: var(--z3) }
+.kpi span { display: block; margin-top: 2px; font-size: 12px; font-weight: 700; color: var(--z3) }
+.kpi span.note { font-size: 10.5px; font-weight: 400; letter-spacing: 0; color: var(--z4) }
 
-.grp{font-family:var(--mono);font-size:11px;letter-spacing:.2em;color:var(--gold);
-  text-transform:uppercase;margin:30px 0 10px;padding-bottom:6px;border-bottom:1px solid var(--line)}
-
-.row{display:grid;grid-template-columns:150px 1fr;gap:16px;align-items:start;
-  padding:14px 0;border-bottom:1px solid var(--line)}
-.who .nm{font-size:16px;color:var(--strong);font-weight:600}
-.who .cd{font-family:var(--mono);font-size:11px;color:var(--gold);letter-spacing:.08em}
-.who .pg{margin-top:6px;height:4px;background:var(--panel2);overflow:hidden}
-.who .pg i{display:block;height:100%;background:var(--safe)}
-.who .sx{font-family:var(--sans);color:var(--dim);font-size:10px;margin-left:4px}
-.none{color:var(--faint);font-family:var(--mono);font-size:11px;padding:8px 0}
-.who .pct{font-family:var(--mono);font-size:11px;color:var(--dim);margin-top:4px;
-  font-variant-numeric:tabular-nums}
-
-.cells{display:grid;grid-template-columns:repeat(auto-fill,minmax(72px,1fr));gap:6px}
-.shot .lbl{display:block;margin-top:3px;font-size:10.5px;line-height:1.35;color:var(--dim);
-  text-align:center;word-break:keep-all}
-.shot .lbl b{font-family:var(--mono);color:var(--faint);font-weight:400;margin-right:3px}
-.shot.off .lbl{color:var(--faint)}
-.cell{position:relative;aspect-ratio:1;background:var(--panel);border:1px solid var(--line);
-  display:flex;align-items:center;justify-content:center;overflow:hidden}
-.cell img{width:100%;height:100%;object-fit:cover;display:block}
-.cell .n{position:absolute;left:2px;bottom:1px;font-family:var(--mono);font-size:9px;
-  color:#fff;text-shadow:0 0 3px #000;letter-spacing:.04em}
-.cell.miss{background:repeating-linear-gradient(45deg,#131920,#131920 5px,#161D26 5px,#161D26 10px)}
-.cell.miss .n{position:static;color:var(--faint);text-shadow:none;font-size:11px}
-.cell.nsfw{border-color:var(--danger)}
-.cell a{display:block;width:100%;height:100%}
-
-.row{scroll-margin-top:16px}
-.row.hit{background:rgba(195,155,78,.07);outline:1px solid var(--gold);outline-offset:6px}
-
-.lb{position:fixed;inset:0;background:rgba(6,9,13,.94);display:none;z-index:50;
-  align-items:center;justify-content:center;padding:56px 64px}
-.lb.on{display:flex}
-.lb img{max-width:100%;max-height:100%;object-fit:contain;display:block}
-.lb .cap{position:absolute;left:0;right:0;bottom:16px;text-align:center;
-  font-family:var(--mono);font-size:12px;color:var(--dim);letter-spacing:.1em}
-.lb .cap b{color:var(--strong);font-weight:500}
-.lb button{position:absolute;background:none;border:1px solid var(--line);color:var(--ink);
-  font:inherit;font-size:22px;line-height:1;width:44px;height:44px;cursor:pointer;
-  border-radius:3px;background:rgba(21,27,35,.85)}
-.lb button:hover{border-color:var(--gold);color:var(--gold)}
-.lb .prev{left:12px;top:50%;transform:translateY(-50%)}
-.lb .next{right:12px;top:50%;transform:translateY(-50%)}
-.lb .close{right:12px;top:12px;font-size:18px}
-@media(max-width:640px){
-  /* 좁은 화면에서는 화살표가 그림을 덮으므로 아래로 내린다 */
-  .lb{padding:40px 10px 100px}
-  .lb .prev,.lb .next{top:auto;bottom:18px;transform:none;width:56px;height:46px}
-  .lb .prev{left:calc(50% - 88px)}
-  .lb .next{right:calc(50% - 88px)}
-  .lb .cap{bottom:76px}
+.tools { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 18px 0 10px }
+.tools button {
+  display: inline-flex; align-items: center; min-height: 44px; padding: 0 14px;
+  border: 1px solid var(--z6); background: transparent; font-size: 13px; font-weight: 700; color: var(--z2); cursor: pointer;
 }
-footer{margin-top:40px;font-family:var(--mono);font-size:10.5px;letter-spacing:.12em;color:var(--faint)}
-@media(max-width:640px){
-  body{padding:22px 14px 60px}
-  .row{grid-template-columns:1fr;gap:10px}
-  .sum div{border-right:0;border-bottom:1px solid var(--line)}
+.tools button:hover { border-color: var(--z3); background: var(--sheet) }
+.tools button[aria-pressed="true"] { border-color: var(--ink); background: var(--ink); color: var(--clear) }
+.tools .sp { flex: 1 }
+
+.key { display: flex; flex-wrap: wrap; gap: 8px 20px; padding: 12px 14px; border: 1px solid var(--rule); background: var(--sheet); margin-bottom: 22px }
+.key span { display: inline-flex; align-items: center; gap: 7px; font-size: 12px; color: var(--z2) }
+.key i { width: 20px; height: 20px; border: 1px solid var(--rule); background-color: var(--clear); flex: none }
+.key i.own { background: var(--z8); border-color: var(--z4) }
+.key i.edge { border: 2px solid var(--mag) }
+
+.fac { content-visibility: auto; contain-intrinsic-size: auto 640px }
+.fac-head {
+  position: sticky; z-index: 6; top: 52px;
+  display: flex; align-items: center; gap: 10px; padding: 9px 0;
+  border-top: 1px solid var(--z4); border-bottom: 1px solid var(--g-rule);
+  background: color-mix(in srgb, var(--paper) 95%, transparent); backdrop-filter: blur(6px);
 }
+.fac-head h2 { font-size: 15px; font-weight: 800; color: var(--g-label) }
+.fac-head .n { margin-left: auto; font-family: var(--face-data); font-size: 11px; color: var(--z4) }
+
+/* 인물 행. 좌측 판독점은 스크롤 중에도 고정된다. */
+.row { display: grid; grid-template-columns: 1fr; gap: 8px; padding: 14px 0; border-bottom: 1px solid var(--rule) }
+@media (min-width: 900px) { .row { grid-template-columns: 186px minmax(0, 1fr); gap: 20px } }
+.row.hit { background: var(--mag-soft) }
+.who { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px }
+@media (min-width: 900px) { .who { position: sticky; top: 108px; align-self: start; display: block } }
+.who .nm { font-size: 15px; font-weight: 800 }
+.who .cd { font-family: var(--face-data); font-size: 11px; color: var(--z4) }
+.who .sx { font-family: var(--face-text); font-size: 11px; color: var(--z3) }
+/* 해치 밀도 = 미보유 비율. 칸을 접어도 부재는 척도로 남는다. */
+.who .dens { width: 100%; height: 9px; margin-top: 8px; border: 1px solid var(--rule); background-color: var(--clear) }
+.who .dens i { display: block; height: 100%; background: var(--ink) }
+.who .num { margin-top: 5px; font-family: var(--face-data); font-size: 11px; color: var(--z2) }
+.who .num s { text-decoration: none; color: var(--z4) }
+
+.cells { display: flex; flex-wrap: wrap; gap: 9px }
+.shot { width: 76px }
+.cell { position: relative; width: 76px; height: 76px; border: 1px solid var(--rule); background-color: var(--clear); overflow: hidden }
+.cell.edge { border: 2px solid var(--mag) }
+.cell.miss { --hatch-ink: var(--z6) }
+.cell.err { background: var(--mag-soft); border-color: var(--mag) }
+.cell.err::after { content: "404"; position: absolute; inset: 0; display: grid; place-items: center;
+  font-family: var(--face-data); font-size: 11px; color: var(--mag-ink) }
+.cell a { display: block; width: 100%; height: 100% }
+.cell a:focus-visible { outline-offset: -3px }
+.cell img { width: 100%; height: 100%; object-fit: cover }
+.lbl { display: block; margin-top: 4px; font-size: 10px; line-height: 1.35; color: var(--z3) }
+.lbl b { font-family: var(--face-data); font-weight: 600; color: var(--z2) }
+.shot.off .lbl { color: var(--z4) }
+.none { font-family: var(--face-data); font-size: 12px; color: var(--z4) }
+
+.warn { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; margin: 18px 0;
+  padding: 14px 16px; border: 1px solid var(--mag); background: var(--mag-soft); color: var(--mag-ink); font-size: 14px }
+.warn button { min-height: 36px; padding: 0 12px; border: 1px solid var(--mag-ink); background: transparent; color: inherit; font-weight: 700; cursor: pointer }
+
+/* 라이트박스 */
+.lb { position: fixed; z-index: 50; inset: 0; display: none; grid-template-rows: minmax(0, 1fr) auto;
+  background: color-mix(in srgb, var(--z0) 93%, transparent) }
+.lb.on { display: grid }
+.lb .stage { display: grid; place-items: center; min-height: 0; padding: 16px }
+.lb img { max-width: min(94vw, 900px); max-height: 100%; object-fit: contain; background: var(--z1) }
+.lb .bar { display: flex; align-items: center; gap: 10px; padding: 10px 12px calc(10px + env(safe-area-inset-bottom));
+  border-top: 1px solid var(--z2) }
+.lb button { display: grid; place-items: center; width: 46px; height: 46px; flex: none;
+  border: 1px solid var(--z4); background: transparent; color: var(--z10); font-size: 18px; cursor: pointer }
+.lb button:hover { border-color: var(--z8); color: #fff }
+.lb .cap { flex: 1; min-width: 0; text-align: center; font-family: var(--face-data); font-size: 12px; color: var(--z9) }
+.lb .cap b { font-family: var(--face-text); font-size: 14px; color: var(--clear) }
+
+footer { width: min(100%, 1500px); margin-inline: auto; padding: 22px var(--gutter) 56px;
+  border-top: 1px solid var(--z4); font-family: var(--face-data); font-size: 11px; letter-spacing: .06em; color: var(--z4) }
 </style>
 </head>
 <body>
-<div class="wrap">
-  <nav class="back" aria-label="사이트 메뉴">
-    <a href="../">← 세계관 정보</a>
-    <a href="../guidebook/">가이드북</a>
-  </nav>
-  <h1>에셋 제작 현황</h1>
-  <p class="lead">제작 확인용 임시 페이지입니다. 예상 물량=감정 <code>25</code> · 변신·전투 <code>3</code> · 일상 <code>7</code> · NSFW <code>36</code>(여성 전용).
-  일상과 NSFW는 상황번호가 아직 배정되지 않아 보유분만 칸으로 보입니다. 성별 미확정 인물은 NSFW를 예상치에서 제외합니다.</p>
+<a class="skip-link" href="#list">본문으로 건너뛰기</a>
 
-  <div class="sum" id="sum"></div>
-  <div class="bar" id="bar"></div>
-  <div id="list"></div>
-  <div class="lb" id="lb" role="dialog" aria-modal="true" aria-label="에셋 크게 보기">
-    <button class="prev" type="button" aria-label="이전">‹</button>
-    <img id="lb-img" alt="">
-    <button class="next" type="button" aria-label="다음">›</button>
-    <button class="close" type="button" aria-label="닫기">✕</button>
-    <p class="cap" id="lb-cap"></p>
+<header class="top">
+  <nav aria-label="주요 메뉴">
+    <a href="../">← 세계관</a>
+    <a href="../guidebook/">가이드북</a>
+    <a class="here" href="./" aria-current="page">제작 현황</a>
+  </nav>
+</header>
+
+<main>
+  <div class="intro">
+    <h1>에셋 제작 현황</h1>
+    <p>인물별로 상황번호가 어디까지 나왔는지 봅니다. 진행률의 분모는 <b>번호가 확정된 칸</b>만 셉니다 —
+      일상 <span class="data">202~</span>와 NSFW <span class="data">302~</span>는 아직 번호가 배정되지 않아 예상 상한으로 따로 적습니다.</p>
   </div>
-  <footer>SERAPH PROJECT · ASSET STATUS · 빌드 시각 기준</footer>
+
+  <div class="kpi" id="kpi"></div>
+
+  <div class="tools" id="tools"></div>
+  <div class="key">
+    <span><i class="own"></i>보유</span>
+    <span><i class="hatch d3 miss"></i>미보유 · 번호는 확정</span>
+    <span><i class="hatch conflict"></i>해당 없음</span>
+    <span><i class="edge"></i>NSFW 대역</span>
+  </div>
+
+  <div id="list"></div>
+</main>
+
+<div class="lb" id="lb" role="dialog" aria-modal="true" aria-label="에셋 크게 보기">
+  <div class="stage"><img id="lb-img" alt=""></div>
+  <div class="bar">
+    <button id="lb-prev" type="button" aria-label="이전 에셋">&lsaquo;</button>
+    <p class="cap" id="lb-cap"></p>
+    <button id="lb-next" type="button" aria-label="다음 에셋">&rsaquo;</button>
+    <button id="lb-close" type="button" aria-label="닫기">&times;</button>
+  </div>
 </div>
+
+<footer>SERAPH PROJECT · ASSET STATUS · 빌드 시각 기준</footer>
 
 <script>
 const BASE = 'https://srp.issssm.com';
-const FIXED = [
-  ...Array.from({length:25},(_,i)=>String(i+1).padStart(2,'0')),
-  '101','102','103'
-];
-const QUOTA = {emo:25, battle:3, daily:7, nsfw:36};
-// 집단마다 쓰는 번호가 다르다. 변신하지 않는 쪽은 101·103이 없다
-const BY_GROUP = {
-  seraph:  ['102'],
-  gardener:['102','103'],
-  core:    ['130'],
-  church:  ['102','103','104','105','106']
-};
-const OWN = {JR:['120']};            // 예로니모의 고유 클라비스
-const DAILY = ['201'];               // 번호가 배정된 일상 에셋
-const battleSet = (p) => [...(BY_GROUP[p.group] || ['101','102','103']), ...(OWN[p.code] || [])];
 const BANDS = [
-  {key:'all',    label:'전체',       test:()=>true},
-  {key:'emo',    label:'감정 01~25',  test:n=>Number(n)<100},
-  {key:'battle', label:'전투·능력',   test:n=>Number(n)>=101&&Number(n)<200},
-  {key:'daily',  label:'일상 201~',   test:n=>Number(n)>=201&&Number(n)<300},
-  {key:'nsfw',   label:'NSFW 301~',  test:n=>Number(n)>=301}
+  { key: 'all',    label: '전체',      test: () => true },
+  { key: 'emo',    label: '감정 01~25', test: (n) => Number(n) < 100 },
+  { key: 'battle', label: '전투·능력',  test: (n) => Number(n) >= 101 && Number(n) < 200 },
+  { key: 'daily',  label: '일상 201~',  test: (n) => Number(n) >= 201 && Number(n) < 300 },
+  { key: 'nsfw',   label: 'NSFW 301~', test: (n) => Number(n) >= 301 },
 ];
-let band = 'all', people = [], have = {}, names = {};
+let band = 'all', showMiss = true, people = [], have = {}, names = {};
 
-function quotaFor(rec, key, person){
-  const female = rec.sex === '여성';
-  const unknown = !rec.sex;
-  const battle = battleSet(person).length;
-  if(key === 'battle') return battle;
-  if(key === 'nsfw') return unknown ? null : (female ? QUOTA.nsfw : 0);
-  if(key === 'all'){
-    const n = QUOTA.emo + battle + QUOTA.daily;
-    return unknown ? n : n + (female ? QUOTA.nsfw : 0);
-  }
-  return QUOTA[key];
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const hatchFor = (ratio) => 'hatch d' + Math.max(1, Math.min(8, Math.round(ratio * 8) || 1));
+
+function fail(message) {
+  document.getElementById('kpi').innerHTML = '';
+  document.getElementById('tools').innerHTML = '';
+  document.getElementById('list').innerHTML =
+    '<div class="warn"><span>' + esc(message) + '</span>' +
+    '<button type="button" onclick="location.reload()">다시 불러오기</button></div>';
 }
 
-async function boot(){
-  // 캐시된 옛 형식이 섞이지 않도록 항상 재검증한다
-  const load = (u) => fetch(u, {cache:'no-cache'}).then(r=>r.json());
-  const [cs, as, ns] = await Promise.all([
-    load('../data/characters.json'),
-    load('../data/assets.json').catch(()=>({})),
-    load('../data/shots.json').catch(()=>({}))
-  ]);
-  names = ns;
-  people = cs;
-  // 배열 형식(구버전)도 받아들인다
-  have = Object.fromEntries(Object.entries(as).map(([k,v]) =>
-    [k, Array.isArray(v) ? {shots:v, sex:null} : v]));
-  document.getElementById('bar').innerHTML = BANDS.map(b =>
-    `<button type="button" data-band="${b.key}" aria-pressed="${b.key===band}">${b.label}</button>`).join('');
-  document.getElementById('bar').addEventListener('click', e => {
-    const b = e.target.closest('button'); if(!b) return;
-    band = b.dataset.band;
-    document.querySelectorAll('#bar button').forEach(x =>
-      x.setAttribute('aria-pressed', String(x.dataset.band===band)));
+async function boot() {
+  const load = (url) => fetch(url, { cache: 'no-cache' }).then((r) => {
+    if (!r.ok) throw new Error(url + ' → HTTP ' + r.status);
+    return r.json();
+  });
+  try {
+    const [cs, as, ns] = await Promise.all([
+      load('../data/characters.json'), load('../data/assets.json'), load('../data/shots.json'),
+    ]);
+    people = cs;
+    names = ns;
+    have = Object.fromEntries(Object.entries(as)
+      .map(([k, v]) => [k, Array.isArray(v) ? { shots: v, sex: null } : v]));
+  } catch (error) {
+    fail('제작 현황 데이터를 불러오지 못했습니다. 지금 화면의 숫자를 믿지 마세요. (' + error.message + ')');
+    return;
+  }
+
+  const tools = document.getElementById('tools');
+  tools.innerHTML = BANDS.map((b) =>
+    '<button type="button" data-band="' + b.key + '" aria-pressed="' + (b.key === band) + '">' + b.label + '</button>').join('') +
+    '<span class="sp"></span><button type="button" id="toggle-miss" aria-pressed="true">빈 칸 보기</button>';
+  tools.addEventListener('click', (event) => {
+    const button = event.target.closest('button');
+    if (!button) return;
+    if (button.id === 'toggle-miss') {
+      showMiss = !showMiss;
+      button.setAttribute('aria-pressed', String(showMiss));
+    } else {
+      band = button.dataset.band;
+      tools.querySelectorAll('[data-band]').forEach((x) =>
+        x.setAttribute('aria-pressed', String(x.dataset.band === band)));
+    }
     render();
   });
   render();
 }
 
-function render(){
-  const test = BANDS.find(b=>b.key===band).test;
-  let owned = 0, quota = 0, done = 0;
-  const groups = {};
-  for(const p of people){
-    const rec = have[p.code] || {shots:[], sex:null};
-    const mine = (rec.shots||[]).filter(test);
-    const q = quotaFor(rec, band, p);
-    owned += mine.length;
-    if(q !== null) quota += q;
-    if(q !== null && q > 0 && mine.length >= q) done++;
-    // 칸=배정된 번호(감정·변신전투) + 실제 보유분
-    const fixed = [...FIXED.filter(s => Number(s) < 100), ...battleSet(p), ...DAILY];
-    const cells = [...new Set([...fixed.filter(test), ...mine])]
-      .sort((a,b)=>Number(a)-Number(b));
-    (groups[p.groupLabel] ||= []).push({p, rec, mine, q, cells});
-  }
-  const pct = quota ? Math.round(owned/quota*100) : 0;
-  document.getElementById('sum').innerHTML = `
-    <div><b>${people.length}</b><span>인물</span></div>
-    <div><b>${owned}<span style="color:var(--faint)">/${quota}</span></b><span>보유 / 예상</span></div>
-    <div><b>${pct}%</b><span>진행률</span></div>
-    <div><b>${done}</b><span>예상치 도달</span></div>`;
+function render() {
+  const test = BANDS.find((b) => b.key === band).test;
+  let owned = 0, fixedTotal = 0, estTotal = 0;
 
-  document.getElementById('list').innerHTML = Object.entries(groups).map(([label, rows]) => `
-    <div class="grp">${label}</div>
-    ${rows.map(({p, rec, mine, q, cells}) => {
-      const width = q ? Math.min(100, mine.length/q*100) : 0;
-      const note = q === null ? '성별 미확정' : `${mine.length} / ${q}`;
-      const sex = rec.sex ? `<span class="sx">${rec.sex}</span>` : '';
-      return `
-      <div class="row" id="${p.code}">
-        <div class="who">
-          <div class="nm">${p.name}</div>
-          <div class="cd">${p.code} ${sex}</div>
-          <div class="pg"><i style="width:${width}%"></i></div>
-          <div class="pct">${note}</div>
-        </div>
-        <div class="cells">
-          ${cells.map(s => {
-            const url = `${BASE}/${p.code}/D/${s}.webp`;
-            const nsfw = Number(s) >= 301 ? ' nsfw' : '';
-            const label = names[s] || '';
-            const cap = `<span class="lbl"><b>${s}</b>${label}</span>`;
-            return mine.includes(s)
-              ? `<div class="shot"><div class="cell${nsfw}">
-                   <a href="${url}" data-code="${p.code}" data-shot="${s}" title="${label}">
-                   <img src="${url}" alt="${p.name} ${label}" loading="lazy" decoding="async"></a>
-                   </div>${cap}</div>`
-              : `<div class="shot off"><div class="cell miss${nsfw}"></div>${cap}</div>`;
-          }).join('') || '<div class="none">배정된 번호 없음</div>'}
-        </div>
-      </div>`;}).join('')}`).join('');
+  const html = SER.GROUPS.map((group) => {
+    const members = people.filter((p) => p.group === group.id);
+    if (!members.length) return '';
+    const rows = members.map((person) => {
+      const record = have[person.code] || { shots: [], sex: null };
+      const mine = (record.shots || []).filter(test);
+      const fixed = SER.fixedShots(person, record.sex).filter(test);
+      const cells = [...new Set([...fixed, ...mine])].sort((a, b) => Number(a) - Number(b));
+      const missing = cells.filter((s) => !mine.includes(s));
+      owned += mine.length;
+      fixedTotal += fixed.length;
+      if (band === 'all' || band === 'daily' || band === 'nsfw') estTotal += SER.estimateExtra(record.sex);
+      const pct = fixed.length ? Math.min(100, Math.round((mine.length / fixed.length) * 100)) : 0;
+      const density = cells.length ? missing.length / cells.length : 0;
+      const shown = showMiss ? cells : cells.filter((s) => mine.includes(s));
+
+      const body = shown.map((shot) => {
+        const url = BASE + '/' + person.code + '/D/' + shot + '.webp';
+        const edge = Number(shot) >= 301 ? ' edge' : '';
+        const label = names[shot] || '';
+        const cap = '<span class="lbl"><b>' + shot + '</b> ' + esc(label) + '</span>';
+        if (mine.includes(shot)) {
+          return '<div class="shot"><div class="cell' + edge + '">' +
+            '<a href="' + url + '" data-code="' + person.code + '" data-shot="' + shot + '">' +
+            '<img src="' + url + '" alt="' + esc(person.name + ' ' + (label || shot)) + '" width="1024" height="1024" ' +
+            'loading="lazy" decoding="async" ' +
+            'onerror="this.closest(\'.cell\').classList.add(\'err\');this.remove()"></a></div>' + cap + '</div>';
+        }
+        return '<div class="shot off"><div class="cell miss hatch d3' + edge + '"></div>' + cap + '</div>';
+      }).join('') || '<p class="none">이 대역에 해당하는 칸이 없습니다.</p>';
+
+      return '<div class="row" id="' + person.code + '">' +
+        '<div class="who">' +
+          '<div class="nm">' + esc(person.name) + '</div>' +
+          '<div class="cd">' + person.code + (record.sex ? ' <span class="sx">' + esc(record.sex) + '</span>' : '') + '</div>' +
+          '<div class="dens ' + (density ? hatchFor(density) : '') + '"><i style="width:' + pct + '%"></i></div>' +
+          '<div class="num">' + mine.length + ' / ' + fixed.length + '<s> · 남은 ' + missing.length + '</s></div>' +
+        '</div><div class="cells">' + body + '</div></div>';
+    }).join('');
+
+    return '<section class="fac" data-grade="' + group.grade + '" aria-labelledby="f-' + group.id + '">' +
+      '<div class="fac-head">' + SER.curveSvg(group.grade, group.grade === '—' ? 'solid' : '') +
+      '<h2 id="f-' + group.id + '">' + esc(group.label) + '</h2>' +
+      '<span class="n">' + members.length + '명</span></div>' + rows + '</section>';
+  }).join('');
+
+  document.getElementById('list').innerHTML = html;
+  const pct = fixedTotal ? Math.round((owned / fixedTotal) * 100) : 0;
+  document.getElementById('kpi').innerHTML =
+    '<div><b>' + owned + '<i>/' + fixedTotal + '</i></b><span>보유 / 확정 칸</span></div>' +
+    '<div><b>' + pct + '<i>%</i></b><span>확정 칸 진행률</span></div>' +
+    '<div><b>' + (fixedTotal - owned) + '</b><span>남은 확정 칸</span></div>' +
+    '<div><b class="est">+' + estTotal + '</b><span>예상 상한 추가분</span>' +
+    '<span class="note">번호 미배정 · 분모 제외</span></div>';
 }
 
-// ── 앵커로 들어온 인물 강조
-function focusHash(){
-  const code = location.hash.replace('#','');
-  if(!code) return;
+function focusHash() {
+  const code = location.hash.replace('#', '');
+  if (!code) return;
   const row = document.getElementById(code);
-  if(!row) return;
-  row.scrollIntoView({block:'start', behavior:'smooth'});
+  if (!row) return;
+  row.scrollIntoView({ block: 'start', behavior: 'smooth' });
   row.classList.add('hit');
-  setTimeout(()=>row.classList.remove('hit'), 2400);
+  setTimeout(() => row.classList.remove('hit'), 2400);
 }
 window.addEventListener('hashchange', focusHash);
 
-// ── 라이트박스
+/* 라이트박스 */
 const lb = document.getElementById('lb');
 const lbImg = document.getElementById('lb-img');
 const lbCap = document.getElementById('lb-cap');
-let shelf = [], at = 0, who = '';
+const lbClose = document.getElementById('lb-close');
+let shelf = [], at = 0, opener = null;
 
-function warm(i){
-  const item = shelf[(i + shelf.length) % shelf.length];
-  if(item){ const im = new Image(); im.src = item.url; }
-}
-function show(i){
+const warm = (i) => { const item = shelf[(i + shelf.length) % shelf.length]; if (item) new Image().src = item.url; };
+
+function show(i) {
   at = (i + shelf.length) % shelf.length;
-  const {url, code, shot, name} = shelf[at];
+  const item = shelf[at];
   warm(at + 1); warm(at - 1);
-  lbImg.src = url;
-  lbImg.alt = `${name} ${shot}`;
-  const label = names[shot] ? ` · ${names[shot]}` : '';
-  lbCap.innerHTML = `<b>${name}</b>${label} · ${code} / D / ${shot} · ${at+1} / ${shelf.length}`;
+  lbImg.src = item.url;
+  lbImg.alt = item.name + ' ' + (names[item.shot] || item.shot);
+  const label = names[item.shot] ? ' · ' + names[item.shot] : '';
+  lbCap.innerHTML = '<b>' + esc(item.name) + '</b>' + esc(label) +
+    ' · ' + item.code + ' / D / ' + item.shot + ' · ' + (at + 1) + ' / ' + shelf.length;
 }
-function open(code, shot){
-  const rec = have[code] || {shots:[]};
-  const name = (people.find(p=>p.code===code)||{}).name || code;
-  shelf = (rec.shots||[]).map(s => ({url:`${BASE}/${code}/D/${s}.webp`, code, shot:s, name}));
-  who = code;
-  show(shelf.findIndex(x=>x.shot===shot));
+function openLightbox(code, shot, trigger) {
+  const record = have[code] || { shots: [] };
+  const name = (people.find((p) => p.code === code) || {}).name || code;
+  shelf = (record.shots || []).map((s) => ({ url: BASE + '/' + code + '/D/' + s + '.webp', code, shot: s, name }));
+  opener = trigger;
+  show(shelf.findIndex((x) => x.shot === shot));
   lb.classList.add('on');
   document.body.style.overflow = 'hidden';
+  lbClose.focus();
 }
-function close(){
+function closeLightbox() {
   lb.classList.remove('on');
   lbImg.src = '';
   document.body.style.overflow = '';
+  if (opener) opener.focus();
+  opener = null;
 }
-document.addEventListener('click', e => {
-  const link = e.target.closest('.cells a[data-shot]');
-  if(link){ e.preventDefault(); open(link.dataset.code, link.dataset.shot); return; }
-  if(e.target.closest('.lb .prev')){ show(at-1); return; }
-  if(e.target.closest('.lb .next')){ show(at+1); return; }
-  if(e.target.closest('.lb .close') || e.target === lb){ close(); }
+document.addEventListener('click', (event) => {
+  const link = event.target.closest('.cells a[data-shot]');
+  if (link) { event.preventDefault(); openLightbox(link.dataset.code, link.dataset.shot, link); return; }
+  if (event.target.closest('#lb-prev')) { show(at - 1); return; }
+  if (event.target.closest('#lb-next')) { show(at + 1); return; }
+  if (event.target.closest('#lb-close') || event.target === lb) closeLightbox();
 });
-// 좌우 스와이프로도 넘긴다
 let swipeFrom = null;
-lb.addEventListener('touchstart', e => { swipeFrom = e.changedTouches[0].clientX; }, {passive:true});
-lb.addEventListener('touchend', e => {
-  if(swipeFrom === null) return;
+lb.addEventListener('touchstart', (e) => { swipeFrom = e.changedTouches[0].clientX; }, { passive: true });
+lb.addEventListener('touchend', (e) => {
+  if (swipeFrom === null) return;
   const dx = e.changedTouches[0].clientX - swipeFrom;
   swipeFrom = null;
-  if(Math.abs(dx) > 40) show(dx < 0 ? at + 1 : at - 1);
-}, {passive:true});
-
-document.addEventListener('keydown', e => {
-  if(!lb.classList.contains('on')) return;
-  if(e.key === 'Escape') close();
-  if(e.key === 'ArrowLeft') show(at-1);
-  if(e.key === 'ArrowRight') show(at+1);
+  if (Math.abs(dx) > 40) show(dx < 0 ? at + 1 : at - 1);
+}, { passive: true });
+document.addEventListener('keydown', (event) => {
+  if (!lb.classList.contains('on')) return;
+  if (event.key === 'Escape') { closeLightbox(); return; }
+  if (event.key === 'ArrowLeft') { show(at - 1); return; }
+  if (event.key === 'ArrowRight') { show(at + 1); return; }
+  if (event.key === 'Tab') {
+    const stops = [...lb.querySelectorAll('button')];
+    const i = stops.indexOf(document.activeElement);
+    event.preventDefault();
+    stops[(i + (event.shiftKey ? -1 : 1) + stops.length) % stops.length].focus();
+  }
 });
 
 boot().then(focusHash);
