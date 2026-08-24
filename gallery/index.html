@@ -256,7 +256,8 @@ function render() {
             'onerror="this.closest(\'.cell\').classList.add(\'err\');this.remove()"></a></div>' + cap + '</div>';
         }
         return '<div class="shot off"><div class="cell miss hatch d3' + edge + '"></div>' + cap + '</div>';
-      }).join('') || '<p class="none">이 대역에 해당하는 칸이 없습니다.</p>';
+      }).join('') || '<p class="none">' +
+        (showMiss ? '이 대역에 해당하는 칸이 없습니다.' : '이 대역에 보유한 에셋이 없습니다.') + '</p>';
 
       return '<div class="row" id="' + person.code + '">' +
         '<div class="who">' +
