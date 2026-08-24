@@ -152,14 +152,14 @@ a.tap, button, [role="button"], input[type="search"], summary {
    고호수(가드너)는 중간톤이 없고 흑과 백만 남는다 — 욕망만 남은 쪽.
    호수는 괘선 톤·라벨 톤·특성 곡선 셋을 동시에 정한다. 본문 대비는 호수와 무관하게 항상 지킨다. */
 
-[data-grade] { --g-rule: var(--z7); --g-label: var(--z3); --g-fill: var(--z9) }
-[data-grade="0"]   { --g-rule: var(--z8); --g-label: var(--z4); --g-fill: var(--z10) }
-[data-grade="1"]   { --g-rule: var(--z8); --g-label: var(--z4); --g-fill: var(--z10) }
-[data-grade="2"]   { --g-rule: var(--z7); --g-label: var(--z3); --g-fill: var(--z9) }
-[data-grade="2.5"] { --g-rule: var(--z7); --g-label: var(--z3); --g-fill: var(--z9) }
-[data-grade="3.5"] { --g-rule: var(--z5); --g-label: var(--z2); --g-fill: var(--z8) }
-[data-grade="5"]   { --g-rule: var(--z2); --g-label: var(--z0); --g-fill: var(--z6) }
-[data-grade="—"]   { --g-rule: var(--z1); --g-label: var(--z0); --g-fill: var(--mag) }
+[data-grade]       { --g-rule: var(--z7); --g-label: var(--z3) }
+[data-grade="0"]   { --g-rule: var(--z9); --g-label: var(--z4) }
+[data-grade="1"]   { --g-rule: var(--z8); --g-label: var(--z4) }
+[data-grade="2"]   { --g-rule: var(--z7); --g-label: var(--z3) }
+[data-grade="2.5"] { --g-rule: var(--z6); --g-label: var(--z3) }
+[data-grade="3.5"] { --g-rule: var(--z5); --g-label: var(--z2) }
+[data-grade="5"]   { --g-rule: var(--z3); --g-label: var(--z1) }
+[data-grade="—"]   { --g-rule: var(--z1); --g-label: var(--z0) }
 
 .curve { display: block; width: 34px; height: 34px; flex: none }
 .curve rect { fill: none; stroke: var(--g-rule); stroke-width: 1 }

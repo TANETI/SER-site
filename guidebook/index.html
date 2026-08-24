@@ -166,14 +166,14 @@ a.tap, button, [role="button"], input[type="search"], summary {
    고호수(가드너)는 중간톤이 없고 흑과 백만 남는다 — 욕망만 남은 쪽.
    호수는 괘선 톤·라벨 톤·특성 곡선 셋을 동시에 정한다. 본문 대비는 호수와 무관하게 항상 지킨다. */
 
-[data-grade] { --g-rule: var(--z7); --g-label: var(--z3); --g-fill: var(--z9) }
-[data-grade="0"]   { --g-rule: var(--z8); --g-label: var(--z4); --g-fill: var(--z10) }
-[data-grade="1"]   { --g-rule: var(--z8); --g-label: var(--z4); --g-fill: var(--z10) }
-[data-grade="2"]   { --g-rule: var(--z7); --g-label: var(--z3); --g-fill: var(--z9) }
-[data-grade="2.5"] { --g-rule: var(--z7); --g-label: var(--z3); --g-fill: var(--z9) }
-[data-grade="3.5"] { --g-rule: var(--z5); --g-label: var(--z2); --g-fill: var(--z8) }
-[data-grade="5"]   { --g-rule: var(--z2); --g-label: var(--z0); --g-fill: var(--z6) }
-[data-grade="—"]   { --g-rule: var(--z1); --g-label: var(--z0); --g-fill: var(--mag) }
+[data-grade]       { --g-rule: var(--z7); --g-label: var(--z3) }
+[data-grade="0"]   { --g-rule: var(--z9); --g-label: var(--z4) }
+[data-grade="1"]   { --g-rule: var(--z8); --g-label: var(--z4) }
+[data-grade="2"]   { --g-rule: var(--z7); --g-label: var(--z3) }
+[data-grade="2.5"] { --g-rule: var(--z6); --g-label: var(--z3) }
+[data-grade="3.5"] { --g-rule: var(--z5); --g-label: var(--z2) }
+[data-grade="5"]   { --g-rule: var(--z3); --g-label: var(--z1) }
+[data-grade="—"]   { --g-rule: var(--z1); --g-label: var(--z0) }
 
 .curve { display: block; width: 34px; height: 34px; flex: none }
 .curve rect { fill: none; stroke: var(--g-rule); stroke-width: 1 }
@@ -235,7 +235,9 @@ main { padding: 0 clamp(20px, 4vw, 56px) 88px }
 .stat span { display: block; margin-top: 2px; font-size: 12px; color: var(--z3) }
 
 section { padding: 40px 0; border-top: 1px solid var(--z4) }
-.shead { display: flex; align-items: baseline; gap: 12px; margin-bottom: 14px }
+.shead { display: flex; align-items: center; gap: 12px; margin-bottom: 14px }
+.shead .curve { width: 30px; height: 30px }
+section[data-grade] { border-top-width: 2px; border-top-color: var(--g-rule) }
 .shead .sno { font-family: var(--face-data); font-size: 12px; font-weight: 600; color: var(--mag-ink); letter-spacing: .06em }
 .shead h2 { font-size: clamp(21px, 2.8vw, 27px); font-weight: 900; letter-spacing: -.025em }
 .lead { max-width: 68ch; margin-bottom: 20px; color: var(--z2) }
@@ -260,17 +262,19 @@ section li { margin-bottom: 5px }
 .card.gold   { box-shadow: inset 0 3px 0 var(--z2) }
 .card.safe   { box-shadow: inset 0 3px 0 var(--z8) }
 .card.violet { box-shadow: inset 0 3px 0 var(--z4) }
-.card.danger { background: var(--mag-soft); box-shadow: inset 0 3px 0 var(--mag) }
-.card.danger p, .card.danger h3 { color: var(--mag-ink) }
+.card.danger { box-shadow: inset 0 3px 0 var(--mag) }
+.card.danger h3 { color: var(--mag-ink) }
+.card.danger .tag { color: var(--mag-ink) }
 
 .rite { padding: 15px 16px; background: var(--sheet) }
 .rite.gold   { box-shadow: inset 0 3px 0 var(--z2) }
 .rite.safe   { box-shadow: inset 0 3px 0 var(--z8) }
 .rite.violet { box-shadow: inset 0 3px 0 var(--z4) }
-.rite.danger { background: var(--mag-soft); box-shadow: inset 0 3px 0 var(--mag); color: var(--mag-ink) }
+.rite.danger { box-shadow: inset 0 3px 0 var(--mag) }
+.rite.danger b, .rite.danger strong { color: var(--mag-ink) }
 
 .note { margin: 16px 0; padding: 13px 15px; border: 1px solid var(--z6); background: var(--sheet); font-size: 13.5px }
-.note.danger { border: 1px solid var(--mag); background: var(--mag-soft); color: var(--mag-ink) }
+.note.danger { border: 1px solid var(--mag); border-left-width: 1px; background: var(--sheet); box-shadow: inset 3px 0 0 var(--mag) }
 .pull { margin: 22px 0; padding: 16px 18px; border-top: 1px solid var(--z3); border-bottom: 1px solid var(--z3);
   font-family: var(--serif); font-size: 18px; line-height: 1.75 }
 .formula { margin: 14px 0; padding: 11px 14px; border: 1px solid var(--rule); background: var(--clear);
@@ -461,7 +465,7 @@ footer a { display: inline-block; min-width: 44px; padding: 13px 0; text-align: 
   </div>
 </section>
 
-<section id="taskforce" data-searchable><div class="shead"><span class="sno">05</span><h2>괴이사건대책반</h2></div><p class="lead">오르트로스 발생 시 가장 먼저 투입되는 경찰 소속 국가 초동 대응 조직. 초자연적 권능 없이 인간의 과학·군사기술만 사용합니다.</p>
+<section id="taskforce" data-grade="2.5" data-searchable><div class="shead"><svg class="curve" viewBox="0 0 40 40" aria-hidden="true"><rect x="2.5" y="2.5" width="35" height="35"/><line x1="2.5" y1="20" x2="37.5" y2="20"/><line x1="20" y1="2.5" x2="20" y2="37.5"/><path d="M3 35 L 14 34 L 26 7 L 37 5"/></svg><span class="sno">05</span><h2>괴이사건대책반</h2></div><p class="lead">오르트로스 발생 시 가장 먼저 투입되는 경찰 소속 국가 초동 대응 조직. 초자연적 권능 없이 인간의 과학·군사기술만 사용합니다.</p>
   <h3>전술 트럭</h3>
   <p>군용 8×8 트럭을 개조한 차량으로, 방탄·방폭 컨테이너를 얹었고 현장에서는 이동 지휘소·슈트 격납고·구호소를 겸합니다. 전개 완료까지 약 90초가 걸립니다.</p>
   <div class="formula">현장 진입 → 아웃리거 접지 → 측면 패널 전개 → 관측 마스트 상승 → 착용 플랫폼 개방</div>
@@ -509,7 +513,7 @@ footer a { display: inline-block; min-width: 44px; padding: 13px 0; text-align: 
 하지만 끝낼 수 있는 자가 올 때까지 막을 수는 있다.”</strong></blockquote>
 </section>
 
-<section id="church" data-searchable><div class="shead"><span class="sno">06</span><h2>바티칸 성당교회 한국지부</h2></div><p class="lead">초자연적 대응과 사건의 최종 해결을 담당하는 소수 사제 조직. 성경의 성구를 봉독해 주의 권능을 구현하는 전례마술 Clavis Arche를 사용합니다.</p>
+<section id="church" data-grade="0" data-searchable><div class="shead"><svg class="curve" viewBox="0 0 40 40" aria-hidden="true"><rect x="2.5" y="2.5" width="35" height="35"/><line x1="2.5" y1="20" x2="37.5" y2="20"/><line x1="20" y1="2.5" x2="20" y2="37.5"/><path d="M3 35 L 7 34 L 33 7 L 37 5"/></svg><span class="sno">06</span><h2>바티칸 성당교회 한국지부</h2></div><p class="lead">초자연적 대응과 사건의 최종 해결을 담당하는 소수 사제 조직. 성경의 성구를 봉독해 주의 권능을 구현하는 전례마술 Clavis Arche를 사용합니다.</p>
   <p>사제들은 아르케를 신학적 명칭으로 인식하지만 신앙과 전례에서는 주로 <code>주</code>라고 부릅니다.</p>
   <div class="grid g2">
     <article class="card danger"><span class="tag">Scale</span><h3>지부는 서울 한 곳</h3>
@@ -848,7 +852,7 @@ Et omnia vanitas.
   </article>
 </section>
 
-<section id="seraph" data-searchable><div class="shead"><span class="sno">08</span><h2>세라프와 세라피안</h2></div><p class="lead">세라프는 아르케를 따르는 천사적 존재입니다. 강력한 염원을 품었으면서도 욕망에 정신을 빼앗기지 않은 인간에게 접근해, 염원을 이루어주겠다고 약속하는 대신 오르트로스를 저지해달라는 계약을 제안하고 권능을 빌려줍니다.</p>
+<section id="seraph" data-grade="2" data-searchable><div class="shead"><svg class="curve" viewBox="0 0 40 40" aria-hidden="true"><rect x="2.5" y="2.5" width="35" height="35"/><line x1="2.5" y1="20" x2="37.5" y2="20"/><line x1="20" y1="2.5" x2="20" y2="37.5"/><path d="M3 35 L 12 34 L 28 7 L 37 5"/></svg><span class="sno">08</span><h2>세라프와 세라피안</h2></div><p class="lead">세라프는 아르케를 따르는 천사적 존재입니다. 강력한 염원을 품었으면서도 욕망에 정신을 빼앗기지 않은 인간에게 접근해, 염원을 이루어주겠다고 약속하는 대신 오르트로스를 저지해달라는 계약을 제안하고 권능을 빌려줍니다.</p>
   <div class="note"><b>계약은 물건에서 시작됩니다</b><p>세라프는 하늘에서 계약자가 될 인간을 찾아다닙니다. 대상을 정하면 그 사람이 <strong>가장 아끼는 물건</strong>에 깃든 뒤 말을 겁니다. 말을 거는 시점은 세라프마다 다릅니다. 이때 계약자에게 염원을 묻고 계약이 성립합니다.</p></div>
   <div class="grid g2">
     <article class="card violet"><span class="tag">Attitude</span><h3>소원을 대하는 태도</h3>
@@ -889,7 +893,7 @@ Et omnia vanitas.
 그 싸움의 끝을 스스로 결정할 수도 있다.”</strong></blockquote>
 </section>
 
-<section id="nymph" data-searchable><div class="shead"><span class="sno">09</span><h2>NYMPH</h2></div><p class="lead">신의 존재와 천계의 개입을 부정하고 과학의 힘을 맹신하는 비인가 지하 비밀조직. 성당교회·오르트로스 집단과 모두 별개의 세력입니다.</p>
+<section id="nymph" data-grade="3.5" data-searchable><div class="shead"><svg class="curve" viewBox="0 0 40 40" aria-hidden="true"><rect x="2.5" y="2.5" width="35" height="35"/><line x1="2.5" y1="20" x2="37.5" y2="20"/><line x1="20" y1="2.5" x2="20" y2="37.5"/><path d="M3 35 L 16 34 L 24 7 L 37 5"/></svg><span class="sno">09</span><h2>NYMPH</h2></div><p class="lead">신의 존재와 천계의 개입을 부정하고 과학의 힘을 맹신하는 비인가 지하 비밀조직. 성당교회·오르트로스 집단과 모두 별개의 세력입니다.</p>
   <p class="eyebrow">Neuron Yearn for Mortality Precluding Heaven</p>
   <div class="grid g2">
     <article class="card"><span class="tag">Proof</span><h3>인간의 힘으로</h3><p>자체 제작한 변신 벨트와 과학식 변신체를 운용해 인간의 힘만으로 오르트로스를 격파할 수 있음을 증명하려 합니다. 신화 속 승리 역시 신과 천사가 아니라 인간의 힘으로 이룬 결과라고 주장합니다. 변신체 코드명은 각각 수학·화학·뇌과학에서 따왔습니다.</p></article>
@@ -913,7 +917,7 @@ Et omnia vanitas.
   <div class="note danger"><b>NYMPH 개입 시</b><p>골든타임과 무관한 사살을 시도하기 때문에 성당교회·세라피안·대책반과 현장에서 충돌할 수 있습니다.</p></div>
 </section>
 
-<section id="core" data-searchable><div class="shead"><span class="sno">11</span><h2>세계관의 핵심 대칭</h2></div><p class="lead">오르트로스와 세라피안은 모두 인간의 강렬한 욕망에서 출발하지만 인간과 욕망의 관계가 반대입니다.</p>
+<section id="core" data-grade="—" data-searchable><div class="shead"><svg class="curve solid" viewBox="0 0 40 40" aria-hidden="true"><rect x="2.5" y="2.5" width="35" height="35"/><line x1="2.5" y1="20" x2="37.5" y2="20"/><line x1="20" y1="2.5" x2="20" y2="37.5"/><path d="M20 36 L 20 4"/></svg><span class="sno">11</span><h2>세계관의 핵심 대칭</h2></div><p class="lead">오르트로스와 세라피안은 모두 인간의 강렬한 욕망에서 출발하지만 인간과 욕망의 관계가 반대입니다.</p>
   <div class="grid g2">
     <article class="card danger"><span class="tag">Consumed</span><h3>욕망이 인간을 집어삼키면</h3><p>오르트로스가 됩니다.</p></article>
     <article class="card safe"><span class="tag">Held</span><h3>염원을 끝까지 자신의 것으로 붙잡으면</h3><p>세라피안이 될 가능성이 생깁니다.</p></article>
