@@ -97,6 +97,7 @@ main { width: min(100%, 1500px); margin-inline: auto; padding: 0 var(--gutter) 7
 .lbl b { font-family: var(--face-data); font-weight: 600; color: var(--z2) }
 .shot.off .lbl { color: var(--z4) }
 .none { font-family: var(--face-data); font-size: 12px; color: var(--z4) }
+.loading { margin: 28px 0; font-family: var(--face-data); font-size: 13px; color: var(--z4) }
 
 .warn { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; margin: 18px 0;
   padding: 14px 16px; border: 1px solid var(--mag); background: var(--mag-soft); color: var(--mag-ink); font-size: 14px }
@@ -148,6 +149,7 @@ footer { width: min(100%, 1500px); margin-inline: auto; padding: 22px var(--gutt
     <span><i class="edge"></i>NSFW 대역</span>
   </div>
 
+  <p class="loading" id="loading" role="status" aria-live="polite" hidden></p>
   <div id="list"></div>
 </main>
 
@@ -190,6 +192,30 @@ function fail(message) {
     '<button type="button" onclick="location.reload()">다시 불러오기</button></div>';
 }
 
+async function revealLoadedAssets() {
+  const list = document.getElementById('list');
+  const loading = document.getElementById('loading');
+  list.hidden = true;
+  list.setAttribute('aria-busy', 'true');
+  loading.hidden = false;
+  render();
+  const images = [...list.querySelectorAll('img')];
+  let done = 0;
+  const update = () => { loading.textContent = '이미지 불러오는 중 · ' + done + ' / ' + images.length; };
+  update();
+  await Promise.all(images.map((image) => new Promise((resolve) => {
+    const finish = () => { done += 1; update(); resolve(); };
+    if (image.complete) image.decode().catch(() => {}).finally(finish);
+    else {
+      image.addEventListener('load', () => image.decode().catch(() => {}).finally(finish), { once: true });
+      image.addEventListener('error', finish, { once: true });
+    }
+  })));
+  loading.hidden = true;
+  list.hidden = false;
+  list.setAttribute('aria-busy', 'false');
+}
+
 async function boot() {
   const load = (url) => fetch(url, { cache: 'no-cache' }).then((r) => {
     if (!r.ok) throw new Error(url + ' → HTTP ' + r.status);
@@ -226,7 +252,9 @@ async function boot() {
     }
     render();
   });
-  render();
+  tools.inert = true;
+  await revealLoadedAssets();
+  tools.inert = false;
 }
 
 function render() {
