@@ -152,7 +152,7 @@ footer { width: min(100%, 1500px); margin-inline: auto; padding: 22px var(--gutt
 </main>
 
 <div class="lb" id="lb" role="dialog" aria-modal="true" aria-label="에셋 크게 보기">
-  <div class="stage"><img id="lb-img" alt=""></div>
+  <div class="stage"><img id="lb-img" alt="" loading="eager"></div>
   <div class="bar">
     <button id="lb-prev" type="button" aria-label="이전 에셋">&lsaquo;</button>
     <p class="cap" id="lb-cap"></p>
@@ -258,7 +258,7 @@ function render() {
           return '<div class="shot"><div class="cell' + edge + '">' +
             '<a href="' + url + '" data-code="' + person.code + '" data-shot="' + shot + '">' +
             '<img src="' + url + '" alt="' + esc(person.name + ' ' + (label || shot)) + '" width="1024" height="1024" ' +
-            'loading="lazy" decoding="async" ' +
+            'loading="eager" decoding="async" ' +
             'onerror="this.closest(\'.cell\').classList.add(\'err\');this.remove()"></a></div>' + cap + '</div>';
         }
         return '<div class="shot off"><div class="cell miss hatch d3' + edge + '"></div>' + cap + '</div>';

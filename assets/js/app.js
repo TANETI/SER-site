@@ -27,7 +27,7 @@ function frame(character) {
   const title = `${character.name} 에셋 ${have}장 · 확정 ${fixed}칸`;
   return `<li><a class="frame" href="./gallery/#${character.code}" title="${esc(title)}">
     <span class="shot"><img src="https://srp.issssm.com/${character.code}/D/01.webp" alt="${esc(character.name)} 01"
-      width="1024" height="1024" loading="lazy" decoding="async"><span class="no">${character.code}</span></span>
+      width="1024" height="1024" loading="eager" decoding="async"><span class="no">${character.code}</span></span>
     <span class="nm">${esc(character.name)}</span>
     <span class="en" lang="en">${esc(character.englishName)}</span>
     <span class="role">${esc(character.role)}</span>
