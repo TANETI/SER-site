@@ -24,7 +24,7 @@
   {"code":"JN","name":"정나은","englishName":"Jeong Na-eun","group":"task-force","groupLabel":"현장 감찰팀","role":"현장 감찰관 · 피해·경위·배후 조사"},
 
   {"code":"MR","name":"마리","englishName":"Marie","group":"church","groupLabel":"성당교회 한국지부","role":"필리우스 전문 · 영적 보호막"},
-  {"code":"RP","name":"라파엘","englishName":"Raphael","group":"church","groupLabel":"성당교회 한국지부","role":"파테르 전문 · 신체 강화"},
+  {"code":"MC","name":"마르코","englishName":"Marco","group":"church","groupLabel":"성당교회 한국지부","role":"파테르 전문 · 신체 강화"},
   {"code":"JR","name":"예로니모","englishName":"Jeronimo","group":"church","groupLabel":"성당교회 한국지부","role":"스피리투스 전문 · NUNC DIMITTIS 보유"},
 
   {"code":"SH","name":"셰리","englishName":"Sherry","group":"nymph","groupLabel":"NYMPH","role":"인테그라 · 수학 계통 변신체"},
