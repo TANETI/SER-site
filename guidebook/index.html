@@ -96,13 +96,14 @@ body {
   font-size: 16px;
   line-height: 1.7;
   font-variant-numeric: tabular-nums;
+  word-break: keep-all;
+  overflow-wrap: break-word;
 }
 
-/* 한국어는 어절 중간에서 끊지 않는다. 이 한 줄이 없어서 지금 히어로가 «있 / 는» 으로 쪼개진다. */
-h1, h2, h3, h4, h5, h6, p, li, td, th, dd, dt, figcaption, label, button, a {
-  word-break: keep-all;
-  overflow-wrap: anywhere;
-}
+/* 한국어는 어절 중간에서 끊지 않는다(body에서 상속). 좁은 칸에서 넘칠 때만 글자 단위로 끊는다. 본문은 마지막 줄에 어절 하나만 남기지 않고, 제목은 줄 길이를 고르게 나눈다. */
+h1, h2, h3, h4, h5, h6, p, li, td, th, dd, dt, figcaption, blockquote, label, button, a { overflow-wrap: anywhere }
+p, li, td, dd, dt, figcaption, blockquote { text-wrap: pretty }
+h1, h2, h3, h4, h5, h6, caption { text-wrap: balance }
 h1, h2, h3, h4 { margin: 0; font-family: var(--face-display); font-weight: 800; line-height: 1.12; letter-spacing: -.02em }
 p { margin: 0 }
 a { color: inherit }
@@ -296,7 +297,7 @@ details.fold .meta { font-family: var(--face-data); font-size: 11px; color: var(
 
 /* 등급 — 존 램프에 그대로 얹는다 */
 .ranks { display: grid; grid-template-columns: repeat(9, 1fr); gap: 1px; margin: 16px 0; background: var(--rule); border: 1px solid var(--rule) }
-.ranks div { padding: 9px 6px; text-align: center; font-size: 12px; font-weight: 700; background: var(--clear) }
+.ranks div { padding: 9px 2px; text-align: center; white-space: nowrap; font-size: 12px; font-weight: 700; background: var(--clear) }
 .ranks .r-lo  { background: var(--z10) }
 .ranks .r-mid { background: var(--z8) }
 .ranks .r-hi  { background: var(--z4); color: var(--clear) }
@@ -315,7 +316,15 @@ details.fold .meta { font-family: var(--face-data); font-size: 11px; color: var(
 .roster { margin: 14px 0; border: 1px solid var(--rule) }
 .roster .row { display: grid; grid-template-columns: 46px minmax(0, 1fr); gap: 3px 12px; padding: 10px 12px;
   border-bottom: 1px solid var(--rule); align-items: baseline; font-size: 13px }
-@media (min-width: 720px) { .roster .row { grid-template-columns: 46px 116px minmax(0, 1fr) 20px minmax(0, 150px) } }
+.roster .row > :not(.code) { grid-column: 2 }
+.roster .arrow { display: none }
+.roster .arrow + .ds::before { content: "→ " }
+@media (min-width: 720px) {
+  .roster .row { grid-template-columns: 46px 116px minmax(0, 1fr) 20px minmax(0, 150px) }
+  .roster .row > :not(.code) { grid-column: auto }
+  .roster .arrow { display: block }
+  .roster .arrow + .ds::before { content: none }
+}
 .roster .row:last-child { border-bottom: 0 }
 .roster .row:nth-child(even) { background: var(--sheet) }
 .roster .code { font-family: var(--face-data); font-size: 11px; font-weight: 600; color: var(--z2) }
@@ -380,7 +389,7 @@ footer a { display: inline-block; min-width: 44px; padding: 13px 0; text-align: 
 <section id="premise" data-searchable><div class="shead"><span class="sno">01</span><h2>기획 방향</h2></div><p class="lead">어두운 현대 변신 액션물. 세라프의 권능을 빌리지만 변신자의 의식과 주도권은 끝까지 인간에게 남습니다.</p>
   <div class="grid g2">
     <article class="card accent"><span class="tag">Transformation</span><h3>권능 대여형 변신</h3>
-      <p>마법소녀물과 빙의·권능 대여형 변신물의 구조를 함께 씁니다. 세라프가 몸을 빼앗거나 대신 행동하지 않으며, 변신 외형은 계약한 세라프의 특성과 인간이 품은 염원의 성질이 결합해 형성됩니다.</p></article>
+      <p>마법소녀물과 빙의⁠·권능 대여형 변신물의 구조를 함께 씁니다. 세라프가 몸을 빼앗거나 대신 행동하지 않으며, 변신 외형은 계약한 세라프의 특성과 인간이 품은 염원의 성질이 결합해 형성됩니다.</p></article>
     <article class="card"><span class="tag">Divine distance</span><h3>직접 개입하지 않는 신</h3>
       <p>신은 개인에게 직접 능력을 주지 않으며 평상시 현세에 개입하지 않습니다. 티폰이 직접 나설 때만 아르케의 개입 가능성이 생깁니다.</p></article>
   </div>
@@ -411,11 +420,11 @@ footer a { display: inline-block; min-width: 44px; padding: 13px 0; text-align: 
 
 <section id="orthros" data-searchable><div class="shead"><span class="sno">03</span><h2>오르트로스</h2></div><p class="lead">인간의 과도한 부정적 감정과 뒤틀린 욕망이 한계를 넘을 때 발생하는 변이체. 단순한 분노나 욕망만으로는 변이하지 않습니다.</p>
   <div class="grid g3">
-    <article class="card"><span class="tag">Form</span><h3>외형과 능력</h3><p>인정욕구·집착·질투·복수심·소유욕·생존욕·사랑에 대한 갈망이 뒤틀린 형태로 육체와 능력에 반영됩니다.</p></article>
+    <article class="card"><span class="tag">Form</span><h3>외형과 능력</h3><p>인정욕구⁠·집착⁠·질투⁠·복수심⁠·소유욕⁠·생존욕⁠·사랑에 대한 갈망이 뒤틀린 형태로 육체와 능력에 반영됩니다.</p></article>
     <article class="card"><span class="tag">Scale</span><h3>강함의 두 축</h3><p><strong>욕망의 크기</strong>는 감정의 강렬함과 집요함, <strong>그릇의 크기</strong>는 얼마나 거대한 괴이성을 받아들일 수 있는가입니다.</p></article>
     <article class="card"><span class="tag">Public</span><h3>대중의 인식</h3><p>일반인은 인간 기원을 모르며 사람을 공격하는 괴물로만 인식합니다.</p></article>
   </div>
-  <div class="note"><b>오르트로스화는 클리파의 접촉에서 시작됩니다</b><p>접촉은 그 인간에게만 인지되며 주변에는 아무 흔적도 남지 않아, 사건이 끝난 뒤 현장을 조사해도 개입 사실 자체가 잡히지 않습니다. 클리파는 매개일 뿐이고 대상이 실제로 마주하는 것은 티폰의 잔상이라, 누가 접촉했든 들리는 것은 언제나 여성의 목소리입니다. 상냥함과 잔인함이 구별되지 않는 형태로 들립니다. 클리파는 없던 욕망을 만들지 않고, 이미 품고 있던 것을 잘못되지 않았다고 말해 줍니다. 부추기는 것이 아니라 위로의 형태를 띠므로 듣는 쪽은 생애 처음 받아보는 이해로 받아들이는 경우가 많습니다. <strong>변이의 선택과 책임은 끝까지 그 인간에게 남습니다.</strong> 세라프가 염원을 묻는 것과 같은 구조입니다. 그릇이 클수록 잔상과 깊게 접하고, 깊게 접한 개체일수록 등급이 높으며 정화되어 돌아온 뒤에도 접촉의 기억이 뚜렷합니다. 다만 2급·1급·특급에서 정화에 성공한 사례가 아직 없어, 확보된 증언은 전부 해상도가 낮습니다. 접촉부터 변이까지는 시간이 걸리며 그 사이 감정의 진폭이 커지고 잠들지 못하는 등의 징후가 나타나지만, 가까운 사람도 원인은 알지 못합니다. 다만 변이가 끝난 오르트로스를 이후 돕지 않는 것이 원칙입니다. 개체 하나의 성패가 아니라 욕망이 퍼지는 것 자체가 중요하기 때문입니다.</p></div>
+  <div class="note"><b>오르트로스화는 클리파의 접촉에서 시작됩니다</b><p>접촉은 그 인간에게만 인지되며 주변에는 아무 흔적도 남지 않아, 사건이 끝난 뒤 현장을 조사해도 개입 사실 자체가 잡히지 않습니다. 클리파는 매개일 뿐이고 대상이 실제로 마주하는 것은 티폰의 잔상이라, 누가 접촉했든 들리는 것은 언제나 여성의 목소리입니다. 상냥함과 잔인함이 구별되지 않는 형태로 들립니다. 클리파는 없던 욕망을 만들지 않고, 이미 품고 있던 것을 잘못되지 않았다고 말해 줍니다. 부추기는 것이 아니라 위로의 형태를 띠므로 듣는 쪽은 생애 처음 받아보는 이해로 받아들이는 경우가 많습니다. <strong>변이의 선택과 책임은 끝까지 그 인간에게 남습니다.</strong> 세라프가 염원을 묻는 것과 같은 구조입니다. 그릇이 클수록 잔상과 깊게 접하고, 깊게 접한 개체일수록 등급이 높으며 정화되어 돌아온 뒤에도 접촉의 기억이 뚜렷합니다. 다만 2급⁠·1급⁠·특급에서 정화에 성공한 사례가 아직 없어, 확보된 증언은 전부 해상도가 낮습니다. 접촉부터 변이까지는 시간이 걸리며 그 사이 감정의 진폭이 커지고 잠들지 못하는 등의 징후가 나타나지만, 가까운 사람도 원인은 알지 못합니다. 다만 변이가 끝난 오르트로스를 이후 돕지 않는 것이 원칙입니다. 개체 하나의 성패가 아니라 욕망이 퍼지는 것 자체가 중요하기 때문입니다.</p></div>
   <div class="note"><b>발생 장소는 공공장소만이 아님</b><p>자택에서 조용히 변이해 아무도 모르는 사이 골든타임이 흐르기도 하고, 대응 전력이 닿기 어려운 시골 마을에서 발생하기도 합니다. 발견과 신고가 늦을수록 남는 시간이 줄어듭니다.</p></div>
 
   <h4>위험 등급과 대응 한계</h4>
@@ -436,7 +445,7 @@ footer a { display: inline-block; min-width: 44px; padding: 13px 0; text-align: 
     <p><strong>특급</strong>은 발생 자체가 국가급 사태입니다. 세라피안 복수 또는 세라프의 권능을 극한까지 끌어낸 전력이 필요하고, 정화와 소멸 어느 쪽도 성공을 보장할 수 없습니다.</p></div>
 
   <h4>물리적 특성</h4>
-  <p>완전한 영체가 아니므로 총탄·도검·폭발물·충격으로 피해를 입힐 수 있습니다. 그러나 대부분 인간을 크게 초월하는 신체능력·내구력·회복력을 지니며, 일정 등급 이상은 현대 화기에도 강한 저항력을 보입니다. <strong>평범한 물리 공격은 육체를 파괴할 뿐 근원인 괴이성과 욕망을 정화하거나 소멸시키지 못합니다.</strong></p>
+  <p>완전한 영체가 아니므로 총탄⁠·도검⁠·폭발물⁠·충격으로 피해를 입힐 수 있습니다. 그러나 대부분 인간을 크게 초월하는 신체능력⁠·내구력⁠·회복력을 지니며, 일정 등급 이상은 현대 화기에도 강한 저항력을 보입니다. <strong>평범한 물리 공격은 육체를 파괴할 뿐 근원인 괴이성과 욕망을 정화하거나 소멸시키지 못합니다.</strong></p>
 </section>
 
 <section id="goldentime" data-searchable><div class="shead"><span class="sno">04</span><h2>골든타임과 정화</h2></div><p class="lead">변이 후에도 인간의 정신과 존재가 남아 있는 기간. 기본값은 24시간이지만 모체의 정신적 저항력에 따라 달라집니다. 정신력이 강하면 길어지고 약하면 짧아집니다.</p>
@@ -444,17 +453,17 @@ footer a { display: inline-block; min-width: 44px; padding: 13px 0; text-align: 
   <div class="barlabels"><span>극초기 1~2h</span><span>골든타임 · 가변 24h</span><span>고착</span></div>
   <div class="grid g3">
     <article class="card safe"><span class="tag">0 ~ 2h</span><h3>변이 극초기</h3>
-      <p>괴이성이 아직 정착하지 않은 구간. 등급이 높아도 충분히 제압하기만 하면 <strong>성당교회의 정화 전례 없이</strong> 인간으로 되돌릴 수 있습니다. 다만 상급 개체는 제압 자체가 어려워 실제로는 대체로 중·하급까지 성립합니다.</p><p>같은 이유로 반대 방향도 열려 있습니다. <strong>극초기에는 물리적 파괴만으로 소멸이 성립합니다.</strong> 전례 없이 끝낼 수 있는 유일한 구간이며, 한 시간대에 정반대의 두 결말이 함께 놓여 있습니다.</p>
-      <p>8·7·6급 하급 개체는 이 구간이 지난 뒤에도 제압만으로 괴이성이 풀리는 경우가 있습니다. 항상 그렇지는 않습니다.</p></article>
+      <p>괴이성이 아직 정착하지 않은 구간. 등급이 높아도 충분히 제압하기만 하면 <strong>성당교회의 정화 전례 없이</strong> 인간으로 되돌릴 수 있습니다. 다만 상급 개체는 제압 자체가 어려워 실제로는 대체로 중⁠·하급까지 성립합니다.</p><p>같은 이유로 반대 방향도 열려 있습니다. <strong>극초기에는 물리적 파괴만으로 소멸이 성립합니다.</strong> 전례 없이 끝낼 수 있는 유일한 구간이며, 한 시간대에 정반대의 두 결말이 함께 놓여 있습니다.</p>
+      <p>8⁠·7⁠·6급 하급 개체는 이 구간이 지난 뒤에도 제압만으로 괴이성이 풀리는 경우가 있습니다. 항상 그렇지는 않습니다.</p></article>
     <article class="card gold"><span class="tag">Within</span><h3>골든타임 이내</h3>
       <div class="formula">제압 → 괴이성 약화 → 정화 → 인간 복귀</div>
       <p>정화 수단은 둘입니다. 성당교회 사제의 <code>PURIFICATIO</code> 봉독과, 세라프에게 빌린 권능으로 정화하는 세라피안.</p></article>
     <article class="card danger"><span class="tag">After</span><h3>골든타임 경과</h3>
-      <div class="formula">고착·강화 → 정화 불가 → 소멸</div>
+      <div class="formula">고착⁠·강화 → 정화 불가 → 소멸</div>
       <p>인간과 오르트로스의 경계가 붕괴해 별개의 존재로 고착되고 힘이 크게 강화됩니다. 대책반의 전력으로는 대응할 수 없으며 어떤 정화로도 되돌릴 수 없습니다.</p></article>
   </div>
   <div class="grid g2">
-    <article class="card"><span class="tag">Operator</span><h3>예상 골든타임 산출</h3><p>대책반 오퍼레이터가 모체의 신원을 특정하고 생전의 이력·심리 상태·현장 반응을 분석해 남은 시간을 현장 인력에게 고지합니다.</p></article>
+    <article class="card"><span class="tag">Operator</span><h3>예상 골든타임 산출</h3><p>대책반 오퍼레이터가 모체의 신원을 특정하고 생전의 이력⁠·심리 상태⁠·현장 반응을 분석해 남은 시간을 현장 인력에게 고지합니다.</p></article>
     <article class="card violet"><span class="tag">Relapse</span><h3>재괴인화 취약기</h3><p>정화된 인간은 당분간 오르트로스화에 취약하고 충동이 심해집니다. 취약 기간은 개인차가 커서 도식화되지 않으며 대체로 일주일에서 한 달, 길게는 년 단위로 이어집니다.</p></article>
   </div>
 
@@ -467,43 +476,43 @@ footer a { display: inline-block; min-width: 44px; padding: 13px 0; text-align: 
   </div>
 </section>
 
-<section id="taskforce" data-grade="2.5" data-searchable><div class="shead"><svg class="curve" viewBox="0 0 40 40" aria-hidden="true"><rect x="2.5" y="2.5" width="35" height="35"/><line x1="2.5" y1="20" x2="37.5" y2="20"/><line x1="20" y1="2.5" x2="20" y2="37.5"/><path d="M3 35 L 14 34 L 26 7 L 37 5"/></svg><span class="sno">05</span><h2>괴이사건대책반</h2></div><p class="lead">오르트로스 발생 시 가장 먼저 투입되는 경찰 소속 국가 초동 대응 조직. 자체 초자연적 권능은 없으며 과학·군사기술과 성당교회 보급품을 사용합니다.</p>
+<section id="taskforce" data-grade="2.5" data-searchable><div class="shead"><svg class="curve" viewBox="0 0 40 40" aria-hidden="true"><rect x="2.5" y="2.5" width="35" height="35"/><line x1="2.5" y1="20" x2="37.5" y2="20"/><line x1="20" y1="2.5" x2="20" y2="37.5"/><path d="M3 35 L 14 34 L 26 7 L 37 5"/></svg><span class="sno">05</span><h2>괴이사건대책반</h2></div><p class="lead">오르트로스 발생 시 가장 먼저 투입되는 경찰 소속 국가 초동 대응 조직. 자체 초자연적 권능은 없으며 과학⁠·군사기술과 성당교회 보급품을 사용합니다.</p>
   <h3>전술 트럭</h3>
-  <p>군용 8×8 트럭을 개조한 차량으로, 방탄·방폭 컨테이너를 얹었고 현장에서는 이동 지휘소·슈트 격납고·구호소를 겸합니다. 전개 완료까지 약 90초가 걸립니다.</p>
+  <p>군용 8×8 트럭을 개조한 차량으로, 방탄⁠·방폭 컨테이너를 얹었고 현장에서는 이동 지휘소⁠·슈트 격납고⁠·구호소를 겸합니다. 전개 완료까지 약 90초가 걸립니다.</p>
   <div class="formula">현장 진입 → 아웃리거 접지 → 측면 패널 전개 → 관측 마스트 상승 → 착용 플랫폼 개방</div>
   <div class="grid g3">
-    <article class="card"><span class="tag">Front</span><h3>지휘실</h3><p>오퍼레이터석. 통신 중계, 신원 조회 단말, 현장 영상·드론 관제, 대피 방송.</p></article>
-    <article class="card gold"><span class="tag">Center</span><h3>격납·착용부</h3><p>E3·E4 슈트 슬롯과 착용 플랫폼. 슈트 착용과 탄약 재보급은 이곳에서만 가능합니다.</p></article>
-    <article class="card safe"><span class="tag">Rear</span><h3>정비·구호부</h3><p>응급 처치대와 구호 물자. 부상자를 임시 수용합니다.</p></article>
+    <article class="card"><span class="tag">Front</span><h3>지휘실</h3><p>오퍼레이터석. 통신 중계, 신원 조회 단말, 현장 영상⁠·드론 관제, 대피 방송.</p></article>
+    <article class="card gold"><span class="tag">Center</span><h3>격납⁠·착용부</h3><p>E3⁠·E4 슈트 슬롯과 착용 플랫폼. 슈트 착용과 탄약 재보급은 이곳에서만 가능합니다.</p></article>
+    <article class="card safe"><span class="tag">Rear</span><h3>정비⁠·구호부</h3><p>응급 처치대와 구호 물자. 부상자를 임시 수용합니다.</p></article>
   </div>
   <div class="grid g2">
     <article class="card"><span class="tag">Loadout</span><h3>적재 장비</h3><ul>
-      <li>총화기와 특수탄 — 관통·충격·구속·연막·조명</li>
+      <li>총화기와 특수탄 — 관통⁠·충격⁠·구속⁠·연막⁠·조명</li>
       <li>폭발물과 설치형 장애물</li>
-      <li>전자기 앵커·강선 그물·발포 점착제</li>
+      <li>전자기 앵커⁠·강선 그물⁠·발포 점착제</li>
       <li><b>“성스러운 수류탄”</b> — 필리우스 분파가 주로 깨끗한 물을 축성해 금색 유리병에 담은 성당교회 소량 보급품. 오르트로스에게 뿌리면 약한 작열통과 경직, 사람에게 뿌리면 다소의 진정 효과</li>
       <li>괴이성 반응 탐지기 — 등급 추정</li>
-      <li>열화상·음향 탐지기와 정찰 드론</li>
+      <li>열화상⁠·음향 탐지기와 정찰 드론</li>
       <li>구호 약품과 응급처치 물자</li></ul></article>
     <article class="card danger"><span class="tag">Weak point</span><h3>트럭은 전투 차량이 아님</h3>
-      <p>장갑은 유탄과 파편을 막는 수준이라 일정 등급 이상의 직격은 견디지 못합니다. 파괴되면 슈트 재보급·오퍼레이팅·구호가 동시에 끊기고 예상 골든타임 산출도 불가능해지므로, 대책반은 교전 위치를 트럭에서 최대한 떼어 놓는 것을 원칙으로 합니다.</p>
+      <p>장갑은 유탄과 파편을 막는 수준이라 일정 등급 이상의 직격은 견디지 못합니다. 파괴되면 슈트 재보급⁠·오퍼레이팅⁠·구호가 동시에 끊기고 예상 골든타임 산출도 불가능해지므로, 대책반은 교전 위치를 트럭에서 최대한 떼어 놓는 것을 원칙으로 합니다.</p>
       <p>배치 대수가 많지 않아 서울과 주요 도시에 나누어 둡니다. 관할 밖에서 사건이 발생하면 트럭 도착 자체가 늦어집니다.</p></article>
   </div>
 
   <h4>슈트</h4>
-  <p>변신 슈트 운용자는 세 명으로 제한된 소수 정예이며, 이는 서울 본대 기준입니다. <strong>E3</strong>는 안정성과 보급성을 우선한 양산형, <strong>E4</strong>는 E4 프로젝트의 최신 슈트입니다.</p><p>지방에 배치된 트럭에는 슈트가 없습니다. 봉쇄·대피·견제·구호까지만 수행하며, 슈트 전력이 필요하면 본대가 이동해야 합니다. 서울 밖의 사건에서 대응이 급격히 얇아지는 이유입니다.</p>
+  <p>변신 슈트 운용자는 세 명으로 제한된 소수 정예이며, 이는 서울 본대 기준입니다. <strong>E3</strong>는 안정성과 보급성을 우선한 양산형, <strong>E4</strong>는 E4 프로젝트의 최신 슈트입니다.</p><p>지방에 배치된 트럭에는 슈트가 없습니다. 봉쇄⁠·대피⁠·견제⁠·구호까지만 수행하며, 슈트 전력이 필요하면 본대가 이동해야 합니다. 서울 밖의 사건에서 대응이 급격히 얇아지는 이유입니다.</p>
 
   <h4>임무</h4>
   <p>대책반의 목적은 오르트로스를 반드시 쓰러뜨리는 것이 아닙니다. 가장 먼저 현장에 도착해 민간인을 보호하고, 사건을 끝낼 수 있는 지원 인력이 올 때까지 현장을 유지합니다.</p>
   <div class="grid g3">
-    <article class="card"><h3>사람을 지킨다</h3><p>발생 지역 봉쇄, 민간인 대피·구조, 이동 경로 제한, 사건 종료 후 조사·피해 통제·현장 수습.</p></article>
-    <article class="card"><h3>직접 대응한다</h3><p>화력 견제와 특정 부위 집중 공격, 구속장비와 장애물을 이용한 행동 지연. 골든타임 이내에는 복수의 대원을 전제로 제압·구속이 가능합니다.</p></article>
-    <article class="card"><h3>끝까지 붙든다</h3><p>극초기·하급 개체는 제압만으로 자체 종결하고, 그 밖에는 지원이 올 때까지 버팁니다. 정화 봉독이 반복되는 동안 대상을 붙들어 두는 것도 대책반의 몫입니다.</p></article>
+    <article class="card"><h3>사람을 지킨다</h3><p>발생 지역 봉쇄, 민간인 대피⁠·구조, 이동 경로 제한, 사건 종료 후 조사⁠·피해 통제⁠·현장 수습.</p></article>
+    <article class="card"><h3>직접 대응한다</h3><p>화력 견제와 특정 부위 집중 공격, 구속장비와 장애물을 이용한 행동 지연. 골든타임 이내에는 복수의 대원을 전제로 제압⁠·구속이 가능합니다.</p></article>
+    <article class="card"><h3>끝까지 붙든다</h3><p>극초기⁠·하급 개체는 제압만으로 자체 종결하고, 그 밖에는 지원이 올 때까지 버팁니다. 정화 봉독이 반복되는 동안 대상을 붙들어 두는 것도 대책반의 몫입니다.</p></article>
   </div>
   <div class="note"><b>정화도 소멸도 대책반의 수단은 아님</b><p>대책반은 정화 전례도 소멸 수단도 갖지 못합니다. 극초기나 하급 개체가 제압만으로 돌아오는 것은 정화를 수행한 것이 아니라 아직 정착하지 않은 괴이성이 스스로 풀리는 현상입니다.</p></div>
 
   <h4>특수 치료시설</h4>
-  <p>대책반 내부에 정화된 인간을 위한 특수 치료시설을 둡니다. 5·4·3급에서 돌아온 사람이 전문 치료사의 감시 아래 생활하는 곳입니다.</p>
+  <p>대책반 내부에 정화된 인간을 위한 특수 치료시설을 둡니다. 5⁠·4⁠·3급에서 돌아온 사람이 전문 치료사의 감시 아래 생활하는 곳입니다.</p>
 
   <h4>현장 감찰팀</h4>
   <p>대책반 소속의 조사 인력입니다. 형사이자 탐정에 가까운 성격으로, 현장 전투가 아니라 사건의 앞뒤를 밝히는 일을 맡습니다. 팀장은 김헌철, 감찰관은 정나은입니다.</p>
@@ -529,21 +538,21 @@ footer a { display: inline-block; min-width: 44px; padding: 13px 0; text-align: 
   <p>사제는 저마다 전문으로 삼는 분파가 있습니다. 계통마다 술자에게 요구하는 자질이 다르고, 그 자질이 없으면 같은 술식이라도 위력이 나오지 않습니다. 전문 분파란 다른 계통을 못 쓴다는 뜻이 아니라 가장 깊이 다루는 계통을 말합니다.</p>
   <div class="grid g3">
     <article class="card gold"><span class="tag">Pater · 파테르</span><h3>물리계</h3>
-      <p>신체강화·완력·속도·방어막·내구력·물리적 충격·무기강화·구속·물질 현현.</p>
+      <p>신체강화⁠·완력⁠·속도⁠·방어막⁠·내구력⁠·물리적 충격⁠·무기강화⁠·구속⁠·물질 현현.</p>
       <p><strong>의지와 용기.</strong> 신체의 단련이 뒷받침되지 않으면 소용이 없습니다. 전문=마르코.</p></article>
     <article class="card safe"><span class="tag">Filius · 필리우스</span><h3>회복계</h3>
-      <p>상처·체력·피로 회복, 통증 완화, 출혈 억제, 생명 유지, 상태 이상 완화, 영적 보호.</p>
+      <p>상처⁠·체력⁠·피로 회복, 통증 완화, 출혈 억제, 생명 유지, 상태 이상 완화, 영적 보호.</p>
       <p><strong>희생정신과 자애.</strong> 타고난 측은지심이 없으면 위력이 반감합니다. 전문=마리.</p></article>
     <article class="card violet"><span class="tag">Spiritus · 스피리투스</span><h3>정신계</h3>
-      <p>정신 안정, 공포 억제, 혼란 해제, 정신간섭·환각·세뇌 저항, 집중·감각 강화, 의식 회복.</p>
+      <p>정신 안정, 공포 억제, 혼란 해제, 정신간섭⁠·환각⁠·세뇌 저항, 집중⁠·감각 강화, 의식 회복.</p>
       <p><strong>불굴과 지혜.</strong> 가장 익히기 어렵고 전문 사제 자체가 드뭅니다. 국내에는 예로니모가 사실상 유일합니다.</p></article>
   </div>
 
   <h4>호명 형식</h4>
-  <div class="formula">영창의 마지막 구절이 곧 호명입니다. 봉독을 마치는 말과 술식명의 선포가 한 줄에서 겹칩니다. 제1·2식은 계통명부터 짧게, 제10식·제0식은 <code>Clavis Communis</code> 접두를 붙여 무겁게 부릅니다. 정화와 소멸은 예외로, 호명 대신 대상을 향한 말로 닫습니다. 계통마다 어조가 달라 <b>필리우스는 청원, 파테르는 명령, 스피리투스는 고지</b>입니다.<br><br>Clavis Communis, [계통명] 제○식 — 「핵심 경구」<br>
+  <div class="formula">영창의 마지막 구절이 곧 호명입니다. 봉독을 마치는 말과 술식명의 선포가 한 줄에서 겹칩니다. 제1⁠·2식은 계통명부터 짧게, 제10식⁠·제0식은 <code>Clavis Communis</code> 접두를 붙여 무겁게 부릅니다. 정화와 소멸은 예외로, 호명 대신 대상을 향한 말로 닫습니다. 계통마다 어조가 달라 <b>필리우스는 청원, 파테르는 명령, 스피리투스는 고지</b>입니다.<br><br>Clavis Communis, [계통명] 제○식 — 「핵심 경구」<br>
 특수 전례 = Clavis Communis, [특수 영역명] 제0식 — [전례명]<br>
-고유 술식 = Clavis Collata — [핵심 경구·전례문·전례 명칭 중 대표가 되는 구절]</div>
-  <p>각 술식의 통칭은 능력을 설명하는 기술명이 아니라 권능의 근거가 된 경구에서 가장 상징적인 절구를 따온 것입니다. <code>제○식</code>은 강함의 순위가 아니라 정식 연구·등록된 순서 또는 교본상의 분류 번호입니다.</p>
+고유 술식 = Clavis Collata — [핵심 경구⁠·전례문⁠·전례 명칭 중 대표가 되는 구절]</div>
+  <p>각 술식의 통칭은 능력을 설명하는 기술명이 아니라 권능의 근거가 된 경구에서 가장 상징적인 절구를 따온 것입니다. <code>제○식</code>은 강함의 순위가 아니라 정식 연구⁠·등록된 순서 또는 교본상의 분류 번호입니다.</p>
   <p>정화와 소멸은 삼위일체 계통 밖의 특수 전례로, 일반 체계의 예외라는 의미에서 <code>제0식</code>으로 분류합니다. <code>0</code>은 최초나 최약을 뜻하지 않습니다.</p>
 
   <h4>제10식</h4>
@@ -601,7 +610,7 @@ footer a { display: inline-block; min-width: 44px; padding: 13px 0; text-align: 
 발 아래 엎드러지게 하라.
 
 <strong>파테르 제2식 — 능히 일어나지 못하게 하리니</strong></blockquote>
-    <ul><li>전신에 완력·악력·다릿심을 몰아준 뒤 개체에 직접 달려들어 맨몸으로 넘어뜨리고 눌러 둡니다. 붙든 자리에 주의 권능이 얽혀 개체가 쉽게 뿌리치지 못합니다.</li>
+    <ul><li>전신에 완력⁠·악력⁠·다릿심을 몰아준 뒤 개체에 직접 달려들어 맨몸으로 넘어뜨리고 눌러 둡니다. 붙든 자리에 주의 권능이 얽혀 개체가 쉽게 뿌리치지 못합니다.</li>
     <li>사거리가 없습니다. 술자가 직접 붙어야 하고, 붙은 동안 다른 술식을 쓸 수 없으며, 개체가 술자보다 크면 넘어뜨리지 못하고 매달리는 형태가 됩니다.</li>
     <li>대가는 관절입니다. 버티는 동안 하중이 술자의 관절로 가고, 상급 개체를 놓지 않으려면 관절이 상하는 것을 감수해야 합니다.</li>
     <li>봉독이 제1식보다 길어 발동이 느립니다. 개체가 이미 달려드는 상황에서는 봉독을 마치지 못합니다.</li>
@@ -650,7 +659,7 @@ footer a { display: inline-block; min-width: 44px; padding: 13px 0; text-align: 
   </article>
   <article class="rite safe">
     <span class="tag">FILIUS · 제10식 · 최종</span><h3>Clavis Communis, 필리우스 제10식 — AGNUS DEI 「세상 죄를 지고 가는 주의 어린양」</h3>
-    <ul><li>대상 한 명의 치명상을 술자가 대신 짊어집니다. 상처·출혈·장기 손상이 술자의 몸으로 옮겨오고 대상은 옮겨간 만큼 회복합니다.</li>
+    <ul><li>대상 한 명의 치명상을 술자가 대신 짊어집니다. 상처⁠·출혈⁠·장기 손상이 술자의 몸으로 옮겨오고 대상은 옮겨간 만큼 회복합니다.</li>
     <li>인간에게만 적용됩니다. 이미 숨이 끊긴 자에게는 통하지 않으며 <strong>옮길 수 있는 것은 손상뿐, 생사 자체는 되돌리지 못합니다.</strong></li>
     <li>옮겨온 손상은 술자를 즉사시키지 않습니다. 다만 곧바로 처치받지 못하면 죽으며, 회복 술식이나 응급처치를 즉시 받으면 살아남을 수 있습니다.</li>
     <li>대신 죽는 전례가 아니라 값을 먼저 치르는 전례입니다. 생사의 판단은 주의 영역으로 남깁니다.</li></ul>
@@ -733,10 +742,10 @@ Confiteor. Mea maxima culpa.
 
   <article class="rite safe">
     <span class="tag">LIMBUS · 제0식 · 정화</span><h3>Clavis Communis, Limbus 제0식 — PURIFICATIO</h3>
-    <p>골든타임 내의 오르트로스를 인간으로 되돌리는 특수 클라비스입니다. 정상적으로 활동하며 저항하는 대상에게는 적용할 수 없으므로 먼저 육체와 괴이성을 충분히 약화시켜야 합니다. <code>Limbus</code>는 경계·가장자리를 뜻합니다.</p>
-    <div class="formula">오르트로스 무력화 → 정화 영창 → 괴이성 분리·제거 → 인간 복귀</div>
+    <p>골든타임 내의 오르트로스를 인간으로 되돌리는 특수 클라비스입니다. 정상적으로 활동하며 저항하는 대상에게는 적용할 수 없으므로 먼저 육체와 괴이성을 충분히 약화시켜야 합니다. <code>Limbus</code>는 경계⁠·가장자리를 뜻합니다.</p>
+    <div class="formula">오르트로스 무력화 → 정화 영창 → 괴이성 분리⁠·제거 → 인간 복귀</div>
     <ul><li>전문 분파와 무관합니다. 정식 훈련을 받은 사제라면 누구나 봉독할 수 있습니다.</li>
-    <li>봉독 1회에 약 30초. <strong>문제는 한 번으로 끝나지 않는다는 점입니다.</strong> 8·7·6급은 1회로 충분하고, 5급 이상은 2회 이상, 특급이라면 10회까지 반복해야 할 수도 있습니다.</li>
+    <li>봉독 1회에 약 30초. <strong>문제는 한 번으로 끝나지 않는다는 점입니다.</strong> 8⁠·7⁠·6급은 1회로 충분하고, 5급 이상은 2회 이상, 특급이라면 10회까지 반복해야 할 수도 있습니다.</li>
     <li>특급은 대부분 이미 골든타임이 지난 상태라 정화 대상이 되는 일 자체가 드뭅니다.</li>
     <li>반복하는 동안 대상을 계속 무력화 상태로 붙들어 둬야 합니다. 실패의 대부분은 정화 자체가 아니라 그 시간을 벌지 못해 일어납니다.</li></ul>
     <details class="fold"><summary><span class="lbl">영창문</span><span class="meta">16행</span></summary><div class="chant">그 육신은 네 것이 아니며,
@@ -764,10 +773,10 @@ Asperges me, Domine, hyssopo, et mundabor.
   </article>
   <article class="rite danger">
     <span class="tag">CAELUM · 제0식 · 소멸</span><h3>Clavis Communis, Caelum 제0식 — VANITAS</h3>
-    <p>골든타임이 끝난 오르트로스를 소멸시키는 최종 전례입니다. <code>Caelum</code>은 하늘·천상을 뜻하며, 골든타임을 잃은 존재의 최종 처분을 인간의 판단이 아니라 주의 영역에 맡긴다는 의미입니다.</p>
+    <p>골든타임이 끝난 오르트로스를 소멸시키는 최종 전례입니다. <code>Caelum</code>은 하늘⁠·천상을 뜻하며, 골든타임을 잃은 존재의 최종 처분을 인간의 판단이 아니라 주의 영역에 맡긴다는 의미입니다.</p>
     <div class="formula">오르트로스 제압 → 저항능력 상실 → Vanitas 봉독 → 약 20초간 영창 유지 → 소멸</div>
     <ul><li>봉독 중 사제는 다른 전투행동을 거의 수행할 수 없어 동료의 보호가 필요합니다.</li>
-    <li>사용 후 강한 정신적 피로·일시적 허무감·감정 둔화·현실감 저하·집중력 저하가 나타날 수 있습니다.</li>
+    <li>사용 후 강한 정신적 피로⁠·일시적 허무감⁠·감정 둔화⁠·현실감 저하⁠·집중력 저하가 나타날 수 있습니다.</li>
     <li>반복 사용은 정신에 큰 부담을 남기므로 반드시 필요한 상황에서만 시행합니다.</li></ul>
     <details class="fold"><summary><span class="lbl">영창문</span><span class="meta">15행</span></summary><div class="chant">아르케의 이름으로 고한다.
 죽이는 것도 그 손이며,
@@ -800,7 +809,7 @@ Asperges me, Domine, hyssopo, et mundabor.
       <p>세라프마다 다릅니다. <strong>이뤄줄 수 없음을 알면서 속이는 쪽</strong>, <strong>아르케의 약속을 믿고 함께 속고 있는 쪽</strong>, <strong>그럼에도 자신이 할 수 있는 범위에서 계약자의 소원을 이뤄주려는 쪽</strong>이 함께 있습니다.</p></article>
     <article class="card danger"><span class="tag">Expulsion</span><h3>계약 이후의 제약</h3><p>계약자와 정을 나누는 것 자체는 문제가 되지 않지만, <strong>계약이 끝난 뒤에도 인간과 지속적으로 함께하려는 행위는 제명 사유</strong>입니다. 제명은 아르케가 집행합니다. 세라프의 감정은 인간의 것과 거의 다르지 않으며 흉내가 아닙니다. 세라프도 오르트로스화할 수 있는데, 클리파의 접촉 없이 스스로 품은 것이 무너질 때 일어납니다. 인간이 아닌 몸이 변이한 유일한 사례가 다프네입니다.</p></article>
     <article class="card"><span class="tag">Motif</span><h3>배분 모티브</h3>
-      <p>세라프의 권능 계통과 계약자의 염원은 카발라·게마트리아로 해석된 히브리 문자를 모티브로 배분합니다.</p></article>
+      <p>세라프의 권능 계통과 계약자의 염원은 카발라⁠·게마트리아로 해석된 히브리 문자를 모티브로 배분합니다.</p></article>
   </div>
 
   <h4>현신</h4>
@@ -822,7 +831,7 @@ Asperges me, Domine, hyssopo, et mundabor.
     <article class="card"><span class="tag">Church</span><h3>성당교회의 인지</h3><p>세라피안의 존재를 인지합니다. 다만 누가 세라피안인지는 알지 못하며, 현장에 나타난 존재를 보고 세라피안임을 알아보는 정도입니다.</p></article>
     <article class="card"><span class="tag">Public</span><h3>도시전설</h3><p>시민들은 도시전설로 취급합니다. 이미 과학력으로 제압하는 대책반이 있으므로 자작 슈트를 입고 히어로 행세를 하는 관심 끌기로 보는 시선도 있습니다. 신화적 식견이 뛰어나거나 신앙이 있는 사람은 그 존재를 믿습니다.</p></article>
   </div>
-  <p>변신 전 정체를 숨기는 것이 일반적입니다. 공개 시 정부기관의 감시, 언론·대중의 관심, 범죄조직의 접근, 주변인 위협, 오르트로스와 적대세력의 표적화 위험이 생깁니다.</p><p>다만 이 은닉은 대외용입니다. 세라프는 계약한 모든 인간에게 보이므로, 세라프를 드러낸 채 마주친 세라피안끼리는 변신 전 얼굴로도 서로를 특정할 수 있습니다. 목소리 변조도 세라피안 사이에서는 소용이 없습니다.</p>
+  <p>변신 전 정체를 숨기는 것이 일반적입니다. 공개 시 정부기관의 감시, 언론⁠·대중의 관심, 범죄조직의 접근, 주변인 위협, 오르트로스와 적대세력의 표적화 위험이 생깁니다.</p><p>다만 이 은닉은 대외용입니다. 세라프는 계약한 모든 인간에게 보이므로, 세라프를 드러낸 채 마주친 세라피안끼리는 변신 전 얼굴로도 서로를 특정할 수 있습니다. 목소리 변조도 세라피안 사이에서는 소용이 없습니다.</p>
 
   <h4>전투적 위치</h4>
   <div class="note"><b>정화의 힘</b>
@@ -834,28 +843,28 @@ Asperges me, Domine, hyssopo, et mundabor.
 그 싸움의 끝을 스스로 결정할 수도 있다.”</strong></blockquote>
 </section>
 
-<section id="nymph" data-grade="3.5" data-searchable><div class="shead"><svg class="curve" viewBox="0 0 40 40" aria-hidden="true"><rect x="2.5" y="2.5" width="35" height="35"/><line x1="2.5" y1="20" x2="37.5" y2="20"/><line x1="20" y1="2.5" x2="20" y2="37.5"/><path d="M3 35 L 16 34 L 24 7 L 37 5"/></svg><span class="sno">09</span><h2>NYMPH</h2></div><p class="lead">신의 존재와 천계의 개입을 부정하고 과학의 힘을 맹신하는 비인가 지하 비밀조직. 성당교회·오르트로스 집단과 모두 별개의 세력입니다.</p>
+<section id="nymph" data-grade="3.5" data-searchable><div class="shead"><svg class="curve" viewBox="0 0 40 40" aria-hidden="true"><rect x="2.5" y="2.5" width="35" height="35"/><line x1="2.5" y1="20" x2="37.5" y2="20"/><line x1="20" y1="2.5" x2="20" y2="37.5"/><path d="M3 35 L 16 34 L 24 7 L 37 5"/></svg><span class="sno">09</span><h2>NYMPH</h2></div><p class="lead">신의 존재와 천계의 개입을 부정하고 과학의 힘을 맹신하는 비인가 지하 비밀조직. 성당교회⁠·오르트로스 집단과 모두 별개의 세력입니다.</p>
   <p class="eyebrow">Nullum Ymnum Mortalibus Praeter Hominem</p>
   <div class="grid g2">
-    <article class="card"><span class="tag">Proof</span><h3>인간의 힘으로</h3><p>자체 제작한 변신 벨트와 과학식 변신체를 운용해 인간의 힘만으로 오르트로스를 격파할 수 있음을 증명하려 합니다. 신화 속 승리 역시 신과 천사가 아니라 인간의 힘으로 이룬 결과라고 주장합니다. 변신체 코드명은 각각 수학·화학·뇌과학에서 따왔습니다.</p></article>
-    <article class="card danger"><span class="tag">Doctrine</span><h3>정화 부정</h3><p>정화된 인간이 당분간 재괴인화에 취약하고 충동이 심해진다는 사실을 근거로, 골든타임이 남은 오르트로스도 소멸·사살하는 것을 최우선으로 삼습니다. 같은 근거로 <strong>이미 정화되어 돌아온 인간도 사살 대상으로 삼으며 실제 시도가 잦습니다.</strong> 보호 아래 있는 사람들을 노리는 것이므로 명백한 범죄이며, 대책반이 NYMPH를 쫓는 가장 직접적인 이유입니다. 돌아올 수 있는 인간을 구하려는 성당교회·세라피안과의 주요 마찰점입니다.</p></article>
+    <article class="card"><span class="tag">Proof</span><h3>인간의 힘으로</h3><p>자체 제작한 변신 벨트와 과학식 변신체를 운용해 인간의 힘만으로 오르트로스를 격파할 수 있음을 증명하려 합니다. 신화 속 승리 역시 신과 천사가 아니라 인간의 힘으로 이룬 결과라고 주장합니다. 변신체 코드명은 각각 수학⁠·화학⁠·뇌과학에서 따왔습니다.</p></article>
+    <article class="card danger"><span class="tag">Doctrine</span><h3>정화 부정</h3><p>정화된 인간이 당분간 재괴인화에 취약하고 충동이 심해진다는 사실을 근거로, 골든타임이 남은 오르트로스도 소멸⁠·사살하는 것을 최우선으로 삼습니다. 같은 근거로 <strong>이미 정화되어 돌아온 인간도 사살 대상으로 삼으며 실제 시도가 잦습니다.</strong> 보호 아래 있는 사람들을 노리는 것이므로 명백한 범죄이며, 대책반이 NYMPH를 쫓는 가장 직접적인 이유입니다. 돌아올 수 있는 인간을 구하려는 성당교회⁠·세라피안과의 주요 마찰점입니다.</p></article>
   </div>
   <article class="card danger"><span class="tag">Intercept</span><h3>통신 도청</h3><p>경찰 고위 간부인 셰리를 통해 괴이사건대책반의 통신망에 접근하고, 피트가 그 통신을 도청해 발생 지점과 출동 상황을 파악합니다. NYMPH가 대책반보다 먼저 현장에 도착하는 수단입니다. 선착은 편의가 아니라 존립 조건입니다. 극초기를 넘기면 그들의 화력으로는 소멸이 성립하지 않으므로, 도청으로 버는 시간이 곧 사건을 끝낼 수 있는 유일한 창입니다.</p></article>
     <article class="card violet"><span class="tag">Special AI</span><h3>이즘</h3>
-    <p>피트가 개발한 여성형 특수 AI. 변신체 오퍼레이팅, 실시간 전투 보조, 전장·적 능력 분석, 대규모 가상 전투 시뮬레이션을 담당합니다. NYMPH의 변신체는 이즘이 시뮬레이션한 전투 데이터를 기반으로 설계·제작됐습니다.</p></article>
+    <p>피트가 개발한 여성형 특수 AI. 변신체 오퍼레이팅, 실시간 전투 보조, 전장⁠·적 능력 분석, 대규모 가상 전투 시뮬레이션을 담당합니다. NYMPH의 변신체는 이즘이 시뮬레이션한 전투 데이터를 기반으로 설계⁠·제작됐습니다.</p></article>
 </section>
 
 <section id="response" data-searchable><div class="shead"><span class="sno">10</span><h2>일반적인 괴이 사건 대응</h2></div>
   <ul class="tl">
     <li><b>01 발생</b><span>인간이 변이하며 골든타임이 시작됩니다.</span></li>
-    <li><b>02 대책반 출동</b><span>전술 트럭 전개, 봉쇄·대피·견제·이동 저지.</span></li>
+    <li><b>02 대책반 출동</b><span>전술 트럭 전개, 봉쇄⁠·대피⁠·견제⁠·이동 저지.</span></li>
     <li><b>03 판정</b><span>오퍼레이터가 모체 신원과 예상 골든타임을 고지합니다.</span></li>
-    <li><b>04 초동 종결 판단</b><span>변이 극초기이거나 8·7·6급 하급 개체면 대책반이 제압만으로 사건을 끝낼 수 있습니다.</span></li>
+    <li><b>04 초동 종결 판단</b><span>변이 극초기이거나 8⁠·7⁠·6급 하급 개체면 대책반이 제압만으로 사건을 끝낼 수 있습니다.</span></li>
     <li><b>05 지원 도착</b><span>그 밖의 경우 성당교회 또는 세라피안이 오르트로스를 충분히 무력화합니다.</span></li>
     <li><b>06 최종 처리</b><span>골든타임 내에는 정화, 경과 후에는 소멸. 정화는 봉독을 반복하는 동안 대책반이 대상을 붙들어 둡니다.</span></li>
-    <li><b>07 수습</b><span>대책반이 구조·조사·피해 통제와 사후 처리를 담당하고, 등급에 따라 관리 주체가 정해집니다.</span></li>
+    <li><b>07 수습</b><span>대책반이 구조⁠·조사⁠·피해 통제와 사후 처리를 담당하고, 등급에 따라 관리 주체가 정해집니다.</span></li>
   </ul>
-  <div class="note danger"><b>NYMPH 개입 시</b><p>골든타임과 무관한 사살을 시도하기 때문에 성당교회·세라피안·대책반과 현장에서 충돌할 수 있습니다.</p></div>
+  <div class="note danger"><b>NYMPH 개입 시</b><p>골든타임과 무관한 사살을 시도하기 때문에 성당교회⁠·세라피안⁠·대책반과 현장에서 충돌할 수 있습니다.</p></div>
 </section>
 
 <section id="core" data-grade="—" data-searchable><div class="shead"><svg class="curve solid" viewBox="0 0 40 40" aria-hidden="true"><rect x="2.5" y="2.5" width="35" height="35"/><line x1="2.5" y1="20" x2="37.5" y2="20"/><line x1="20" y1="2.5" x2="20" y2="37.5"/><path d="M20 36 L 20 4"/></svg><span class="sno">11</span><h2>세계관의 핵심 대칭</h2></div><p class="lead">오르트로스와 세라피안은 모두 인간의 강렬한 욕망에서 출발하지만 인간과 욕망의 관계가 반대입니다.</p>
@@ -889,7 +898,7 @@ Asperges me, Domine, hyssopo, et mundabor.
   </div>
 </section>
 
-<section id="index" data-searchable><div class="shead"><span class="sno">13</span><h2>인물·명칭 색인</h2></div>
+<section id="index" data-searchable><div class="shead"><span class="sno">13</span><h2>인물⁠·명칭 색인</h2></div>
   <h3>세라피안과 세라프</h3>
   <div class="roster">
     <div class="row"><span class="code">SY</span><span class="nm">시연</span><span class="ds">헤(He) · 보라색 · 창조</span><span class="arrow">→</span><span class="ds">하니엘 [HN]</span></div>
@@ -911,7 +920,7 @@ Asperges me, Domine, hyssopo, et mundabor.
       <li>셰리 [SH] — 인테그라 · 수학</li>
       <li>진 [GN] — 아이오딘 · 화학</li>
       <li>코스모 [CM] — 포비아 · 뇌과학</li>
-      <li>피트 [PT] — 연구원·과학자, 이즘 개발자</li>
+      <li>피트 [PT] — 연구원⁠·과학자, 이즘 개발자</li>
       <li>이즘 [IZ] — 여성형 특수 AI</li></ul></article>
     <article class="card gold"><span class="tag">Church</span><h3>성당교회 한국지부</h3><ul>
       <li>마리 [MR] — 필리우스 전문</li>

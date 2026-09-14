@@ -78,7 +78,8 @@ main { width: min(100%, var(--page)); margin-inline: auto; padding: 0 var(--gutt
 /* 마지막 단 — 고착. 지나간 시간은 되돌아오지 않는다. */
 .plan tr.gone { background: var(--mag-soft) }
 .plan tr.gone td b, .plan tr.gone td span { color: var(--mag-ink) }
-.plan-foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 16px; border-top: 1px solid var(--z3) }
+.plan-foot { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px 12px; padding: 10px 16px; border-top: 1px solid var(--z3) }
+.plan-foot > * { white-space: nowrap }
 .plan-foot .key-mark { display: inline-flex; align-items: center; gap: 6px; font-family: var(--face-data); font-size: 10px; letter-spacing: .1em; color: var(--mag-ink) }
 .plan-foot .key-mark::before { content: ""; width: 10px; height: 10px; background: var(--mag) }
 
@@ -135,7 +136,7 @@ main { width: min(100%, var(--page)); margin-inline: auto; padding: 0 var(--gutt
 .frame .shot { position: relative; aspect-ratio: 1; overflow: hidden; background: var(--z9); border: 1px solid var(--rule) }
 .frame img { width: 100%; height: 100%; object-fit: cover; object-position: center 18% }
 .frame .no { position: absolute; inset: auto auto 0 0; padding: 2px 6px; background: var(--ink); color: var(--clear);
-  font-family: var(--face-data); font-size: 10px; letter-spacing: .06em }
+  font-family: var(--face-data); font-size: 10px; letter-spacing: .06em; white-space: nowrap }
 .frame .nm { margin-top: 8px; font-size: 14px; font-weight: 700; line-height: 1.3 }
 .frame .en { font-family: var(--face-data); font-size: 10px; color: var(--z4); letter-spacing: .04em }
 .frame .role { margin-top: 5px; font-size: 12px; line-height: 1.5; color: var(--z3) }

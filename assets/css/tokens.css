@@ -82,13 +82,14 @@ body {
   font-size: 16px;
   line-height: 1.7;
   font-variant-numeric: tabular-nums;
+  word-break: keep-all;
+  overflow-wrap: break-word;
 }
 
-/* 한국어는 어절 중간에서 끊지 않는다. 이 한 줄이 없어서 지금 히어로가 «있 / 는» 으로 쪼개진다. */
-h1, h2, h3, h4, h5, h6, p, li, td, th, dd, dt, figcaption, label, button, a {
-  word-break: keep-all;
-  overflow-wrap: anywhere;
-}
+/* 한국어는 어절 중간에서 끊지 않는다(body에서 상속). 좁은 칸에서 넘칠 때만 글자 단위로 끊는다. 본문은 마지막 줄에 어절 하나만 남기지 않고, 제목은 줄 길이를 고르게 나눈다. */
+h1, h2, h3, h4, h5, h6, p, li, td, th, dd, dt, figcaption, blockquote, label, button, a { overflow-wrap: anywhere }
+p, li, td, dd, dt, figcaption, blockquote { text-wrap: pretty }
+h1, h2, h3, h4, h5, h6, caption { text-wrap: balance }
 h1, h2, h3, h4 { margin: 0; font-family: var(--face-display); font-weight: 800; line-height: 1.12; letter-spacing: -.02em }
 p { margin: 0 }
 a { color: inherit }
