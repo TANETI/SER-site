@@ -46,11 +46,19 @@ cv.style.touchAction = 'none';
 
 // ── 패널 ──
 const spellSel = $('spellSel'), angelSel = $('angelSel');
-// 보스전(여러 패턴 연속)은 r0, r1… 단일 패턴은 번호
+// 보스전(여러 패턴 연속)은 r0, r1… 단일 패턴은 번호. 단일 패턴은 보스별로 묶어 보여 줌
 function fillSpells() {
   spellSel.innerHTML = '';
-  BOSS_RUNS.forEach((r, i) => spellSel.add(new Option(`▶ 보스전: ${r.title}`, 'r' + i)));
-  SPELLS.forEach((sp, i) => spellSel.add(new Option(`${i + 1}. ${sp.name}${sp.boss ? ` (${sp.boss})` : ''}`, i)));
+  const group = label => { const g = document.createElement('optgroup'); g.label = label; spellSel.append(g); return g; };
+  const runs = group('보스전 (패턴을 이어서, 목숨·파워 유지)');
+  BOSS_RUNS.forEach((r, i) => runs.append(new Option(r.title, 'r' + i)));
+  const groups = new Map();
+  SPELLS.forEach((sp, i) => {
+    const key = sp.boss || '시험 패턴';
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(new Option(`${i + 1}. ${sp.name}`, i));
+  });
+  for (const [key, opts] of groups) group(key === '시험 패턴' ? key : `${key} 단일 패턴`).append(...opts);
 }
 fillSpells();
 for (const [code, a] of Object.entries(ANGELS)) angelSel.add(new Option(a.name, code));
@@ -65,7 +73,7 @@ function syncPanel() {
   $('lockChk').checked = G.powerLock;
   $('invChk').checked = G.invincible;
   $('sndChk').checked = !SFX.muted;
-  if (!$('editor').hidden) $('code').value = spellSource(G.spell);
+  if ($('editor').open) $('code').value = spellSource(G.spell);
 }
 G.onChange = syncPanel;
 
@@ -85,11 +93,9 @@ $('invChk').onchange = e => { G.invincible = e.target.checked; settle(e.target);
 $('loopChk').onchange = e => { G.loop = e.target.checked; settle(e.target); };
 $('restartBtn').onclick = e => { G.restart(); settle(e.target); };
 $('sndChk').onchange = e => { SFX.setMuted(!e.target.checked); settle(e.target); };
-$('editBtn').onclick = e => {
-  const ed = $('editor'); ed.hidden = !ed.hidden;
-  if (!ed.hidden) $('code').value = spellSource(G.spell);
-  settle(e.target);
-};
+$('editor').addEventListener('toggle', () => { if ($('editor').open) $('code').value = spellSource(G.spell); });
+$('prevBtn').onclick = e => { G.startSingle(G.spellIndex - 1); syncPanel(); settle(e.target); };
+$('nextBtn').onclick = e => { G.startSingle(G.spellIndex + 1); syncPanel(); settle(e.target); };
 
 // ── 코드 편집 ──
 function spellSource(sp) {

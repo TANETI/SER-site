@@ -108,6 +108,7 @@ function* ivyVine(s, o) {
       ang += Math.max(-o.seek, Math.min(o.seek, da));
     }
     x += Math.cos(ang) * spd; y += Math.sin(ang) * spd;
+    head.pvx = x - head.x; head.pvy = y - head.y;   // 이번 프레임 이동량(회피 봇 예측용)
     head.x = x; head.y = y;
     if (o.step) o.step(x, y, t);
     if (x < -m || x > s.W + m || y < -m || y > s.H + m) break;
@@ -479,6 +480,74 @@ const SPELLS = [
     },
   },
   {
+    name: '논스펠 · 예로니모 3',
+    type: 'nonspell', boss: '예로니모', bossColor: '#e8e0c8', hp: 2900, time: 42, start: [192, 110],
+    *run(s) {
+      // 사슬 고리가 보스 둘레를 돌며 원을 넓히다가 바깥으로 풀려 나감. 틈은 고리 사이 각도로 생김
+      for (let w = 1; ; w++) {
+        const n = s.cnt(16), a0 = s.rand(0, s.TAU), dir = w % 2 ? 1 : -1, cx = s.boss.x, cy = s.boss.y;
+        for (let i = 0; i < n; i++) {
+          const base = a0 + i * s.TAU / n;
+          s.fire({
+            x: cx, y: cy, spd: 0, shape: 'link', color: 'gold',
+            fn: b => {
+              if (b.t < 50) {
+                const r = 20 + b.t * 1.4, a = base + dir * b.t * 0.05;
+                b.x = cx + Math.cos(a) * r; b.y = cy + Math.sin(a) * r; b.ang = a + dir * Math.PI / 2;
+              } else if (b.t === 50) { b.ang = base + dir * 2.5 + dir * 0.35; b.spd = s.sp(2.2); }
+            },
+          });
+        }
+        yield s.wait(35);
+        s.spread(s.lv(1, 3, 3, 5), s.aim(), 0.2, { spd: s.sp(3.2), shape: 'knife', color: 'white' });
+        yield s.wait(35);
+        if (w % 4 === 0) yield* s.wander();
+      }
+    },
+  },
+  {
+    name: '논스펠 · 예로니모 4',
+    type: 'nonspell', boss: '예로니모', bossColor: '#e8e0c8', hp: 2900, time: 42, start: [192, 110],
+    *run(s) {
+      // 빛의 십자: 네 갈래 줄기가 천천히 돌고, 가끔 대각으로 한 번 비틀림. 줄기 사이가 안전 지대
+      let a = 0;
+      for (let f = 0; ; f++) {
+        a += 0.012 * (Math.floor(f / 150) % 2 ? -1 : 1);
+        for (let i = 0; i < 4; i++) s.fire({ ang: a + i * Math.PI / 2, spd: s.sp(2.8), shape: 'rice', color: 'yellow' });
+        if (f % 24 === 0) s.ring(s.cnt(12), { offset: a + Math.PI / 4, spd: s.sp(1.4), shape: 'small', color: 'white' });
+        if (f % 300 === 299) yield* s.wander(40, 50);
+        yield s.lv(8, 6, 5, 4);
+      }
+    },
+  },
+  {
+    name: '파테르 제2식 — 능히 일어나지 못하게 하리니',
+    type: 'spell', boss: '예로니모', bossColor: '#e8e0c8', hp: 3200, time: 52, start: [192, 100],
+    *run(s) {
+      // 예로니모의 파테르 제2식: 돌진해 멈춘 자리에서 황금 사슬을 사방으로 뻗어 붙들어 둠(사슬 사이 대각선 방향이 틈)
+      for (;;) {
+        yield* s.chant('PATER2', { by: s.boss, step: 50 });
+        for (let k = 0; k < s.lv(2, 2, 3, 3); k++) {
+          const px = s.player.x, py = s.player.y, d = Math.hypot(px - s.boss.x, py - s.boss.y) || 1;
+          const stop = Math.max(0, d - 110);
+          const tx = s.boss.x + (px - s.boss.x) / d * stop, ty = Math.min(s.boss.y + (py - s.boss.y) / d * stop, s.H - 160);
+          s.warnLine({ x: s.boss.x, y: s.boss.y, x2: tx, y2: ty, dur: s.lv(48, 40, 34) });
+          yield s.lv(48, 40, 34);
+          s.boss.contact = true;
+          yield* s.moveTo(tx, ty, 20);
+          s.boss.contact = false;
+          const n = s.lv(4, 4, 6, 6, 8), off = s.rand(0, s.TAU);
+          for (let i = 0; i < n; i++) s.chain({ x: tx, y: ty, ang: off + i * s.TAU / n, len: 520, warn: s.lv(45, 40, 34), shoot: 10, hold: 14, retract: 70 });
+          yield s.lv(45, 40, 34) + 30;
+          s.ring(s.cnt(18), { spd: 0.5, accel: 0.03, maxSpd: s.sp(2), shape: 'orb', color: 'gold' });
+          yield 50;
+          yield* s.moveTo(s.rand(140, 244), s.rand(80, 110), 45);
+        }
+        yield 30;
+      }
+    },
+  },
+  {
     name: 'Clavis Collata — NUNC DIMITTIS',
     type: 'spell', boss: '예로니모', bossColor: '#e8e0c8', hp: 3600, time: 60, start: [192, 100],
     *run(s) {
@@ -729,7 +798,7 @@ const SPELLS = [
       // 예고선을 따라 덩굴이 빠르게 뻗어 사선 줄무늬(하드는 격자)를 만들고, 잎이 한꺼번에 떨어짐
       const tilt = 0.6, span = s.H * Math.tan(tilt);
       for (let w = 0; ; w++) {
-        const gap = s.lv(130, 110, 90), warn = s.lv(60, 50, 45), lines = [];
+        const gap = s.lv(130, 115, 100, 100, 100), warn = s.lv(60, 50, 45), lines = [];
         const dirs = s.diff >= 2 ? [1, -1] : [w % 2 ? 1 : -1];
         for (const dir of dirs) {
           const ang = Math.PI / 2 - dir * tilt, off = s.rand(0, gap);
@@ -739,7 +808,7 @@ const SPELLS = [
           }
         }
         yield warn;
-        for (const [x0, ang] of lines) s.task(ivyVine(s, { x: x0, y: -5, ang, spd: 6, len: 150, turn: 0, stay: s.lv(90, 110, 130), margin: 400 }));
+        for (const [x0, ang] of lines) s.task(ivyVine(s, { x: x0, y: -5, ang, spd: 6, len: 150, turn: 0, gapPx: s.lv(28, 24, 22), stay: s.lv(90, 110, 130), margin: 400 }));
         for (let k = 0; k < 4; k++) { yield s.wait(40); if (s.diff > 0) s.spread(3, s.aim(), 0.3, { spd: s.sp(3), shape: 'small', color: 'pink' }); }
         yield s.wait(120);
       }
@@ -884,7 +953,9 @@ const SPELLS = [
       // 불렛타임 동안 위에서 미로 띠가 내려옴. 좁은 통로를 따라 빠져나가야 함
       const cell = 12, fall = 5, k = 0.22;
       for (;;) {
-        const rows = s.lv(14, 18, 22, 24, 26), gapW = s.lv(46, 36, 28, 25, 22), shift = s.lv(8, 11, 14, 15, 16);
+        // 줄 사이 간격(12px)에는 기체가 설 자리가 없으므로 이웃한 두 줄의 통로가 겹쳐야 지나갈 수 있음.
+        // 통로의 안전 폭은 gapW - 11 정도이므로 줄마다 옮겨 가는 폭(shift)을 그보다 작게 둠
+        const rows = s.lv(14, 18, 22, 24, 26), gapW = s.lv(46, 36, 28, 26, 24), shift = s.lv(8, 10, 12, 12, 11);
         const dur = Math.round((s.H + rows * cell + 40) / (fall * k));
         s.bulletTime(k, dur + 40);
         yield 20;
@@ -1027,23 +1098,28 @@ function spellOf(name, boss) {
 }
 const BOSS_RUNS = [
   {
-    title: '엑스트라 · 진심 예로니모', name: '진심 예로니모', power: 4, hpScale: 2.4,
+    title: '엑스트라 · 진심 예로니모', name: '진심 예로니모', power: 4, hpScale: 1.7,
     seq: [
       exOf(spellOf('논스펠 · 예로니모 1')),
       exOf(spellOf('스피리투스 제1식 — 꺼져가는 등불을 끄지 아니하고')),
       exOf(spellOf('논스펠 · 예로니모 2')),
       exOf(spellOf('파테르 제1식 — 나의 의로운 오른손으로 너를 붙들리라', '예로니모')),
+      exOf(spellOf('논스펠 · 예로니모 3')),
+      exOf(spellOf('파테르 제2식 — 능히 일어나지 못하게 하리니', '예로니모')),
       exOf(spellOf('Clavis Collata — NUNC DIMITTIS')),
       spellOf('Clavis Communis, 스피리투스 제10식 — CONFITEOR. 내 죄가 항상 내 앞에 있나이다'),
     ],
   },
   {
-    title: '6스테이지 · 예로니모', name: '예로니모', power: 3, hpScale: 3,
+    title: '6스테이지 · 예로니모', name: '예로니모', power: 3, hpScale: 1.95,
     seq: [
       spellOf('논스펠 · 예로니모 1'),
       spellOf('스피리투스 제1식 — 꺼져가는 등불을 끄지 아니하고'),
       spellOf('논스펠 · 예로니모 2'),
       spellOf('파테르 제1식 — 나의 의로운 오른손으로 너를 붙들리라', '예로니모'),
+      spellOf('논스펠 · 예로니모 3'),
+      spellOf('파테르 제2식 — 능히 일어나지 못하게 하리니', '예로니모'),
+      spellOf('논스펠 · 예로니모 4'),
       spellOf('Clavis Collata — NUNC DIMITTIS'),
     ],
   },
@@ -1079,7 +1155,7 @@ const BOSS_RUNS = [
       spellOf('파테르 제1식 — 나의 의로운 오른손으로 너를 붙들리라', '마르코'),
       spellOf('논스펠 · 마리의 딱밤'),
       spellOf('필리우스 제2식 — 그의 백성을 두르시리로다'),
-      spellOf('파테르 제2식 — 능히 일어나지 못하게 하리니'),
+      spellOf('파테르 제2식 — 능히 일어나지 못하게 하리니', '마르코'),
       spellOf('필리우스 제1식 — 불꽃이 너를 사르지 못하리니'),
     ],
   },

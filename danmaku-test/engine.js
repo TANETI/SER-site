@@ -1265,50 +1265,76 @@ function drawFieldUI(G, g) {
 }
 
 function drawHUD(G, g) {
-  const x = FX + W + 16;
+  const x = FX + W + 16, w = 640 - x - 12, p = G.player, st = G.stats;
+  const font = (px, bold) => `${bold ? 'bold ' : ''}${px}px system-ui, "Malgun Gothic", sans-serif`;
   g.textBaseline = 'top'; g.textAlign = 'left';
-  g.fillStyle = '#f5c542'; g.font = 'bold 16px system-ui, "Malgun Gothic", sans-serif';
-  g.fillText('탄막 테스트', x, 20);
-  const st = G.stats, dps = st.dmgLog.reduce((a, b) => a + b, 0);
-  // 목숨·폭탄
-  const p = G.player;
-  g.font = '13px system-ui, "Malgun Gothic", sans-serif';
-  g.fillStyle = '#9090a8'; g.fillText('목숨', x, 50); g.fillText('폭탄', x, 72);
+
+  // 무엇을 하고 있는지: 모드와 패턴 이름
+  g.fillStyle = '#f5c542'; g.font = font(11, true);
+  g.fillText(G.run ? `보스전 · ${G.run.name} ${G.run.idx + 1}/${G.run.seq.length}` : `단일 패턴 ${G.spellIndex + 1}/${G.spells.length}`, x, 18);
+  g.fillStyle = '#fff'; g.font = font(12, true);
+  const nameEnd = wrap(g, G.spell.name, x, 34, w, 16, 3);
+  g.fillStyle = '#8e8ea6'; g.font = font(11);
+  g.fillText(`${ANGELS[G.angel].name} · ${DIFFS[G.difficulty]}${G.spell.extra ? ' (엑스트라 +1)' : ''}`, x, nameEnd + 4);
+
+  // 게임 정보
+  let y = nameEnd + 30;
+  g.fillStyle = 'rgba(255,255,255,0.08)'; g.fillRect(x, y - 8, w, 1);
+  g.font = font(12); g.fillStyle = '#8e8ea6';
+  g.fillText('목숨', x, y); g.fillText('폭탄', x, y + 22); g.fillText('파워', x, y + 44);
   g.font = '15px system-ui, "Segoe UI Symbol", sans-serif';
-  for (let i = 0; i < START_LIVES + 2; i++) { g.fillStyle = i < p.lives ? '#ff6b9a' : '#3a3a4a'; if (i < Math.max(p.lives, START_LIVES)) g.fillText('♥', x + 48 + i * 17, 48); }
-  for (let i = 0; i < Math.max(p.bombs, START_BOMBS); i++) { g.fillStyle = i < p.bombs ? '#7fe0a0' : '#3a3a4a'; g.fillText('✦', x + 48 + i * 17, 70); }
-  g.font = '13px system-ui, "Malgun Gothic", sans-serif'; g.fillStyle = '#9090a8'; g.fillText('파워', x, 94);
-  g.fillStyle = '#2a2a3a'; g.fillRect(x + 48, 98, 90, 8);
-  g.fillStyle = p.power >= MAX_POWER ? '#ffd23a' : '#e8403a'; g.fillRect(x + 48, 98, 90 * p.power / MAX_POWER, 8);
-  g.fillStyle = '#fff'; g.font = '11px Consolas, monospace'; g.fillText(p.power >= MAX_POWER ? 'MAX' : p.power.toFixed(2), x + 144, 96);
-  if (G.invincible) { g.fillStyle = '#9090a8'; g.font = '11px system-ui, "Malgun Gothic", sans-serif'; g.fillText('무적: 목숨·폭탄 소모 없음', x, 114); }
+  for (let i = 0; i < Math.max(p.lives, START_LIVES); i++) { g.fillStyle = i < p.lives ? '#ff6b9a' : '#3a3a4a'; g.fillText('♥', x + 44 + i * 17, y - 2); }
+  for (let i = 0; i < Math.max(p.bombs, START_BOMBS); i++) { g.fillStyle = i < p.bombs ? '#7fe0a0' : '#3a3a4a'; g.fillText('✦', x + 44 + i * 17, y + 20); }
+  g.fillStyle = '#2a2a3a'; g.fillRect(x + 44, y + 48, 90, 8);
+  g.fillStyle = p.power >= MAX_POWER ? '#ffd23a' : '#e8403a'; g.fillRect(x + 44, y + 48, 90 * p.power / MAX_POWER, 8);
+  g.fillStyle = '#fff'; g.font = '11px Consolas, monospace';
+  g.fillText(`${p.power >= MAX_POWER ? 'MAX' : p.power.toFixed(2)}${G.powerLock ? ' 고정' : ''}`, x + 140, y + 46);
+  y += 72;
+  g.font = font(12); g.fillStyle = '#8e8ea6'; g.fillText('점수', x, y); g.fillText('그레이즈', x, y + 20);
+  g.fillStyle = '#fff'; g.font = font(13, true);
+  g.textAlign = 'right'; g.fillText(G.score.toLocaleString(), x + w, y); g.fillText(String(G.graze), x + w, y + 20); g.textAlign = 'left';
+
+  // 개발 정보(작게)
+  y += 52;
+  g.fillStyle = 'rgba(255,255,255,0.08)'; g.fillRect(x, y - 8, w, 1);
+  g.fillStyle = '#6e6e86'; g.font = font(10, true); g.fillText('개발 정보', x, y); y += 16;
+  const dps = st.dmgLog.reduce((a, b) => a + b, 0);
   const rows = [
-    ['패턴', G.run ? `${G.run.name} ${G.run.idx + 1}/${G.run.seq.length}` : `${G.spellIndex + 1} / ${G.spells.length}`],
-    ['기체', ANGELS[G.angel].name],
-    ['난이도', DIFFS[G.difficulty]],
-    ['점수', G.score.toLocaleString()],
-    ['그레이즈', G.graze],
-    ['피탄', G.invincible ? `${st.hits} (무적)` : st.miss],
-    ['봄 사용', st.bombs],
-    ['탄 수', G.bullets.length + (G.lasers.length ? ` + 레이저 ${G.lasers.length}` : '')],
-    ['DPS', dps.toFixed(0)],
-    ['보스 HP', G.boss.hidden ? '-' : `${Math.ceil(G.boss.hp)} / ${G.boss.maxHp}`],
-    ['속도', G.speed + '×' + (SFX.muted ? ' · 소리 끔' : '')],
-    ['FPS', G.fps.toFixed(0)],
+    ['피탄', G.invincible ? `${st.hits} (무적)` : `${st.miss}`],
+    ['폭탄 사용', st.bombs],
+    ['적탄', G.bullets.length + (G.lasers.length ? ` + 레이저 ${G.lasers.length}` : '')],
+    ['초당 피해', dps.toFixed(0)],
+    ['보스 체력', G.boss.hidden ? '-' : `${Math.ceil(G.boss.hp)} / ${G.boss.maxHp}`],
+    ['FPS', `${G.fps.toFixed(0)}${G.speed !== 1 ? ` · ${G.speed}×` : ''}`],
   ];
-  g.font = '13px system-ui, "Malgun Gothic", sans-serif';
+  g.font = font(11);
   rows.forEach(([k, v], i) => {
-    g.fillStyle = '#9090a8'; g.fillText(k, x, 132 + i * 21);
-    g.fillStyle = '#fff'; g.fillText(String(v), x + 72, 132 + i * 21);
+    g.fillStyle = '#8e8ea6'; g.fillText(k, x, y + i * 17);
+    g.fillStyle = '#c8c8d8'; g.textAlign = 'right'; g.fillText(String(v), x + w, y + i * 17); g.textAlign = 'left';
   });
-  g.fillStyle = '#9090a8'; g.font = '11px system-ui, "Malgun Gothic", sans-serif';
-  wrap(g, G.spell.name, x, 132 + rows.length * 21 + 8, 176, 15);
+
+  // 켜져 있는 연습 옵션 표시
+  const tags = [G.invincible && '무적', G.powerLock && '파워 고정', SFX.muted && '소리 끔', G.paused && '일시정지'].filter(Boolean);
+  let tx = x;
+  g.font = font(10, true);
+  for (const t of tags) {
+    const tw = g.measureText(t).width + 10;
+    if (tx + tw > x + w) break;
+    g.fillStyle = '#3a2e10'; g.fillRect(tx, 452, tw, 16);
+    g.fillStyle = '#ffe6a0'; g.fillText(t, tx + 5, 455);
+    tx += tw + 4;
+  }
 }
 
-function wrap(g, text, x, y, w, lh) {
+// 폭 w에 맞춰 줄바꿈해 그림. 마지막 줄 다음 y를 돌려줌. maxLines를 넘으면 말줄임
+function wrap(g, text, x, y, w, lh, maxLines = 99) {
+  const lines = [];
   let line = '';
   for (const ch of text) {
-    if (g.measureText(line + ch).width > w) { g.fillText(line, x, y); y += lh; line = ch; } else line += ch;
+    if (g.measureText(line + ch).width > w) { lines.push(line); line = ch; } else line += ch;
   }
-  g.fillText(line, x, y);
+  lines.push(line);
+  if (lines.length > maxLines) { lines.length = maxLines; lines[maxLines - 1] = lines[maxLines - 1].slice(0, -1) + '…'; }
+  lines.forEach((l, i) => g.fillText(l, x, y + i * lh));
+  return y + lines.length * lh;
 }
