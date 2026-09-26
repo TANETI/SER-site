@@ -226,7 +226,7 @@ const SPELLS = [
       s.task(mariRings(s, mari, 55));
       for (;;) {
         // 제1식보다 봉독이 길어 발동이 느림
-        yield* s.chant('PATER2', { by: s.boss, step: 30 });
+        yield* s.chant('PATER2', { by: s.boss, step: 50 });
         for (let k = 0; k < 3; k++) {
           const tx = s.player.x, ty = Math.min(s.player.y, s.H - 60);
           s.warnLine({ x: s.boss.x, y: s.boss.y, x2: tx, y2: ty, dur: 32 });
@@ -252,7 +252,7 @@ const SPELLS = [
       const light = s.task(function* () {
         for (let k = 0; ; k++) { s.ring(12, { offset: k * 0.3, spd: 1.3, shape: 'small', color: 'gold' }); yield 40; }
       }());
-      yield* s.chant('NUNC_DIMITTIS', { by: s.boss, step: 16 });
+      yield* s.chant('NUNC_DIMITTIS', { by: s.boss, step: 32 });
       light.return();
       // 화면 가장자리의 한 점에서 목표점을 지나는 사슬. 목표를 주지 않으면 필드 안 무작위 지점
       function edgeChain(target) {

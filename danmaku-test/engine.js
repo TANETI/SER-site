@@ -554,11 +554,12 @@ function makeAPI(G) {
     // 고정 구역 보호막: 안으로 들어온 자기 탄을 지움 {x,y,r,dur}
     zone(o = {}) { const z = { x: o.x ?? G.boss.x, y: o.y ?? G.boss.y, r: o.r ?? 56, dur: o.dur ?? 300, t: 0 }; G.zones.push(z); return z; },
     // 영창: 화면 상단에 한 줄씩 떠오른 뒤 사라짐. 마지막 줄이 호명.
-    // yield* 하면 호명 줄이 뜰 때까지 기다림(= 전조 시간). {by, color, step, hold}
+    // yield* 하면 호명 줄이 뜰 때까지 기다림(= 전조 시간). {by, color, step, hold, corner:'left'|'right'}
     *chant(lines, o = {}) {
       if (typeof lines === 'string') lines = CHANTS[lines];
-      const step = o.step ?? 24, hold = o.hold ?? 20;
-      const c = { lines, t: 0, step, end: lines.length * step + hold + 30, fade: 40, color: o.color || o.by?.chantColor || '#ffe6a0' };
+      const step = o.step ?? 40, hold = o.hold ?? 20;
+      const corner = o.corner || (o.by && o.by !== G.boss ? 'right' : 'left');
+      const c = { lines, t: 0, step, end: lines.length * step + hold + 30, fade: 20, corner, color: o.color || o.by?.chantColor || '#ffe6a0' };
       G.chants.push(c);
       yield lines.length * step + hold;
     },
@@ -683,26 +684,36 @@ function drawZone(g, z) {
   g.setLineDash([]); g.globalAlpha = 1;
 }
 
-// 영창: 화면 상단 가운데. 줄마다 서서히 떠오르고, 끝나면 함께 사라짐
+// 영창: 화면 상단 구석에 한 줄씩 페이드인 → 페이드아웃. 마지막 호명 줄은 조금 더 크게, 조금 더 오래.
+// 보스는 왼쪽 구석, 동료는 오른쪽 구석
 const CHANT_FONT = '"Gowun Batang", "Nanum Myeongjo", Batang, serif';
-function drawChants(G, g) {
-  let y = 40;
-  g.textAlign = 'center'; g.textBaseline = 'top';
-  for (const c of G.chants) {
-    const out = c.t > c.end ? 1 - (c.t - c.end) / c.fade : 1;
-    const rise = c.t > c.end ? (c.t - c.end) * 0.3 : 0;
-    c.lines.forEach((line, i) => {
-      const t0 = i * c.step, last = i === c.lines.length - 1;
-      if (c.t < t0) return;
-      const a = Math.min(1, (c.t - t0) / 14) * out;
-      g.globalAlpha = a;
-      g.font = (last ? 'bold 15px ' : '13px ') + CHANT_FONT;
-      g.shadowColor = c.color; g.shadowBlur = last ? 12 : 8;
-      g.fillStyle = last ? '#fff' : c.color;
-      g.fillText(line, W / 2, y + i * 19 + (last ? 4 : 0) - rise + (1 - Math.min(1, (c.t - t0) / 14)) * 4);
-    });
-    y += c.lines.length * 19 + 14;
+// 한 줄이 넘치면 가운데에 가장 가까운 끊을 자리(— 앞, 마침표·쉼표 뒤, 띄어쓰기)에서 두 줄로 나눔
+function splitToFit(g, text, maxW) {
+  if (g.measureText(text).width <= maxW) return [text];
+  const mid = text.length / 2;
+  let best = -1;
+  for (let i = 1; i < text.length - 1; i++) {
+    if (text[i] !== ' ') continue;
+    const bonus = text[i + 1] === '—' || /[.,]/.test(text[i - 1]) ? 6 : 0;
+    if (best < 0 || Math.abs(i - mid) - bonus < Math.abs(best - mid) - (text[best + 1] === '—' || /[.,]/.test(text[best - 1]) ? 6 : 0)) best = i;
   }
+  return best < 0 ? [text] : [text.slice(0, best), text.slice(best + 1)];
+}
+function drawChants(G, g) {
+  g.textBaseline = 'top';
+  G.chants.forEach((c, row) => {
+    const n = c.lines.length, i = Math.min(n - 1, Math.floor(c.t / c.step)), last = i === n - 1;
+    const t0 = i * c.step, t1 = last ? c.end + c.fade : t0 + c.step, fi = 12;
+    const a = Math.max(0, Math.min(1, (c.t - t0) / fi, (t1 - c.t) / fi));
+    // 동시에 읊으면 줄을 달리해 겹치지 않게 함
+    const right = c.corner === 'right', x = right ? W - 10 : 10, y = 44 + row * 40;
+    const slide = (1 - Math.min(1, (c.t - t0) / fi)) * 8 * (right ? 1 : -1);
+    g.globalAlpha = a; g.textAlign = right ? 'right' : 'left';
+    g.font = (last ? 'bold 15px ' : '14px ') + CHANT_FONT;
+    g.shadowColor = c.color; g.shadowBlur = last ? 12 : 8;
+    g.fillStyle = last ? '#fff' : c.color;
+    splitToFit(g, c.lines[i], W - 20).forEach((part, k) => g.fillText(part, x + slide, y + k * 18));
+  });
   g.shadowBlur = 0; g.globalAlpha = 1; g.textAlign = 'left';
 }
 
