@@ -163,13 +163,15 @@ function shot(out, x, y, a, spd, dmg, shape, color, extra) {
   out.push({ x, y, vx: Math.cos(a) * spd, vy: Math.sin(a) * spd, dmg: dmg * SHOT_DMG, shape, color, ...extra });
 }
 const UP = -Math.PI / 2;
+// 거리 감쇠가 있는 탄은 멀리 갈수록 약해짐(남은 수명 비율 기준)
+function shotDamage(s) { return s.falloff ? s.dmg * (0.45 + 0.85 * (1 - s.t / s.life)) : s.dmg; }
 // 파워 단계별 표: [0, 1, 2, 3, 4]. 탄 줄 수·발사 간격(틱)·한 발 대미지가 함께 오른다.
 // 낮은 파워는 적은 줄을 느리게 쏘는 대신 한 발이 조금 더 아프다.
 const SHOT_TYPES = {
-  // 아리엘: 바늘 1→3줄, 파워 2부터 가끔 적을 따라 휘는 유도 레이저(4에서 두 줄)
-  // 초당 피해량 약 50 / 80 / 140 / 150 / 180
+  // 아리엘: 바늘 1→3줄 + 첫 단계부터 적을 따라 휘는 유도 레이저(대미지 22, 파워가 오를수록 자주, 4에서 두 줄)
+  // 초당 피해량(대미지 배율 적용 전) 약 50 / 80 / 140 / 150 / 180. 레이저 몫이 커서 바늘은 가벼움
   AR(p, out, focus, L) {
-    const t = p.fireT, n = [1, 2, 3, 3, 3][L], iv = [6, 5, 4, 3, 3][L], dmg = [5, 3.4, 3, 2.3, 2.5][L];
+    const t = p.fireT, n = [1, 2, 3, 3, 3][L], iv = [6, 5, 4, 3, 3][L], dmg = [3.4, 2.55, 2.6, 2.05, 1.9][L];
     if (t % iv === 0) {
       const gapX = focus ? 5 : 10, spread = focus ? 0 : 0.06;
       for (let i = 0; i < n; i++) {
@@ -177,38 +179,39 @@ const SHOT_TYPES = {
         shot(out, p.x + k * gapX, p.y - 10, UP + k * spread, 18, dmg, 'needle', 'gold');
       }
     }
-    const every = [0, 0, 120, 90, 60][L];
-    if (every && t % every === 0) {
-      for (const k of L >= 4 ? [-1, 1] : [0]) shot(out, p.x + k * 8, p.y - 12, UP + k * 0.5, 11, 14, 'needle', 'white', { homing: true, turn: 0.18, laser: true, trail: [], life: 120 });
+    const every = [80, 70, 60, 50, 40][L];
+    if (t % every === 0) {
+      for (const k of L >= 4 ? [-1, 1] : [0]) shot(out, p.x + k * 8, p.y - 12, UP + k * 0.5, 11, 22, 'needle', 'white', { homing: true, turn: 0.18, laser: true, trail: [], life: 120 });
     }
   },
-  // 유리엘: 하이리스크 하이리턴. 유도 없음, 사거리 약 230px. 가시 2→7개, 간격 5→2틱
-  // 붙어서 쏠 때 초당 피해량 약 75 / 115 / 165 / 225 / 260
+  // 유리엘: 하이리스크 하이리턴. 유도 없음. 가시 2→7개, 간격 5→2틱.
+  // 사거리 약 360px이지만 멀리 날아갈수록 대미지가 줄고 흐려짐(가까이서 쏘면 약 1.15배, 끝에서는 약 0.5배).
+  // 붙어서 쏠 때 초당 피해량(대미지 배율 적용 전) 약 70 / 110 / 150 / 190 / 230, 화면 아래에서는 그 절반 남짓
   UR(p, out, focus, L) {
-    const n = [2, 3, 4, 5, 7][L], iv = [5, 4, 3, 2, 2][L], dmg = [3.2, 2.6, 2.1, 1.5, 1.25][L] * (focus ? 1 : 0.88);
+    const n = [2, 3, 4, 5, 7][L], iv = [5, 4, 3, 2, 2][L], dmg = [2.55, 2.1, 1.7, 1.25, 0.96][L] * (focus ? 1 : 0.9);
     if (p.fireT % iv) return;
-    const gap = focus ? 0.045 : 0.12, wob = focus ? 0.015 : 0.05;
+    const gap = focus ? Math.min(0.045, 0.2 / Math.max(n - 1, 1)) : 0.11, wob = focus ? 0.01 : 0.03;   // 저속은 가시가 많아도 폭 0.2rad 안에 모음
     for (let i = 0; i < n; i++) {
       const a = UP + (i - (n - 1) / 2) * gap + (Math.random() * 2 - 1) * wob;
-      shot(out, p.x, p.y - 6, a, 14, dmg, 'thorn', 'red', { life: 16 + (Math.random() * 3 | 0) });
+      shot(out, p.x, p.y - 6, a, 14, dmg, 'thorn', 'red', { life: 25 + (Math.random() * 3 | 0), falloff: true });
     }
   },
-  // 루미엘(중립 선): 정면 바늘 1→2줄 + 파워 1부터 빗나가지 않는 유도 부적(2→4장). 부적이 빗나가지 않는 대신 화력은 가장 낮음
+  // 루미엘(중립 선): 정면 바늘 1→2줄 + 첫 단계부터 빗나가지 않는 유도 부적(2→4장). 부적이 빗나가지 않는 대신 화력은 가장 낮음
   // 초당 피해량(대미지 배율 적용 전) 약 45 / 90 / 105 / 140 / 165
   LM(p, out, focus, L) {
-    const t = p.fireT, nN = [1, 2, 2, 2, 2][L], ivN = [6, 4, 3, 3, 3][L], dN = [4.5, 2.2, 1.8, 1.8, 1.8][L];
+    const t = p.fireT, nN = [1, 2, 2, 2, 2][L], ivN = [6, 4, 3, 3, 3][L], dN = [2.2, 2.2, 1.8, 1.8, 1.8][L];
     if (t % ivN === 0) for (let i = 0; i < nN; i++) shot(out, p.x + (nN > 1 ? (i ? 4 : -4) : 0), p.y - 10, UP, 16, dN, 'needle', 'pink');
-    const ks = [[], [-1, 1], [-1, 1], [-1, -0.4, 0.4, 1], [-1, -0.4, 0.4, 1]][L], ivA = [0, 9, 7, 7, 5][L];
-    if (ks.length && t % ivA === 0) {
+    const ks = [[-1, 1], [-1, 1], [-1, 1], [-1, -0.4, 0.4, 1], [-1, -0.4, 0.4, 1]][L], ivA = [10, 9, 7, 7, 5][L];
+    if (t % ivA === 0) {
       const spreadA = focus ? 0.35 : 0.9;
       for (const k of ks) shot(out, p.x + k * 10, p.y, UP + k * spreadA, 8, focus ? 1.9 : 1.7, 'amulet', 'purple', { homing: true, turn: focus ? 0.25 : 0.14, life: 90 });
     }
   },
-  // 라티엘(진 중립): 가운데 바늘 1→3줄 + 파워 2부터 옵션 둘의 별탄(4에서 겹별). 고속은 넓게, 저속은 옵션이 앞으로 모임.
+  // 라티엘(진 중립): 가운데 바늘 1→3줄 + 첫 단계부터 옵션 둘의 별탄(4에서 겹별). 고속은 넓게, 저속은 옵션이 앞으로 모임.
   // 별탄은 잡몹을 꿰뚫고 지나가 여러 마리를 고르게 맞힘(보스에게는 한 번 맞고 사라짐)
-  // 초당 피해량 약 50 / 80 / 145 / 175 / 190
+  // 초당 피해량(대미지 배율 적용 전) 약 50 / 80 / 145 / 175 / 190
   RH(p, out, focus, L) {
-    const n = [1, 2, 3, 3, 3][L], iv = [6, 5, 4, 3, 3][L], dmg = [5, 3.4, 2.4, 1.7, 1.7][L];
+    const n = [1, 2, 3, 3, 3][L], iv = [6, 5, 4, 3, 3][L], dmg = [2.6, 2.2, 2.4, 1.7, 1.7][L];
     if (p.fireT % iv) return;
     for (let i = 0; i < n; i++) shot(out, p.x + (i - (n - 1) / 2) * 5, p.y - 10, UP, 16, dmg, 'needle', 'cyan');
     for (const o of p.options) {
@@ -227,7 +230,8 @@ class Game {
     this.keys = new Set(); this.pressed = new Set();
     this.speed = 1; this.invincible = false; this.difficulty = 1; this.practicePower = 0;   // 단일 패턴 연습도 기본은 파워 0(패널에서 올림)
     this.shakeOn = true; this.shakeMag = 0;   // 화면 흔들림(경기 화면만)
-    this.powerLock = false;   // 켜면 파워가 연습 파워에 고정(보스전 포함, 죽어도 안 줄고 아이템으로 안 오름) this.loop = true; this.paused = false;
+    this.powerLock = false;   // 켜면 파워가 연습 파워에 고정(보스전 포함, 죽어도 안 줄고 아이템으로 안 오름)
+    this.loop = true; this.paused = false;
     this.spells = []; this.spellIndex = 0;
     this.angel = 'AR';
     this.error = '';
@@ -457,7 +461,7 @@ class Game {
     if (p.flash > 0) p.flash--;
 
     // 라티엘 옵션
-    if (this.angel === 'RH' && p.power >= 2) {
+    if (this.angel === 'RH') {
       const tx = focus ? 12 : 30, ty = focus ? -14 : 4;
       if (!p.options.length) p.options = [{ x: p.x, y: p.y }, { x: p.x, y: p.y }];
       p.options.forEach((o, i) => { const s = i ? 1 : -1; o.x += (p.x + s * tx - o.x) * 0.3; o.y += (p.y + ty - o.y) * 0.3; });
@@ -632,7 +636,7 @@ class Game {
       for (const e of targets) {
         if (e.dead || dist2(s.x, s.y, e.x, e.y) >= (e.r + 6) ** 2) continue;
         if (s.pierce) { if (s.pierce.includes(e)) continue; s.pierce.push(e); }   // 꿰뚫는 탄은 같은 적을 한 번만
-        e.hp -= s.dmg; e.hurt = 4; SFX.hit();
+        e.hp -= shotDamage(s); e.hurt = 4; SFX.hit();
         if (!s.pierce) { s.dead = true; break; }
       }
       if (!s.dead && this.zones.some(z => dist2(s.x, s.y, z.x, z.y) < z.r * z.r)) { s.dead = true; this.fx.push({ kind: 'block', x: s.x, y: s.y, t: 0, life: 10 }); SFX.block(); continue; }
@@ -640,7 +644,7 @@ class Game {
         s.dead = true;
         // 필리우스 제1식은 약한 공격을 막음: 통상탄은 막히고 봄은 통함
         if (b.shield > 0) { this.fx.push({ kind: 'block', x: s.x, y: s.y, t: 0, life: 10 }); SFX.block(); continue; }
-        this.damageBoss(s.dmg); b.hurt = 3;
+        this.damageBoss(shotDamage(s)); b.hurt = 3;
       }
       if (s.dead && Math.random() < 0.2) this.fx.push({ kind: 'hit', x: s.x, y: s.y, t: 0, life: 8, color: s.color });
     }
@@ -1067,6 +1071,7 @@ function drawShots(G, g) {
   g.globalAlpha = 0.38;
   for (const s of G.shots) {
     if (s.laser) continue;
+    g.globalAlpha = s.falloff ? 0.38 * Math.max(0.25, 1 - (s.t || 0) / s.life) + 0.1 : 0.38;
     const def = SHOT_SHAPES[s.shape], img = shotSprite(s.shape, s.color);
     const a = def.spin ? (s.t || 0) * 0.3 : Math.atan2(s.vy, s.vx), c = Math.cos(a), sn = Math.sin(a);
     g.setTransform(base.a * c, base.a * sn, -base.a * sn, base.a * c, base.e + s.x * base.a, base.f + s.y * base.a);
