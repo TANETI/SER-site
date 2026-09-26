@@ -62,5 +62,7 @@ const SFX = {
   slowIn()  { if (this.ok('slowIn', 0.3)) this.tone('sine', 900, 120, 0.6, 0.15); },
   slowOut() { if (this.ok('slowOut', 0.3)) this.tone('sine', 120, 900, 0.4, 0.12); },
   flick()   { if (this.ok('flick', 0.2)) { this.tone('square', 1800, 1200, 0.03, 0.08); this.tone('triangle', 400, 300, 0.08, 0.06, 0.02); } },
+  item()    { if (this.ok('item', 0.04)) this.tone('sine', 1500, 1900, 0.04, 0.035); },
+  powerUp() { if (this.ok('powerUp', 0.3)) [700, 1050, 1400].forEach((f, i) => this.tone('square', f, f, 0.08, 0.05, i * 0.06)); },
   extend()  { if (this.ok('extend', 0.3)) [520, 780].forEach((f, i) => this.tone('sine', f, f, 0.3, 0.09, i * 0.1)); },
 };

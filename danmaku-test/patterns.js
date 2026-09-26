@@ -758,7 +758,8 @@ const SPELLS = [
   },
 ];
 
-// 보스전: 목숨·폭탄을 이어 가며 패턴을 순서대로. name은 오른쪽 표시용 짧은 이름
+// 보스전: 목숨·폭탄·파워를 이어 가며 패턴을 순서대로. name은 오른쪽 표시용 짧은 이름, power는 시작 파워
+// 엑스트라는 동방처럼 최대 파워로 시작하고, 본편 스테이지는 앞 구간의 잡몹에서 P를 모아 강화한다
 function spellOf(name, boss) {
   const sp = SPELLS.find(x => x.name === name && (!boss || x.boss === boss));
   if (!sp) throw new Error('보스전 패턴 없음: ' + name);
@@ -766,8 +767,9 @@ function spellOf(name, boss) {
 }
 const BOSS_RUNS = [
   {
-    title: '6스테이지 · 예로니모', name: '예로니모',
+    title: '6스테이지 · 예로니모', name: '예로니모', power: 2.5,
     seq: [
+      spellOf('잡몹 웨이브 · 날개 오르트로스'),
       spellOf('논스펠 · 예로니모 1'),
       spellOf('스피리투스 제1식 — 꺼져가는 등불을 끄지 아니하고'),
       spellOf('논스펠 · 예로니모 2'),
@@ -776,8 +778,9 @@ const BOSS_RUNS = [
     ],
   },
   {
-    title: '7스테이지 · 리크니스', name: '리크니스',
+    title: '7스테이지 · 리크니스', name: '리크니스', power: 3,
     seq: [
+      spellOf('잡몹 웨이브 · 날개 오르트로스'),
       spellOf('논스펠 · 리크니스 1'),
       spellOf('「벽을 타는 덩굴」(가칭)'),
       spellOf('논스펠 · 리크니스 2'),
@@ -786,7 +789,7 @@ const BOSS_RUNS = [
     ],
   },
   {
-    title: '엑스트라 2 · 이즘', name: '이즘',
+    title: '엑스트라 2 · 이즘', name: '이즘', power: 4,
     seq: [
       spellOf('논스펠 · 이즘 1'),
       spellOf('「순차 격자 타격」(가칭)'),
@@ -795,8 +798,9 @@ const BOSS_RUNS = [
     ],
   },
   {
-    title: '2스테이지 · 마르코와 마리', name: '마르코·마리',
+    title: '2스테이지 · 마르코와 마리', name: '마르코·마리', power: 0.5,
     seq: [
+      spellOf('잡몹 웨이브 · 날개 오르트로스'),
       spellOf('논스펠 · 마리와 마르코'),
       spellOf('파테르 제1식 — 나의 의로운 오른손으로 너를 붙들리라', '마르코'),
       spellOf('논스펠 · 마리의 딱밤'),

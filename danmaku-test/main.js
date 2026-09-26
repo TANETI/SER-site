@@ -31,11 +31,13 @@ function fillSpells() {
 fillSpells();
 for (const [code, a] of Object.entries(ANGELS)) angelSel.add(new Option(a.name, code));
 DIFFS.forEach((d, i) => $('diffSel').add(new Option(d, i)));
+[0, 1, 2, 3, 4].forEach(v => $('powSel').add(new Option(v === 4 ? '4.00 (MAX)' : v.toFixed(2), v)));
 
 function syncPanel() {
   spellSel.value = G.run ? 'r' + BOSS_RUNS.findIndex(r => r.title === G.run.title) : G.spellIndex;
   angelSel.value = G.angel;
   $('diffSel').value = G.difficulty;
+  $('powSel').value = G.practicePower;
   $('invChk').checked = G.invincible;
   $('sndChk').checked = !SFX.muted;
   if (!$('editor').hidden) $('code').value = spellSource(G.spell);
@@ -51,6 +53,7 @@ spellSel.onchange = () => {
 };
 angelSel.onchange = () => { G.angel = angelSel.value; settle(angelSel); };
 $('diffSel').onchange = e => { G.difficulty = +e.target.value; G.restart(); settle(e.target); };
+$('powSel').onchange = e => { G.practicePower = +e.target.value; if (!G.run) G.startSingle(); settle(e.target); };
 $('speedSel').onchange = e => { G.speed = +e.target.value; settle(e.target); };
 $('invChk').onchange = e => { G.invincible = e.target.checked; settle(e.target); };
 $('loopChk').onchange = e => { G.loop = e.target.checked; settle(e.target); };
