@@ -146,45 +146,55 @@ function shot(out, x, y, a, spd, dmg, shape, color, extra) {
   out.push({ x, y, vx: Math.cos(a) * spd, vy: Math.sin(a) * spd, dmg, shape, color, ...extra });
 }
 const UP = -Math.PI / 2;
+// 파워 단계별 표: [0, 1, 2, 3, 4]. 탄 줄 수·발사 간격(틱)·한 발 대미지가 함께 오른다.
+// 낮은 파워는 적은 줄을 느리게 쏘는 대신 한 발이 조금 더 아프다.
 const SHOT_TYPES = {
-  // 아리엘: 기본 3갈래 바늘 + 가끔 적을 따라 휘는 유도 레이저. 파워 1부터 레이저, 오를수록 자주·4에서 두 줄 (약 180)
+  // 아리엘: 바늘 1→3줄, 파워 2부터 가끔 적을 따라 휘는 유도 레이저(4에서 두 줄)
+  // 초당 피해량 약 50 / 80 / 140 / 150 / 180
   AR(p, out, focus, L) {
-    const t = p.fireT;
-    if (t % 3 === 0) {
-      const xs = focus ? [-5, 0, 5] : [-10, 0, 10], spread = focus ? 0 : 0.06, dmg = [1.5, 1.9, 2.1, 2.3, 2.5][L];
-      xs.forEach((dx, i) => shot(out, p.x + dx, p.y - 10, UP + (i - 1) * spread, 18, dmg, 'needle', 'gold'));
+    const t = p.fireT, n = [1, 2, 3, 3, 3][L], iv = [6, 5, 4, 3, 3][L], dmg = [5, 3.4, 3, 2.3, 2.5][L];
+    if (t % iv === 0) {
+      const gapX = focus ? 5 : 10, spread = focus ? 0 : 0.06;
+      for (let i = 0; i < n; i++) {
+        const k = i - (n - 1) / 2;
+        shot(out, p.x + k * gapX, p.y - 10, UP + k * spread, 18, dmg, 'needle', 'gold');
+      }
     }
-    const every = [0, 120, 90, 75, 60][L];
+    const every = [0, 0, 120, 90, 60][L];
     if (every && t % every === 0) {
-      const sides = L >= 4 ? [-1, 1] : [0];
-      for (const k of sides) shot(out, p.x + k * 8, p.y - 12, UP + k * 0.5, 11, 14, 'needle', 'white', { homing: true, turn: 0.18, laser: true, trail: [], life: 120 });
+      for (const k of L >= 4 ? [-1, 1] : [0]) shot(out, p.x + k * 8, p.y - 12, UP + k * 0.5, 11, 14, 'needle', 'white', { homing: true, turn: 0.18, laser: true, trail: [], life: 120 });
     }
   },
-  // 유리엘: 하이리스크 하이리턴. 유도 없음. 연사(2틱)·대미지가 높지만 사거리가 약 230px라 붙어야 함 (약 260)
+  // 유리엘: 하이리스크 하이리턴. 유도 없음, 사거리 약 230px. 가시 2→7개, 간격 5→2틱
+  // 붙어서 쏠 때 초당 피해량 약 75 / 115 / 165 / 225 / 260
   UR(p, out, focus, L) {
-    if (p.fireT % 2) return;
-    const n = [3, 4, 5, 6, 7][L], gap = focus ? 0.045 : 0.12, wob = focus ? 0.015 : 0.05;
+    const n = [2, 3, 4, 5, 7][L], iv = [5, 4, 3, 2, 2][L], dmg = [3.2, 2.6, 2.1, 1.5, 1.25][L] * (focus ? 1 : 0.88);
+    if (p.fireT % iv) return;
+    const gap = focus ? 0.045 : 0.12, wob = focus ? 0.015 : 0.05;
     for (let i = 0; i < n; i++) {
       const a = UP + (i - (n - 1) / 2) * gap + (Math.random() * 2 - 1) * wob;
-      shot(out, p.x, p.y - 6, a, 14, focus ? 1.25 : 1.1, 'thorn', 'red', { life: 16 + (Math.random() * 3 | 0) });
+      shot(out, p.x, p.y - 6, a, 14, dmg, 'thorn', 'red', { life: 16 + (Math.random() * 3 | 0) });
     }
   },
-  // 루미엘(중립 선): 약한 정면 바늘 + 빗나가지 않는 유도 부적. 부적은 조금 날아간 뒤 닿은 작은 적탄 하나를 지우고 함께 사라짐. 전체로 초당 2개까지만.
-  // 파워가 오르면 부적 수가 늚 (약 140)
+  // 루미엘(중립 선): 정면 바늘 1→2줄 + 파워 1부터 빗나가지 않는 유도 부적(2→4장).
+  // 부적은 조금 날아간 뒤 닿은 작은 적탄 하나를 지우고 함께 사라짐. 전체로 초당 2개까지만.
+  // 초당 피해량 약 40 / 85 / 95 / 130 / 150
   LM(p, out, focus, L) {
-    const t = p.fireT;
-    if (t % 3 === 0) for (const dx of [-4, 4]) shot(out, p.x + dx, p.y - 10, UP, 16, 1.2, 'needle', 'pink');
-    const ks = [[-1, 1], [-1, 1], [-1, 1], [-1, -0.4, 0.4, 1], [-1, -0.4, 0.4, 1]][L], every = [8, 6, 5, 6, 5][L];
-    if (t % every === 0) {
+    const t = p.fireT, nN = [1, 2, 2, 2, 2][L], ivN = [6, 4, 3, 3, 3][L], dN = [4, 2, 1.6, 1.6, 1.6][L];
+    if (t % ivN === 0) for (let i = 0; i < nN; i++) shot(out, p.x + (nN > 1 ? (i ? 4 : -4) : 0), p.y - 10, UP, 16, dN, 'needle', 'pink');
+    const ks = [[], [-1, 1], [-1, 1], [-1, -0.4, 0.4, 1], [-1, -0.4, 0.4, 1]][L], ivA = [0, 9, 7, 7, 5][L];
+    if (ks.length && t % ivA === 0) {
       const spreadA = focus ? 0.35 : 0.9;
       for (const k of ks) shot(out, p.x + k * 10, p.y, UP + k * spreadA, 8, focus ? 1.9 : 1.7, 'amulet', 'purple', { homing: true, turn: focus ? 0.25 : 0.14, life: 90, erase: 1 });
     }
   },
-  // 라티엘(진 중립): 가운데 바늘(파워 1부터 셋) + 파워 2부터 옵션 둘의 별탄. 고속은 넓게, 저속은 옵션이 앞으로 모임.
-  // 별탄은 잡몹을 꿰뚫고 지나가 여러 마리를 고르게 맞힘(보스에게는 한 번 맞고 사라짐) (약 190)
+  // 라티엘(진 중립): 가운데 바늘 1→3줄 + 파워 2부터 옵션 둘의 별탄(4에서 겹별). 고속은 넓게, 저속은 옵션이 앞으로 모임.
+  // 별탄은 잡몹을 꿰뚫고 지나가 여러 마리를 고르게 맞힘(보스에게는 한 번 맞고 사라짐)
+  // 초당 피해량 약 50 / 80 / 145 / 175 / 190
   RH(p, out, focus, L) {
-    if (p.fireT % 3) return;
-    for (const dx of L ? [-5, 0, 5] : [-4, 4]) shot(out, p.x + dx, p.y - 10, UP, 16, 1.7, 'needle', 'cyan');
+    const n = [1, 2, 3, 3, 3][L], iv = [6, 5, 4, 3, 3][L], dmg = [5, 3.4, 2.4, 1.7, 1.7][L];
+    if (p.fireT % iv) return;
+    for (let i = 0; i < n; i++) shot(out, p.x + (i - (n - 1) / 2) * 5, p.y - 10, UP, 16, dmg, 'needle', 'cyan');
     for (const o of p.options) {
       const a = UP + (focus ? 0 : Math.sign(o.x - p.x) * 0.12);
       if (L >= 4) for (const d of [-3, 3]) shot(out, o.x + d, o.y - 4, a, 13, 1.1, 'star', 'blue', { pierce: [] });

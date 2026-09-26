@@ -202,7 +202,7 @@ const SPELLS = [
   },
   {
     name: '논스펠 · 마리와 마르코',
-    type: 'nonspell', boss: '마르코', bossColor: '#e0c89a', hp: 2000, time: 35, start: [240, 100],
+    type: 'nonspell', boss: '마르코', bossColor: '#e0c89a', hp: 1300, time: 35, start: [240, 100],
     *run(s) {
       const mari = churchDuo(s, [120, 80]);
       let holding = false;
@@ -233,7 +233,7 @@ const SPELLS = [
   },
   {
     name: '파테르 제1식 — 나의 의로운 오른손으로 너를 붙들리라',
-    type: 'spell', boss: '마르코', bossColor: '#e0c89a', hp: 2600, time: 50, start: [192, 100],
+    type: 'spell', boss: '마르코', bossColor: '#e0c89a', hp: 1900, time: 50, start: [192, 100],
     *run(s) {
       const mari = churchDuo(s);
       s.task(mariShield(s, mari));
@@ -296,7 +296,7 @@ const SPELLS = [
   },
   {
     name: '논스펠 · 마리의 딱밤',
-    type: 'nonspell', boss: '마르코', bossColor: '#e0c89a', hp: 2000, time: 35, start: [250, 100],
+    type: 'nonspell', boss: '마르코', bossColor: '#e0c89a', hp: 1400, time: 38, start: [250, 100],
     *run(s) {
       const mari = churchDuo(s, [110, 80]);
       // 마르코: 묵직한 조준탄
