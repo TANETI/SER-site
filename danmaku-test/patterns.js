@@ -63,8 +63,19 @@ function churchDuo(s, at = [80, 70]) {
   mari.chantColor = '#cfe8ff';
   return mari;
 }
+// 술식을 너무 자주 쓰지 않게: 한 패턴 안에서 두 번째 영창부터는 앞에 쉬는 구간(가벼운 견제탄)을 둠.
+// 쉬는 길이는 이지 5초 … 헬 3초
+function* castGap(s) {
+  s.boss.casts = (s.boss.casts || 0) + 1;
+  if (s.boss.casts === 1) return;
+  const frames = s.lv(300, 260, 220, 200, 180);
+  for (let t = 0; t < frames; t += s.wait(40)) {
+    s.spread(s.lv(1, 3, 3, 3, 5), s.aim(), 0.3, { spd: s.sp(2.2), shape: 'small', color: 'white' });
+    yield s.wait(40);
+  }
+}
 // 마리가 가끔 필리우스 제1식으로 마르코에게 보호막을 씌움
-function* mariShield(s, mari, every = 480, dur = 240) {
+function* mariShield(s, mari, every = 780, dur = 240) {
   for (;;) {
     yield every;
     yield* s.chant('FILIUS1', { by: mari });
@@ -230,7 +241,7 @@ const SPELLS = [
       }());
       s.task(function* () {
         for (;;) {
-          yield 200;
+          yield 420;
           yield* s.chant('FILIUS2', { by: mari });
           holding = true;
           s.zone({ x: s.boss.x, y: s.boss.y, r: 52, dur: 300 });
@@ -258,6 +269,7 @@ const SPELLS = [
         const light = s.task(function* () {
           for (;;) { s.spread(s.lv(3, 5, 5), s.aim(), 0.25, { spd: s.sp(2.2), shape: 'small', color: 'orange' }); yield s.wait(30); }
         }());
+        yield* castGap(s);
         yield* s.chant('PATER1', { by: s.boss });
         light.return();
         // 오른손이 황금빛으로 빛나는 동안 플레이어 쪽으로 한 번 자리를 잡고 황금 주먹을 날림
@@ -284,10 +296,11 @@ const SPELLS = [
     type: 'spell', boss: '마르코', bossColor: '#e0c89a', hp: 2300, time: 55, start: [192, 100],
     *run(s) {
       const mari = churchDuo(s);
-      s.task(mariShield(s, mari, 540));
+      s.task(mariShield(s, mari, 840));
       s.task(mariRings(s, mari, 75));
       for (;;) {
         // 제1식보다 봉독이 길어 발동이 느림
+        yield* castGap(s);
         yield* s.chant('PATER2', { by: s.boss, step: 50 });
         for (let k = 0; k < s.lv(2, 3, 3); k++) {
           // 플레이어 위치에서 70px 앞에 멈춤. 도착 지점에서 퍼지는 탄을 피할 거리를 남김
@@ -326,7 +339,7 @@ const SPELLS = [
       // 마리: 파테르 제1식으로 딱밤. 필리우스 전문이라 파테르의 위력이 나오지 않아 별로 아프지 않음
       // → 맞아도 목숨은 그대로, 잠깐 움직임만 둔해짐. 그 사이 마르코의 탄을 조심
       for (;;) {
-        yield 150;
+        yield 320;
         yield* s.chant('PATER1', { by: mari });
         mari.glow = 140;
         for (let k = 0; k < s.lv(3, 4, 5); k++) {
@@ -347,6 +360,7 @@ const SPELLS = [
         s.task(function* () {   // 영창 중에도 가벼운 견제
           for (let k = 0; k < 4; k++) { s.spread(s.lv(1, 3, 3), s.aim(), 0.35, { spd: s.sp(2.4), shape: 'small', color: 'orange' }); yield s.wait(45); }
         }());
+        yield* castGap(s);
         yield* s.chant('FILIUS2', { by: mari });
         const dur = s.lv(240, 300, 360);
         s.zone({ x: 192, y: 95, r: 82, dur });
@@ -371,6 +385,7 @@ const SPELLS = [
       s.shield(s.boss, 60 * 60);
       s.task(mariRings(s, mari, 90));
       for (;;) {
+        yield* castGap(s);
         yield* s.chant('PATER2', { by: s.boss, step: 36 });
         for (let k = 0; k < 2; k++) {
           const px = s.player.x, py = s.player.y, d = Math.hypot(px - s.boss.x, py - s.boss.y) || 1;
@@ -413,6 +428,7 @@ const SPELLS = [
         const light = s.task(function* () {
           for (;;) { s.spread(s.lv(1, 3, 3), s.aim(), 0.3, { spd: s.sp(2), shape: 'small', color: 'white' }); yield s.wait(40); }
         }());
+        yield* castGap(s);
         yield* s.chant('SPIRITUS1', { by: s.boss });
         light.return();
         // 골든타임을 억지로 근소하게 늘리는 술식 → 이 스펠의 제한시간이 조금 늘어남(최대 3번)
@@ -462,6 +478,7 @@ const SPELLS = [
         const light = s.task(function* () {
           for (let k = 0; ; k++) { s.ring(s.cnt(10), { offset: k * 0.3, spd: s.sp(1.4), shape: 'small', color: 'white' }); yield s.wait(35); }
         }());
+        yield* castGap(s);
         yield* s.chant('PATER1', { by: s.boss });
         light.return();
         // 황금빛 오른손으로 던진 큰 탄이 멈춰 선 자리에서 사슬 고리가 번져 나감(붙드는 손)
@@ -530,6 +547,7 @@ const SPELLS = [
     *run(s) {
       // 예로니모의 파테르 제2식: 돌진해 멈춘 자리에서 황금 사슬을 사방으로 뻗어 붙들어 둠(사슬 사이 대각선 방향이 틈)
       for (;;) {
+        yield* castGap(s);
         yield* s.chant('PATER2', { by: s.boss, step: 50 });
         for (let k = 0; k < s.lv(2, 2, 3, 3); k++) {
           const px = s.player.x, py = s.player.y, d = Math.hypot(px - s.boss.x, py - s.boss.y) || 1;
@@ -1010,7 +1028,7 @@ const SPELLS = [
     *run(s) {
       // 불렛타임의 반대: 경고 뒤 잠깐 적 탄 시계만 빨라짐. 평소엔 느긋한 탄을 깔아 두었다가 한꺼번에 몰아침
       for (;;) {
-        for (let k = 0; k < 4; k++) {
+        for (let k = 0; k < 7; k++) {
           s.ring(s.cnt(18), { offset: s.rand(0, s.TAU), spd: s.sp(1.1), shape: 'orb', color: 'cyan' });
           if (s.diff > 0) s.spread(3, s.aim(), 0.25, { spd: s.sp(1.5), shape: 'rice', color: 'white' });
           yield s.wait(32);

@@ -11,6 +11,8 @@ const START_LIVES = 3, START_BOMBS = 3;
 const MAX_POWER = 4, P_SMALL = 0.02, P_BIG = 0.25, DEATH_POWER_LOSS = 0.5;
 // 난이도별 보스 체력 배율. 엑스트라는 한 단계 위
 const HP_MUL = [0.7, 0.85, 1, 1.1, 1.2, 1.3];
+// 보스 체력 전체 배율(제한시간에는 영향 없음)
+const BOSS_HP = 0.9;
 // 패턴에 적힌 체력·제한시간에 곱하는 배율(내구 스펠·잡몹 구간·허수아비 제외).
 // 보스전은 스테이지마다 hpScale로 따로 정해 노말 약 6.5분(이지 5분대, 헬 8~9분)에 맞춤. 단일 패턴 연습은 기본값
 const HP_SCALE = 2.2;
@@ -156,7 +158,7 @@ function shotSprite(shape, color) {
 // 탄 한 발: {x,y,vx,vy,dmg,shape,color,homing,turn,life,laser}
 // 파워 단계 L(0~4)에 따라 구성이 바뀐다. 괄호 안은 정지 표적에 붙어 쏠 때 최대 파워 기준 초당 피해량
 // 모든 기체 공통 대미지 배율. 표 안의 대미지·주석의 초당 피해량은 배율 적용 전 값
-const SHOT_DMG = 1.25;
+const SHOT_DMG = 1.4375;   // 1.25 × 1.15
 function shot(out, x, y, a, spd, dmg, shape, color, extra) {
   out.push({ x, y, vx: Math.cos(a) * spd, vy: Math.sin(a) * spd, dmg: dmg * SHOT_DMG, shape, color, ...extra });
 }
@@ -275,7 +277,7 @@ class Game {
     this.stats = { miss: 0, hits: 0, bombs: 0, dmgLog: new Array(60).fill(0), dmgNow: 0 };
     const scaled = sp.hp < 99999 && !sp.survival && sp.type !== 'stage';
     const k = scaled ? (this.run?.hpScale ?? HP_SCALE) : 1;
-    const hp = sp.hp >= 99999 ? sp.hp : Math.max(1, Math.round((sp.hp || 1000) * HP_MUL[this.effDiff()] * k));
+    const hp = sp.hp >= 99999 ? sp.hp : Math.max(1, Math.round((sp.hp || 1000) * HP_MUL[this.effDiff()] * k * (scaled ? BOSS_HP : 1)));
     const b = this.boss = { x: W / 2, y: -40, hp, maxHp: hp, move: null, hidden: sp.type === 'stage', t: 0,
       name: sp.boss || '', color: sp.bossColor || '#d8d0ff', shield: 0, glow: 0, contact: false };
     if (cont && prev && !prev.hidden) { b.x = prev.x; b.y = prev.y; }
