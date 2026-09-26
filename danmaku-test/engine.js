@@ -777,7 +777,7 @@ function makeAPI(G) {
       return a;
     },
     // 판정 없는 빨간 예고선: {x,y,x2,y2,dur}
-    warnLine(o) { G.fx.push({ kind: 'warnline', x: o.x ?? G.boss.x, y: o.y ?? G.boss.y, x2: o.x2, y2: o.y2, t: 0, life: o.dur ?? 30 }); },
+    warnLine(o) { G.fx.push({ kind: 'warnline', x: o.x ?? G.boss.x, y: o.y ?? G.boss.y, x2: o.x2, y2: o.y2, t: 0, life: o.dur ?? 30, band: o.band ?? 0 }); },
     // 사각 구역 공격 {x,y,w,h,warn,dur,label,color}. warn 동안 예고, dur 동안 판정
     area(o) {
       const a = { x: o.x, y: o.y, w: o.w, h: o.h, warn: o.warn ?? 60, dur: o.dur ?? 20, label: o.label ?? '', color: o.color || '#ff3b4a', t: 0 };
@@ -1115,8 +1115,7 @@ function drawLasers(G, g) {
     const c = COLORS[l.color] || l.color;
     g.save(); g.translate(l.x, l.y); g.rotate(l.ang);
     if (l.t <= l.warn) {
-      g.globalAlpha = 0.35 + 0.25 * Math.sin(l.t * 0.5);
-      g.fillStyle = c; g.fillRect(0, -0.75, l.len, 1.5);
+      warnStroke(g, l.len, c, l.t, l.warn - l.t, l.w * 0.7);   // 띠 = 실제 판정 폭
     } else if (l.cw > 0) {
       g.globalAlpha = 0.85; g.fillStyle = c; g.fillRect(0, -l.cw / 2, l.len, l.cw);
       g.fillStyle = '#fff'; g.fillRect(0, -l.cw / 5, l.len, l.cw / 2.5);
@@ -1149,13 +1148,30 @@ function drawAreas(G, g) {
   g.globalAlpha = 1; g.textAlign = 'left'; g.textBaseline = 'top';
 }
 
+// 예고선: 어두운 테두리 위에 굵은 색 점선. 점선은 공격이 나아갈 방향으로 흐르고,
+// 발동 직전(남은 18프레임)에는 빠르게 깜빡이며 더 굵어짐. band를 주면 실제로 맞는 폭을 옅은 띠로 함께 보여 줌.
+// (0,0)에서 +x 방향으로 len만큼 그림
+function warnStroke(g, len, color, t, remain, band = 0) {
+  const urgent = remain < 18;
+  const blink = urgent ? (Math.sin(t * 1.4) > 0 ? 1 : 0.5) : 0.8 + 0.2 * Math.sin(t * 0.3);
+  if (band > 0) { g.globalAlpha = 0.16 * blink; g.fillStyle = color; g.fillRect(0, -band / 2, len, band); }
+  g.lineCap = 'butt';
+  g.globalAlpha = 0.75 * blink; g.strokeStyle = 'rgba(0,0,0,0.85)'; g.lineWidth = urgent ? 7 : 6;
+  g.beginPath(); g.moveTo(0, 0); g.lineTo(len, 0); g.stroke();
+  g.globalAlpha = blink; g.strokeStyle = color; g.lineWidth = urgent ? 4 : 3;
+  g.setLineDash([14, 7]); g.lineDashOffset = -t * 1.6;
+  g.beginPath(); g.moveTo(0, 0); g.lineTo(len, 0); g.stroke();
+  g.setLineDash([]); g.lineDashOffset = 0;
+  // 시작점: 어디서 오는지
+  g.fillStyle = 'rgba(0,0,0,0.85)'; g.beginPath(); g.arc(0, 0, 5.5, 0, TAU); g.fill();
+  g.fillStyle = color; g.beginPath(); g.arc(0, 0, 3.5, 0, TAU); g.fill();
+  g.lineWidth = 1; g.globalAlpha = 1;
+}
+
 function drawChain(G, g, l) {
   g.save(); g.translate(l.x, l.y); g.rotate(l.ang);
   if (l.t <= l.warn) {
-    // 빨간 예고선: 발사 직전일수록 빠르게 깜빡임
-    const rate = l.t > l.warn - 15 ? 1.6 : 0.5;
-    g.globalAlpha = Math.sin(l.t * rate) > 0 ? 0.9 : 0.25;
-    g.fillStyle = '#ff2a3a'; g.fillRect(0, -1, l.len, 2);
+    warnStroke(g, l.len, '#ff2a3a', l.t, l.warn - l.t, l.w);
   } else if (l.tip > 0) {
     // 고리는 끝부분 기준으로 배치해 뻗고 걷힐 때 함께 움직여 보이게 함
     const img = sprite('link', 'gold'), step = 9;
@@ -1211,9 +1227,9 @@ function drawFx(G, g) {
       g.globalAlpha = 0.7 * (1 - k); g.fillStyle = COLORS[f.color] || '#fff';
       g.beginPath(); g.arc(f.x, f.y - k * 6, 2 + k * 6, 0, TAU); g.fill();
     } else if (f.kind === 'warnline') {
-      g.globalAlpha = Math.sin(f.t * (f.t > f.life - 12 ? 1.6 : 0.6)) > 0 ? 0.9 : 0.25;
-      g.strokeStyle = '#ff2a3a'; g.lineWidth = 2;
-      g.beginPath(); g.moveTo(f.x, f.y); g.lineTo(f.x2, f.y2); g.stroke();
+      g.save(); g.translate(f.x, f.y); g.rotate(Math.atan2(f.y2 - f.y, f.x2 - f.x));
+      warnStroke(g, Math.hypot(f.x2 - f.x, f.y2 - f.y), '#ff2a3a', f.t, f.life - f.t, f.band || 0);
+      g.restore();
     } else if (f.kind === 'text') {
       g.globalAlpha = 1 - k; g.fillStyle = '#ffe28a'; g.font = 'bold 16px system-ui, "Malgun Gothic", sans-serif';
       g.textAlign = 'center'; g.textBaseline = 'bottom'; g.fillText(f.text, f.x, f.y - k * 16); g.textAlign = 'left'; g.textBaseline = 'top';

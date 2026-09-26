@@ -34,7 +34,7 @@
 //   yield* s.chant('PATER1', {by, step})     화면 상단 구석에 영창을 한 줄씩 띄움. 호명 줄이 뜰 때까지 기다림(전조)
 //   s.shield(대상, 프레임)                    보호막. 통상탄은 막고 봄은 통과
 //   s.zone({x, y, r, dur})                    고정 구역 보호막. 들어온 자기 탄을 지움
-//   s.warnLine({x, y, x2, y2, dur})           판정 없는 빨간 예고선
+//   s.warnLine({x, y, x2, y2, dur, band})     판정 없는 빨간 예고선. band=덮을 폭을 옅은 띠로(돌진이면 몸통 폭 32)
 //   s.extendTime(초)                          제한시간 연장
 //   s.area({x, y, w, h, warn, dur, label, color})   사각 구역 공격. 번호(label)를 붙여 순서를 보여 줌
 //   s.bulletTime(배율, 프레임)                 적 탄 속도 배율(1보다 작으면 불렛타임, 크면 오버클럭). 플레이어는 그대로
@@ -307,7 +307,7 @@ const SPELLS = [
           const px = s.player.x, py = s.player.y, d = Math.hypot(px - s.boss.x, py - s.boss.y) || 1;
           const stop = Math.max(0, d - 70);
           const tx = s.boss.x + (px - s.boss.x) / d * stop, ty = Math.min(s.boss.y + (py - s.boss.y) / d * stop, s.H - 120);
-          s.warnLine({ x: s.boss.x, y: s.boss.y, x2: tx, y2: ty, dur: s.lv(48, 40, 32) });
+          s.warnLine({ x: s.boss.x, y: s.boss.y, x2: tx, y2: ty, band: 32, dur: s.lv(48, 40, 32) });
           yield s.lv(48, 40, 32);
           // 사거리가 없으므로 직접 달려듦. 돌진 중에는 몸에 닿아도 피격
           s.boss.contact = true;
@@ -391,7 +391,7 @@ const SPELLS = [
           const px = s.player.x, py = s.player.y, d = Math.hypot(px - s.boss.x, py - s.boss.y) || 1;
           const stop = Math.max(0, d - 80);
           const tx = s.boss.x + (px - s.boss.x) / d * stop, ty = Math.min(s.boss.y + (py - s.boss.y) / d * stop, s.H - 130);
-          s.warnLine({ x: s.boss.x, y: s.boss.y, x2: tx, y2: ty, dur: s.lv(48, 40, 34) });
+          s.warnLine({ x: s.boss.x, y: s.boss.y, x2: tx, y2: ty, band: 32, dur: s.lv(48, 40, 34) });
           yield s.lv(48, 40, 34);
           s.boss.contact = true;
           yield* s.moveTo(tx, ty, 20);
@@ -553,7 +553,7 @@ const SPELLS = [
           const px = s.player.x, py = s.player.y, d = Math.hypot(px - s.boss.x, py - s.boss.y) || 1;
           const stop = Math.max(0, d - 110);
           const tx = s.boss.x + (px - s.boss.x) / d * stop, ty = Math.min(s.boss.y + (py - s.boss.y) / d * stop, s.H - 160);
-          s.warnLine({ x: s.boss.x, y: s.boss.y, x2: tx, y2: ty, dur: s.lv(48, 40, 34) });
+          s.warnLine({ x: s.boss.x, y: s.boss.y, x2: tx, y2: ty, band: 32, dur: s.lv(48, 40, 34) });
           yield s.lv(48, 40, 34);
           s.boss.contact = true;
           yield* s.moveTo(tx, ty, 20);
