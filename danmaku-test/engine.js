@@ -224,6 +224,7 @@ class Game {
     this.g = canvas.getContext('2d');
     this.keys = new Set(); this.pressed = new Set();
     this.speed = 1; this.invincible = false; this.difficulty = 1; this.practicePower = 0;   // 단일 패턴 연습도 기본은 파워 0(패널에서 올림)
+    this.shakeOn = true; this.shakeMag = 0;   // 화면 흔들림(경기 화면만)
     this.powerLock = false;   // 켜면 파워가 연습 파워에 고정(보스전 포함, 죽어도 안 줄고 아이템으로 안 오름) this.loop = true; this.paused = false;
     this.spells = []; this.spellIndex = 0;
     this.angel = 'AR';
@@ -234,6 +235,9 @@ class Game {
     this.bgT = 0;
     this.api = makeAPI(this);
   }
+
+  // 화면 흔들림: 가장 센 것을 따르고 매 프레임 줄어듦
+  shake(mag) { if (this.shakeOn) this.shakeMag = Math.max(this.shakeMag, mag); }
 
   // 실제로 쓰는 난이도. 엑스트라 패턴은 한 단계 위(최대 3)
   effDiff() { return Math.min(DENSITY.length - 1, this.difficulty + (this.spell && this.spell.extra ? 1 : 0)); }
@@ -320,6 +324,10 @@ class Game {
     const sp = this.spell;
     const captured = reason !== 'timeout' || sp.survival ? this.stats.miss === 0 && this.stats.bombs === 0 : false;
     if (captured && sp.type === 'spell') { this.score += Math.floor(1000000 * this.timer / this.timerMax + 100000); SFX.capture(); }
+    if (reason === 'defeat' && !this.boss.hidden) {
+      SFX.boom(); this.shake(9);
+      this.fx.push({ kind: 'burst', x: this.boss.x, y: this.boss.y, t: 0, life: 50, color: '#fff' });
+    }
     this.clearBullets(true);
     this.tasks.clear(); this.areas = []; this.slow = null;
     // 논스펠은 작은 P만, 스펠은 큰 P 하나를 더 줌
@@ -387,7 +395,14 @@ class Game {
     const b = this.boss;
     this.updateActor(b);
     for (const a of this.partners) this.updateActor(a);
-    for (const c of this.chants) c.t++;
+    for (const c of this.chants) {
+      c.t++;
+      // 영창 한 줄이 뜰 때마다 종소리(호명 줄은 더 길게)
+      const i = c.t / c.step;
+      if (Number.isInteger(i) && i < c.lines.length) SFX.chime(i === c.lines.length - 1);
+      else if (c.t === 1) SFX.chime(c.lines.length === 1);
+    }
+    this.shakeMag = this.shakeMag < 0.3 ? 0 : this.shakeMag * 0.86;
     this.chants = this.chants.filter(c => c.t < c.end + c.fade);
     for (const z of this.zones) z.t++;
     this.zones = this.zones.filter(z => z.t < z.dur);
@@ -400,6 +415,8 @@ class Game {
     } else if (this.phase === 'active') {
       this.frame++;
       this.tasks.step();
+      // 제한시간 10초 전부터 초읽기
+      if (this.timer <= 600 && this.timer % 60 === 0 && this.timer > 0) SFX.tick(this.timer <= 180);
       if (--this.timer <= 0) this.endSpell('timeout');
       else if (!b.hidden && !sp.survival && b.hp <= 0) this.endSpell('defeat');
     } else if (this.phase === 'result') {
@@ -455,11 +472,13 @@ class Game {
         if (!this.invincible) p.bombs--;
         p.bomb = { t: 0 }; p.inv = Math.max(p.inv, 30 + 150); this.stats.bombs++;
         SFX.bomb();
+        p.bomb.shook = false;
       } else SFX.empty();
     }
     if (p.bomb) {
       const bm = p.bomb; bm.t++;
       if (bm.t > 30) {
+        if (bm.t === 31) this.shake(7);
         bm.r = (bm.t - 30) * 9;
         for (const b of this.bullets) if (dist2(b.x, b.y, p.x, p.y) < bm.r * bm.r) { b.dead = true; this.fx.push({ kind: 'spark', x: b.x, y: b.y, t: 0, life: 20, color: b.color }); }
         if (bm.r > 100) this.lasers = [];
@@ -486,7 +505,7 @@ class Game {
     if (this.phase !== 'active' && this.phase !== 'intro') return;
     this.stats.miss++;
     this.fx.push({ kind: 'burst', x: p.x, y: p.y, t: 0, life: 40 });
-    SFX.die();
+    SFX.die(); this.shake(12);
     this.clearBullets(false);
     p.x = W / 2; p.y = H - 48; p.inv = 150; p.bomb = null;
     // 한 번 죽을 때마다 목숨 하나. 폭탄은 다시 3개로
@@ -541,6 +560,7 @@ class Game {
       l.t++;
       if (l.fn) { try { l.fn(l, this.api); } catch (e) { this.fail(e); l.fn = null; } }
       if (l.kind === 'chain') { this.updateChain(l, p); continue; }
+      if (l.t === l.warn + 1) SFX.laser();
       const total = l.warn + l.dur;
       if (l.t > total + 12) { l.dead = true; continue; }
       // 폭: 예고선 → 8프레임에 걸쳐 전개 → 유지 → 12프레임에 걸쳐 수축
@@ -559,7 +579,7 @@ class Game {
   // 사슬: 예고선 깜빡임 → 선을 따라 빠르게 뻗음 → 유지 → 천천히 걷힘. 뻗은 구간 전체가 판정.
   updateChain(l, p) {
     const t = l.t - l.warn, { shoot, hold, retract } = l;
-    if (t === 1) SFX.chain();
+    if (t === 1) { SFX.chain(); this.shake(2.5); }
     if (t <= 0) l.tip = 0;
     else if (t <= shoot) { const k = t / shoot; l.tip = l.len * (1 - (1 - k) ** 3); }
     else if (t <= shoot + hold) l.tip = l.len;
@@ -576,7 +596,7 @@ class Game {
     const p = this.player;
     for (const a of this.areas) {
       a.t++;
-      if (a.t === a.warn) SFX.strike();
+      if (a.t === a.warn) { SFX.strike(); this.shake(4); }
       if (a.t > a.warn && a.t <= a.warn + a.dur &&
           p.x > a.x - HIT_R && p.x < a.x + a.w + HIT_R && p.y > a.y - HIT_R && p.y < a.y + a.h + HIT_R) this.hitPlayer();
     }
@@ -678,6 +698,9 @@ function makeAPI(G) {
     wait: f => Math.max(1, Math.round(f * INTERVAL[G.effDiff()])),               // 발사 간격(프레임)
     sp: v => v * SPEED[G.effDiff()],                                             // 탄속
     // 머리 위 말풍선(대사 대신 짧은 절차 표시용): who=보스·동료
+    // 화면 흔들림(세기 2~12 정도)과 충격음
+    shake(mag = 4) { G.shake(mag); },
+    impact(mag = 6) { G.shake(mag); SFX.impact(); },
     ghost(x, y, color) { G.fx.push({ kind: 'ghost', x, y, color, t: 0, life: 20 }); },
     // 판정 없는 조준 표시(빨간 십자선) {x,y,dur}
     mark(o) { G.fx.push({ kind: 'mark', x: o.x, y: o.y, t: 0, life: o.dur ?? 30 }); },
@@ -709,6 +732,7 @@ function makeAPI(G) {
         fn: o.fn, margin: o.margin ?? 32, marginTop: o.marginTop ?? 0, data: o.data || {},
       };
       G.bullets.push(b);
+      SFX.fire(b.shape === 'big' || b.shape === 'orb');
       return b;
     },
     // n발 원형. o.offset=시작 각도
@@ -804,7 +828,9 @@ function render(G) {
   g.fillStyle = '#12121c'; g.fillRect(0, 0, 640, 480);
 
   g.save();
-  g.translate(FX, FY);
+  // 흔들림은 경기 화면에만. 오른쪽 정보창은 가만히 둠
+  const sm = G.shakeMag;
+  g.translate(FX + (sm ? (Math.random() * 2 - 1) * sm : 0), FY + (sm ? (Math.random() * 2 - 1) * sm : 0));
   g.beginPath(); g.rect(0, 0, W, H); g.clip();
   drawBackground(G, g);
   drawBoss(G, g);
@@ -1117,8 +1143,9 @@ function drawFx(G, g) {
       g.fillRect(f.x - 4, y - 3, 8, 12);
       g.strokeStyle = '#fff'; g.beginPath(); g.arc(f.x, f.y, 10 + k * 30, 0, TAU); g.stroke();
     } else if (f.kind === 'burst') {
-      g.globalAlpha = 1 - k; g.strokeStyle = '#ff5e7a'; g.lineWidth = 3;
+      g.globalAlpha = 1 - k; g.strokeStyle = f.color || '#ff5e7a'; g.lineWidth = 3;
       g.beginPath(); g.arc(f.x, f.y, k * 80, 0, TAU); g.stroke();
+      if (f.color) { g.lineWidth = 1.5; g.beginPath(); g.arc(f.x, f.y, k * 130, 0, TAU); g.stroke(); }
     } else if (f.kind === 'hit') {
       g.globalAlpha = 0.7 * (1 - k); g.fillStyle = COLORS[f.color] || '#fff';
       g.beginPath(); g.arc(f.x, f.y - k * 6, 2 + k * 6, 0, TAU); g.fill();

@@ -73,6 +73,7 @@ function syncPanel() {
   $('lockChk').checked = G.powerLock;
   $('invChk').checked = G.invincible;
   $('sndChk').checked = !SFX.muted;
+  $('shakeChk').checked = G.shakeOn;
   if ($('editor').open) $('code').value = spellSource(G.spell);
 }
 G.onChange = syncPanel;
@@ -93,6 +94,9 @@ $('invChk').onchange = e => { G.invincible = e.target.checked; settle(e.target);
 $('loopChk').onchange = e => { G.loop = e.target.checked; settle(e.target); };
 $('restartBtn').onclick = e => { G.restart(); settle(e.target); };
 $('sndChk').onchange = e => { SFX.setMuted(!e.target.checked); settle(e.target); };
+$('volRange').oninput = e => { SFX.unlock(); SFX.setVolume(+e.target.value); SFX.item(); };
+$('volRange').onchange = e => settle(e.target);
+$('shakeChk').onchange = e => { G.shakeOn = e.target.checked; if (!G.shakeOn) G.shakeMag = 0; settle(e.target); };
 $('editor').addEventListener('toggle', () => { if ($('editor').open) $('code').value = spellSource(G.spell); });
 $('prevBtn').onclick = e => { G.startSingle(G.spellIndex - 1); syncPanel(); settle(e.target); };
 $('nextBtn').onclick = e => { G.startSingle(G.spellIndex + 1); syncPanel(); settle(e.target); };

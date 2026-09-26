@@ -42,6 +42,7 @@
 //   s.rand(a, b) · s.randInt(a, b) · s.pick(arr) · s.frame · s.hpRate · s.TAU · s.W · s.H
 //   영창 키: FILIUS1 FILIUS2 PATER1 PATER2 SPIRITUS1 NUNC_DIMITTIS CONFITEOR. 배열을 직접 넘겨 일부 줄만 읊을 수도 있음
 //   s.say(대상, '짧은 표시', 프레임)            머리 위 말풍선
+//   s.shake(세기) · s.impact(세기)             화면 흔들림 · 흔들림+충격음(돌진 착지 등)
 //   s.mark({x, y, dur})                       판정 없는 조준 표시(빨간 십자선)
 //   s.ghost(x, y, color)                      잔상 한 점
 //   s.player.vx · s.player.vy                 플레이어의 이번 프레임 이동량(예측 조준용)
@@ -298,6 +299,7 @@ const SPELLS = [
           s.boss.contact = true;
           yield* s.moveTo(tx, ty, 18);
           s.boss.contact = false;
+          s.impact(7);
           s.ring(s.cnt(20), { spd: 0.6, accel: 0.04, maxSpd: s.sp(2.2), shape: 'orb', color: 'gold' });
           if (s.diff > 0) s.ring(s.cnt(20), { offset: Math.PI / 20, spd: 0.4, accel: 0.03, maxSpd: s.sp(1.4), shape: 'small', color: 'yellow' });
           yield 40;   // 붙든 자리에서 잠시 멈춤 = 공격 기회
@@ -378,6 +380,7 @@ const SPELLS = [
           s.boss.contact = true;
           yield* s.moveTo(tx, ty, 20);
           s.boss.contact = false;
+          s.impact(7);
           s.ring(s.cnt(18), { spd: 0.6, accel: 0.04, maxSpd: s.sp(2), shape: 'orb', color: 'gold' });
           yield 45;
           yield* s.moveTo(s.rand(140, 244), s.rand(80, 110), 45);
@@ -536,6 +539,7 @@ const SPELLS = [
           s.boss.contact = true;
           yield* s.moveTo(tx, ty, 20);
           s.boss.contact = false;
+          s.impact(7);
           const n = s.lv(4, 4, 6, 6, 8), off = s.rand(0, s.TAU);
           for (let i = 0; i < n; i++) s.chain({ x: tx, y: ty, ang: off + i * s.TAU / n, len: 520, warn: s.lv(45, 40, 34), shoot: 10, hold: 14, retract: 70 });
           yield s.lv(45, 40, 34) + 30;
