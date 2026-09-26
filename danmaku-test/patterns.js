@@ -39,7 +39,9 @@
 //   s.bulletTime(배율, 프레임)                 적 탄만 느려짐(플레이어는 그대로)
 //   ivyVine(s, {...}) · ivyLeaf(...)           담쟁이 덩굴·잎 (리크니스)
 //   s.rand(a, b) · s.randInt(a, b) · s.pick(arr) · s.frame · s.hpRate · s.TAU · s.W · s.H
-//   영창 키: FILIUS1 FILIUS2 PATER1 PATER2 SPIRITUS1 NUNC_DIMITTIS (chants.js, 세계관 원문 그대로)
+//   영창 키: FILIUS1 FILIUS2 PATER1 PATER2 SPIRITUS1 NUNC_DIMITTIS CONFITEOR. 배열을 직접 넘겨 일부 줄만 읊을 수도 있음
+//   s.say(대상, '짧은 표시', 프레임)            머리 위 말풍선
+//   extra: true                               엑스트라 패턴. 고른 난이도보다 한 단계 위로 계산 (chants.js, 세계관 원문 그대로)
 //   s.fire({..., soft: true})  딱밤 탄: 맞아도 목숨이 줄지 않고 잠깐 느려짐
 //   탄의 alpha는 판정이 그대로이므로 0.35 아래로 내리지 않는다
 //
@@ -200,7 +202,7 @@ const SPELLS = [
   },
   {
     name: '논스펠 · 마리와 마르코',
-    type: 'nonspell', boss: '마르코', bossColor: '#e0c89a', hp: 2600, time: 35, start: [240, 100],
+    type: 'nonspell', boss: '마르코', bossColor: '#e0c89a', hp: 2000, time: 35, start: [240, 100],
     *run(s) {
       const mari = churchDuo(s, [120, 80]);
       let holding = false;
@@ -231,7 +233,7 @@ const SPELLS = [
   },
   {
     name: '파테르 제1식 — 나의 의로운 오른손으로 너를 붙들리라',
-    type: 'spell', boss: '마르코', bossColor: '#e0c89a', hp: 3600, time: 50, start: [192, 100],
+    type: 'spell', boss: '마르코', bossColor: '#e0c89a', hp: 2600, time: 50, start: [192, 100],
     *run(s) {
       const mari = churchDuo(s);
       s.task(mariShield(s, mari));
@@ -264,7 +266,7 @@ const SPELLS = [
   },
   {
     name: '파테르 제2식 — 능히 일어나지 못하게 하리니',
-    type: 'spell', boss: '마르코', bossColor: '#e0c89a', hp: 3600, time: 55, start: [192, 100],
+    type: 'spell', boss: '마르코', bossColor: '#e0c89a', hp: 2800, time: 55, start: [192, 100],
     *run(s) {
       const mari = churchDuo(s);
       s.task(mariShield(s, mari, 540));
@@ -294,7 +296,7 @@ const SPELLS = [
   },
   {
     name: '논스펠 · 마리의 딱밤',
-    type: 'nonspell', boss: '마르코', bossColor: '#e0c89a', hp: 2600, time: 35, start: [250, 100],
+    type: 'nonspell', boss: '마르코', bossColor: '#e0c89a', hp: 2000, time: 35, start: [250, 100],
     *run(s) {
       const mari = churchDuo(s, [110, 80]);
       // 마르코: 묵직한 조준탄
@@ -320,7 +322,7 @@ const SPELLS = [
   },
   {
     name: '필리우스 제2식 — 그의 백성을 두르시리로다',
-    type: 'spell', boss: '마르코', bossColor: '#e0c89a', hp: 3000, time: 55, start: [232, 95],
+    type: 'spell', boss: '마르코', bossColor: '#e0c89a', hp: 1600, time: 55, start: [232, 95],
     *run(s) {
       // 마리가 둘을 감싸는 구역 보호막을 세움. 보호막이 서 있는 동안은 자기 탄이 들어가지 않음
       // → 마리가 다시 영창하는 동안(보호막이 없는 동안)이 공격할 때
@@ -373,7 +375,7 @@ const SPELLS = [
   },
   {
     name: '논스펠 · 예로니모 1',
-    type: 'nonspell', boss: '예로니모', bossColor: '#e8e0c8', hp: 2800, time: 35, start: [192, 100],
+    type: 'nonspell', boss: '예로니모', bossColor: '#e8e0c8', hp: 2800, time: 42, start: [192, 100],
     *run(s) {
       for (let w = 1; ; w++) {
         // 황금 사슬 부채꼴: 줄마다 고리 4개가 속도 차로 늘어져 사슬처럼 보임
@@ -421,7 +423,7 @@ const SPELLS = [
   },
   {
     name: '논스펠 · 예로니모 2',
-    type: 'nonspell', boss: '예로니모', bossColor: '#e8e0c8', hp: 3000, time: 35, start: [192, 110],
+    type: 'nonspell', boss: '예로니모', bossColor: '#e8e0c8', hp: 3000, time: 42, start: [192, 110],
     *run(s) {
       // 느리게 도는 사슬 팔 셋 + 반대로 도는 가는 팔 셋(노말 이상) + 가끔 조준 칼날
       let a = 0;
@@ -437,7 +439,7 @@ const SPELLS = [
   },
   {
     name: '파테르 제1식 — 나의 의로운 오른손으로 너를 붙들리라',
-    type: 'spell', boss: '예로니모', bossColor: '#e8e0c8', hp: 3400, time: 45, start: [192, 100],
+    type: 'spell', boss: '예로니모', bossColor: '#e8e0c8', hp: 3400, time: 52, start: [192, 100],
     *run(s) {
       for (;;) {
         const light = s.task(function* () {
@@ -559,7 +561,7 @@ const SPELLS = [
   },
   {
     name: '논스펠 · 리크니스 1',
-    type: 'nonspell', boss: '리크니스', bossColor: '#e8b4c8', hp: 2800, time: 35, start: [192, 100],
+    type: 'nonspell', boss: '리크니스', bossColor: '#e8b4c8', hp: 2800, time: 42, start: [192, 100],
     *run(s) {
       // 사방으로 굽이치며 자라는 덩굴. 잎은 잠시 붙어 있다가 떨어짐
       for (let w = 1; ; w++) {
@@ -573,7 +575,7 @@ const SPELLS = [
   },
   {
     name: '「벽을 타는 덩굴」(가칭)',
-    type: 'spell', boss: '리크니스', bossColor: '#e8b4c8', hp: 3400, time: 45, start: [192, 90],
+    type: 'spell', boss: '리크니스', bossColor: '#e8b4c8', hp: 3400, time: 52, start: [192, 90],
     *run(s) {
       for (;;) {
         // 양쪽 벽을 아래에서 위로 타고 오르며 안쪽으로 가지를 뻗음. 좌우 가지 높이를 엇갈려 지그재그 통로를 남김
@@ -601,7 +603,7 @@ const SPELLS = [
   },
   {
     name: '논스펠 · 리크니스 2',
-    type: 'nonspell', boss: '리크니스', bossColor: '#e8b4c8', hp: 3000, time: 35, start: [192, 110],
+    type: 'nonspell', boss: '리크니스', bossColor: '#e8b4c8', hp: 3000, time: 40, start: [192, 110],
     *run(s) {
       // 잎 소용돌이 + 꽃잎 원형탄(노말 이상)
       let a = 0;
@@ -670,7 +672,7 @@ const SPELLS = [
   },
   {
     name: '논스펠 · 이즘 1',
-    type: 'nonspell', boss: '이즘', bossColor: '#8fe8ff', hp: 2600, time: 30, start: [192, 100],
+    type: 'nonspell', boss: '이즘', bossColor: '#8fe8ff', hp: 2600, time: 36, start: [192, 100],
     *run(s) {
       // 데이터 묶음: 정사각형으로 뭉친 탄 덩어리를 조준해 보냄
       for (let w = 1; ; w++) {
@@ -714,7 +716,7 @@ const SPELLS = [
   },
   {
     name: '논스펠 · 이즘 2',
-    type: 'nonspell', boss: '이즘', bossColor: '#8fe8ff', hp: 2800, time: 30, start: [192, 80],
+    type: 'nonspell', boss: '이즘', bossColor: '#8fe8ff', hp: 2800, time: 36, start: [192, 80],
     *run(s) {
       // 스캔: 세로 레이저가 한쪽 끝에서 반대쪽으로 차례로 훑음. 이미 훑고 지나간 쪽으로 피함
       for (let w = 0; ; w++) {
@@ -758,6 +760,117 @@ const SPELLS = [
   },
 ];
 
+// ── 엑스트라: 진심 예로니모 ──
+// 엑스트라 패턴은 extra: true로 표시하며 고른 난이도보다 한 단계 위로 계산된다(하드는 그 위의 엑스트라 하드)
+function exOf(sp) {
+  const c = { ...sp, extra: true, boss: sp.boss ? '예로니모(진심)' : sp.boss };
+  SPELLS.push(c);
+  return c;
+}
+
+// CONFITEOR에서 부르는 일곱 죄의 탄막
+const SINS = [
+  // Superbia 교만: 위에서 내려다보며 내려오는 큰 탄 줄 + 조준 칼날
+  function* (s) {
+    for (let k = 0; ; k++) {
+      const n = s.lv(5, 6, 7, 8), gap = s.W / n;
+      for (let i = 0; i < n; i++) s.fire({ x: gap * (i + (k % 2 ? 0.75 : 0.25)), y: -10, ang: Math.PI / 2, spd: s.sp(1.3), shape: 'big', color: 'purple' });
+      for (let j = 0; j < 3; j++) { s.spread(s.lv(1, 3, 3, 5), s.aim(), 0.2, { spd: s.sp(3.2), shape: 'knife', color: 'white' }); yield s.wait(25); }
+      yield s.wait(20);
+    }
+  },
+  // Avaritia 탐욕: 흩어졌던 금화가 다시 보스에게 모여듦
+  function* (s) {
+    for (;;) {
+      s.ring(s.cnt(24), { offset: s.rand(0, s.TAU), spd: s.sp(3), accel: -0.06, minSpd: -s.sp(2.4), shape: 'orb', color: 'gold' });
+      yield s.wait(50);
+    }
+  },
+  // Luxuria 색욕: 번갈아 휘어 도는 분홍 꽃잎
+  function* (s) {
+    for (let k = 0; ; k++) {
+      const n = s.cnt(16), dir = k % 2 ? 1 : -1;
+      for (let i = 0; i < n; i++) s.fire({ ang: i * s.TAU / n + k * 0.2, spd: s.sp(2.2), angVel: dir * 0.012, shape: 'rice', color: 'pink' });
+      yield s.wait(22);
+    }
+  },
+  // Invidia 질투: 좌우를 뒤집은 자리의 나를 노리는 탄과 진짜 나를 노리는 탄
+  function* (s) {
+    for (;;) {
+      const mx = s.W - s.player.x;
+      s.spread(s.lv(3, 5, 5, 7), Math.atan2(s.player.y - s.boss.y, mx - s.boss.x), 0.12, { spd: s.sp(3), shape: 'orb', color: 'green' });
+      yield s.wait(18);
+      s.spread(s.lv(1, 3, 3, 3), s.aim(), 0.2, { spd: s.sp(3.4), shape: 'small', color: 'green' });
+      yield s.wait(18);
+    }
+  },
+  // Gula 탐식: 솟구쳤다 떨어지는 덩어리들
+  function* (s) {
+    for (;;) {
+      s.fire({ vx: s.rand(-2.4, 2.4), vy: s.rand(-5, -3), ay: 0.06, shape: s.pick(['orb', 'small', 'big']), color: 'orange', marginTop: 200 });
+      yield s.lv(8, 6, 4, 3);
+    }
+  },
+  // Ira 분노: 빠른 붉은 칼날 연사 + 원형 폭발
+  function* (s) {
+    for (;;) {
+      const a = s.aim();
+      for (let k = 0; k < s.lv(4, 6, 8, 10); k++) { s.spread(s.lv(1, 1, 3, 3), a, 0.12, { spd: s.sp(6.5), shape: 'knife', color: 'red' }); yield 3; }
+      s.ring(s.cnt(28), { offset: s.rand(0, s.TAU), spd: s.sp(2.6), shape: 'rice', color: 'red' });
+      yield s.wait(45);
+    }
+  },
+  // Acedia 나태: 멈춰 버린 탄이 한참 뒤에야 느릿느릿 다가옴
+  function* (s) {
+    for (;;) {
+      const n = s.cnt(18), off = s.rand(0, s.TAU);
+      for (let i = 0; i < n; i++) s.fire({
+        ang: off + i * s.TAU / n, spd: s.sp(3), accel: -0.1, minSpd: 0, shape: 'orb', color: 'blue',
+        fn: b => { if (b.t === 120) { b.accel = 0.01; b.maxSpd = s.sp(1.2); b.ang = Math.atan2(s.player.y - b.y, s.player.x - b.x); } },
+      });
+      yield s.wait(40);
+    }
+  },
+];
+
+SPELLS.push({
+  name: 'Clavis Communis, 스피리투스 제10식 — CONFITEOR. 내 죄가 항상 내 앞에 있나이다',
+  type: 'spell', survival: true, extra: true, boss: '예로니모(진심)', bossColor: '#e8e0c8', hp: 1, time: 75, start: [192, 110],
+  *run(s) {
+    const C = CHANTS.CONFITEOR;
+    // 제10식은 입회 성직자 과반수의 동의 없이는 열 수 없음(술자 포함 둘 이상) → 마리·마르코가 입회해 동의
+    s.boss.chantColor = '#ffe6a0';
+    const mari = s.partner({ name: '마리', x: -30, y: 60, to: [60, 80], color: '#cfe8ff' });
+    const marco = s.partner({ name: '마르코', x: s.W + 30, y: 60, to: [324, 80], color: '#e0c89a' });
+    mari.chantColor = '#cfe8ff'; marco.chantColor = '#ffe6a0';
+    yield 50;
+    s.say(s.boss, '개방 요청', 90); yield 80;
+    s.say(marco, '동의', 80); yield 45;
+    s.say(mari, '동의', 80); yield 70;
+    s.say(s.boss, '과반수 동의 — 개방', 90); yield 70;
+    // 여는 영창
+    yield* s.chant(C.slice(0, 6), { by: s.boss, step: 36 });
+    // 일곱 죄의 이름을 하나씩 부르며 그 죄의 탄막
+    for (let i = 0; i < 7; i++) {
+      s.clear();
+      yield* s.chant([C[6 + i]], { by: s.boss, step: 30, hold: 0 });
+      const t = s.task(SINS[i](s));
+      yield 400;
+      t.return();
+    }
+    s.clear();
+    // 대답하라 ~ 호명: 응답한 이름에 못박혀 잠시 둔해진 채 일곱 색의 탄을 버팀
+    yield* s.chant(C.slice(13, 17), { by: s.boss, step: 40, hold: 0 });
+    s.player.stun = 150;
+    const t = s.task(function* () {
+      const colors = ['purple', 'gold', 'pink', 'green', 'orange', 'red', 'blue'];
+      for (let k = 0; ; k++) { s.ring(s.cnt(21), { offset: k * 0.15, spd: s.sp(1.5), shape: 'small', color: colors[k % 7] }); yield s.wait(26); }
+    }());
+    yield* s.chant([C[17]], { by: s.boss, step: 60 });
+    for (;;) yield 60;
+  },
+});
+
 // 보스전: 목숨·폭탄·파워를 이어 가며 패턴을 순서대로. name은 오른쪽 표시용 짧은 이름, power는 시작 파워
 // 엑스트라는 동방처럼 최대 파워로 시작하고, 본편 스테이지는 앞 구간의 잡몹에서 P를 모아 강화한다
 function spellOf(name, boss) {
@@ -767,7 +880,19 @@ function spellOf(name, boss) {
 }
 const BOSS_RUNS = [
   {
-    title: '6스테이지 · 예로니모', name: '예로니모', power: 2.5,
+    title: '엑스트라 · 진심 예로니모', name: '진심 예로니모', power: 4,
+    seq: [
+      exOf(spellOf('잡몹 웨이브 · 날개 오르트로스')),
+      exOf(spellOf('논스펠 · 예로니모 1')),
+      exOf(spellOf('스피리투스 제1식 — 꺼져가는 등불을 끄지 아니하고')),
+      exOf(spellOf('논스펠 · 예로니모 2')),
+      exOf(spellOf('파테르 제1식 — 나의 의로운 오른손으로 너를 붙들리라', '예로니모')),
+      exOf(spellOf('Clavis Collata — NUNC DIMITTIS')),
+      spellOf('Clavis Communis, 스피리투스 제10식 — CONFITEOR. 내 죄가 항상 내 앞에 있나이다'),
+    ],
+  },
+  {
+    title: '6스테이지 · 예로니모', name: '예로니모', power: 2,
     seq: [
       spellOf('잡몹 웨이브 · 날개 오르트로스'),
       spellOf('논스펠 · 예로니모 1'),
@@ -778,7 +903,7 @@ const BOSS_RUNS = [
     ],
   },
   {
-    title: '7스테이지 · 리크니스', name: '리크니스', power: 3,
+    title: '7스테이지 · 리크니스', name: '리크니스', power: 2.5,
     seq: [
       spellOf('잡몹 웨이브 · 날개 오르트로스'),
       spellOf('논스펠 · 리크니스 1'),

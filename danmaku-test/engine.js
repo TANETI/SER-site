@@ -9,11 +9,12 @@ const HIT_R = 2.4, GRAZE_R = 18;
 const START_LIVES = 5, START_BOMBS = 3;
 // 파워 0.00~4.00. 정수 부분이 탄 단계. 작은 P +0.02, 큰 P +0.25, 죽으면 -0.5
 const MAX_POWER = 4, P_SMALL = 0.02, P_BIG = 0.25, DEATH_POWER_LOSS = 0.5;
-// 난이도별 보스 체력 배율
-const HP_MUL = [0.6, 0.8, 1];
+// 난이도별 보스 체력 배율. 엑스트라는 한 단계 위(4번째 값=엑스트라 하드)
+const HP_MUL = [0.6, 0.8, 1, 1.15];
 // 난이도: 0=이지, 1=노말, 2=하드(잠정 최고). 패턴은 s.lv·s.cnt·s.wait·s.sp로 난이도를 반영한다
 const DIFFS = ['이지', '노말', '하드(잠정 최고)'];
-const DENSITY = [0.45, 0.7, 1], INTERVAL = [1.8, 1.35, 1], SPEED = [0.75, 0.88, 1];
+// 엑스트라 패턴(extra: true)은 고른 난이도보다 한 단계 위로 계산한다. 4번째 값은 하드 위(엑스트라 하드)
+const DENSITY = [0.45, 0.7, 1, 1.2], INTERVAL = [1.8, 1.35, 1, 0.88], SPEED = [0.75, 0.88, 1, 1.06];
 
 // ── 탄 스프라이트 ──────────────────────────────────────────
 const COLORS = {
@@ -159,13 +160,13 @@ const SHOT_TYPES = {
       for (const k of sides) shot(out, p.x + k * 8, p.y - 12, UP + k * 0.5, 11, 14, 'needle', 'white', { homing: true, turn: 0.18, laser: true, trail: [], life: 120 });
     }
   },
-  // 유리엘: 하이리스크 하이리턴. 유도 없음. 연사(2틱)·대미지가 높지만 사거리가 약 230px라 붙어야 함 (약 300)
+  // 유리엘: 하이리스크 하이리턴. 유도 없음. 연사(2틱)·대미지가 높지만 사거리가 약 230px라 붙어야 함 (약 260)
   UR(p, out, focus, L) {
     if (p.fireT % 2) return;
     const n = [3, 4, 5, 6, 7][L], gap = focus ? 0.045 : 0.12, wob = focus ? 0.015 : 0.05;
     for (let i = 0; i < n; i++) {
       const a = UP + (i - (n - 1) / 2) * gap + (Math.random() * 2 - 1) * wob;
-      shot(out, p.x, p.y - 6, a, 14, focus ? 1.45 : 1.25, 'thorn', 'red', { life: 16 + (Math.random() * 3 | 0) });
+      shot(out, p.x, p.y - 6, a, 14, focus ? 1.25 : 1.1, 'thorn', 'red', { life: 16 + (Math.random() * 3 | 0) });
     }
   },
   // 루미엘(중립 선): 약한 정면 바늘 + 빗나가지 않는 유도 부적. 부적은 조금 날아간 뒤 닿은 작은 적탄 하나를 지우고 함께 사라짐. 전체로 초당 3개까지만.
@@ -209,6 +210,9 @@ class Game {
     this.api = makeAPI(this);
   }
 
+  // 실제로 쓰는 난이도. 엑스트라 패턴은 한 단계 위(최대 3)
+  effDiff() { return Math.min(3, this.difficulty + (this.spell && this.spell.extra ? 1 : 0)); }
+
   fail(e) { console.error(e); this.error = String(e && e.message || e); }
 
   // ── 패턴 수명주기 ──
@@ -239,7 +243,7 @@ class Game {
     if (!cont) Object.assign(this.player, { x: W / 2, y: H - 48, options: [] });
     Object.assign(this.player, { inv: 60, fireT: 0, bomb: null, flash: 0, stun: 0 });
     this.stats = { miss: 0, hits: 0, bombs: 0, dmgLog: new Array(60).fill(0), dmgNow: 0 };
-    const hp = sp.hp >= 99999 ? sp.hp : Math.max(1, Math.round((sp.hp || 1000) * HP_MUL[this.difficulty]));
+    const hp = sp.hp >= 99999 ? sp.hp : Math.max(1, Math.round((sp.hp || 1000) * HP_MUL[this.effDiff()]));
     const b = this.boss = { x: W / 2, y: -40, hp, maxHp: hp, move: null, hidden: sp.type === 'stage', t: 0,
       name: sp.boss || '', color: sp.bossColor || '#d8d0ff', shield: 0, glow: 0, contact: false };
     if (cont && prev && !prev.hidden) { b.x = prev.x; b.y = prev.y; }
@@ -650,11 +654,13 @@ function makeAPI(G) {
     get frame() { return G.frame; },
     get timeLeft() { return G.timer; },
     get hpRate() { return G.boss.hp / G.boss.maxHp; },
-    get diff() { return G.difficulty; },
-    lv: (...v) => v[Math.min(G.difficulty, v.length - 1)],                       // 난이도별 값 고르기 (이지, 노말, 하드)
-    cnt: n => Math.max(1, Math.round(n * DENSITY[G.difficulty])),                // 탄 개수
-    wait: f => Math.max(1, Math.round(f * INTERVAL[G.difficulty])),              // 발사 간격(프레임)
-    sp: v => v * SPEED[G.difficulty],                                            // 탄속
+    get diff() { return G.effDiff(); },
+    lv: (...v) => v[Math.min(G.effDiff(), v.length - 1)],                        // 난이도별 값 고르기 (이지, 노말, 하드[, 엑스트라 하드])
+    cnt: n => Math.max(1, Math.round(n * DENSITY[G.effDiff()])),                 // 탄 개수
+    wait: f => Math.max(1, Math.round(f * INTERVAL[G.effDiff()])),               // 발사 간격(프레임)
+    sp: v => v * SPEED[G.effDiff()],                                             // 탄속
+    // 머리 위 말풍선(대사 대신 짧은 절차 표시용): who=보스·동료
+    say(who, text, frames = 90) { G.fx.push({ kind: 'say', who, text, t: 0, life: frames }); },
     // 제한시간 연장(초). 타이머 옆에 +n 표시
     extendTime(sec) { G.timer += sec * 60; G.timeFlash = { text: '+' + sec.toFixed(2), t: 0 }; SFX.extend(); },
     // 보스를 지금 자리 근처로 조금만 옮김. 너무 자주 쓰지 않는다(4초에 한 번 정도)
@@ -1093,6 +1099,13 @@ function drawFx(G, g) {
     } else if (f.kind === 'text') {
       g.globalAlpha = 1 - k; g.fillStyle = '#ffe28a'; g.font = 'bold 16px system-ui, "Malgun Gothic", sans-serif';
       g.textAlign = 'center'; g.textBaseline = 'bottom'; g.fillText(f.text, f.x, f.y - k * 16); g.textAlign = 'left'; g.textBaseline = 'top';
+    } else if (f.kind === 'say') {
+      const a = f.who, fade = Math.min(1, (f.life - f.t) / 15, f.t / 8);
+      g.globalAlpha = fade; g.font = 'bold 12px system-ui, "Malgun Gothic", sans-serif';
+      const tw = g.measureText(f.text).width, bx = Math.max(4, Math.min(W - tw - 16, a.x - tw / 2 - 6)), by = a.y - 44;
+      g.fillStyle = 'rgba(20,20,32,0.85)'; g.fillRect(bx, by, tw + 12, 20);
+      g.strokeStyle = a.chantColor || '#fff'; g.lineWidth = 1; g.strokeRect(bx + 0.5, by + 0.5, tw + 11, 19);
+      g.fillStyle = '#fff'; g.textAlign = 'left'; g.textBaseline = 'middle'; g.fillText(f.text, bx + 6, by + 10.5); g.textBaseline = 'top';
     } else if (f.kind === 'block') {
       g.globalAlpha = 0.8 * (1 - k); g.strokeStyle = '#e8f6ff'; g.lineWidth = 1;
       g.beginPath(); g.arc(f.x, f.y, 3 + k * 5, 0, TAU); g.stroke();
@@ -1165,7 +1178,10 @@ function drawFieldUI(G, g) {
   // 스펠 선언
   if (G.banner) {
     const t = G.banner.t, x = t < 20 ? W + 20 - (t / 20) * 26 : W - 6, y = t < 60 ? 200 : Math.max(18, 200 - (t - 60) * 8);
+    // 긴 이름은 필드 폭에 맞게 글자를 줄임
     g.font = 'bold 13px system-ui, "Malgun Gothic", sans-serif'; g.textAlign = 'right';
+    const full = g.measureText(G.banner.text).width;
+    if (full > W - 20) g.font = `bold ${Math.max(9, Math.floor(13 * (W - 20) / full))}px system-ui, "Malgun Gothic", sans-serif`;
     const tw = g.measureText(G.banner.text).width;
     g.fillStyle = 'rgba(80,20,40,0.6)'; g.fillRect(x - tw - 10, y - 2, tw + 14, 19);
     g.fillStyle = '#fff'; g.fillText(G.banner.text, x, y);
