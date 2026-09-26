@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="robots" content="noindex">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>탄막 테스트</title>
+<style>
+  :root { --bg: #0d0d14; --panel: #171722; --line: #2c2c3d; --text: #e6e6f0; --dim: #9090a8; --accent: #f5c542; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 14px/1.5 system-ui, "Malgun Gothic", sans-serif; }
+  main { display: flex; flex-wrap: wrap; gap: 16px; padding: 16px; justify-content: center; }
+  #screen { width: min(960px, 100%); aspect-ratio: 4 / 3; background: #000; display: block; border: 1px solid var(--line); }
+  .stage { flex: 1 1 640px; max-width: 960px; }
+  aside { flex: 0 1 340px; display: flex; flex-direction: column; gap: 12px; }
+  fieldset { border: 1px solid var(--line); background: var(--panel); margin: 0; padding: 10px 12px; }
+  legend { color: var(--dim); padding: 0 4px; }
+  label { display: flex; align-items: center; gap: 8px; margin: 4px 0; }
+  select, button, textarea { font: inherit; color: var(--text); background: #0f0f18; border: 1px solid var(--line); }
+  select { width: 100%; padding: 4px; }
+  button { padding: 4px 10px; cursor: pointer; }
+  button:hover { border-color: var(--accent); }
+  .row { display: flex; gap: 8px; flex-wrap: wrap; }
+  textarea { width: 100%; height: 320px; font: 12px/1.45 Consolas, monospace; padding: 8px; tab-size: 2; white-space: pre; }
+  #err { color: #ff6b7a; white-space: pre-wrap; font: 12px Consolas, monospace; min-height: 1em; }
+  kbd { border: 1px solid var(--line); padding: 0 4px; font: 12px Consolas, monospace; }
+  .keys { color: var(--dim); font-size: 13px; }
+  .keys div { margin: 2px 0; }
+</style>
+</head>
+<body>
+<main>
+  <div class="stage"><canvas id="screen" width="1280" height="960"></canvas></div>
+  <aside>
+    <fieldset>
+      <legend>테스트 설정</legend>
+      <label>패턴 <select id="spellSel"></select></label>
+      <label>기체 <select id="angelSel"></select></label>
+      <label>속도 <select id="speedSel">
+        <option value="0.25">0.25×</option><option value="0.5">0.5×</option>
+        <option value="1" selected>1×</option><option value="2">2×</option></select></label>
+      <label><input type="checkbox" id="invChk" checked> 무적 (피격만 셈)</label>
+      <label><input type="checkbox" id="loopChk" checked> 같은 패턴 반복</label>
+      <div class="row"><button id="restartBtn">재시작</button><button id="editBtn">코드 편집</button></div>
+    </fieldset>
+    <fieldset id="editor" hidden>
+      <legend>패턴 코드 (현재 패턴)</legend>
+      <textarea id="code" spellcheck="false"></textarea>
+      <div class="row"><button id="applyBtn">적용</button><button id="resetBtn">원래대로</button></div>
+      <div id="err"></div>
+    </fieldset>
+    <fieldset class="keys">
+      <legend>조작</legend>
+      <div><kbd>←↑↓→</kbd> 이동 · <kbd>Shift</kbd> 저속</div>
+      <div><kbd>Z</kbd> 사격 · <kbd>X</kbd> 봄</div>
+      <div><kbd>Esc</kbd> 일시정지 · <kbd>.</kbd> 정지 중 1프레임</div>
+      <div><kbd>R</kbd> 재시작 · <kbd>[</kbd> <kbd>]</kbd> 이전·다음 패턴</div>
+      <div><kbd>1</kbd>~<kbd>4</kbd> 기체 · <kbd>I</kbd> 무적 전환</div>
+    </fieldset>
+  </aside>
+</main>
+<script src="engine.js"></script>
+<script src="patterns.js"></script>
+<script src="main.js"></script>
+</body>
+</html>
