@@ -6,7 +6,7 @@ const W = 384, H = 448;          // 플레이 영역
 const FX = 32, FY = 16;          // 화면(640×480) 안 플레이 영역 위치
 const SC = 2;                    // 캔버스 내부 배율
 const HIT_R = 2.4, GRAZE_R = 18;
-const START_LIVES = 5, START_BOMBS = 3;
+const START_LIVES = 3, START_BOMBS = 3;
 // 파워 0.00~4.00. 정수 부분이 탄 단계. 작은 P +0.02, 큰 P +0.25, 죽으면 -0.5
 const MAX_POWER = 4, P_SMALL = 0.02, P_BIG = 0.25, DEATH_POWER_LOSS = 0.5;
 // 난이도별 보스 체력 배율. 엑스트라는 한 단계 위(4번째 값=엑스트라 하드)
@@ -169,7 +169,7 @@ const SHOT_TYPES = {
       shot(out, p.x, p.y - 6, a, 14, focus ? 1.25 : 1.1, 'thorn', 'red', { life: 16 + (Math.random() * 3 | 0) });
     }
   },
-  // 루미엘(중립 선): 약한 정면 바늘 + 빗나가지 않는 유도 부적. 부적은 조금 날아간 뒤 닿은 작은 적탄 하나를 지우고 함께 사라짐. 전체로 초당 3개까지만.
+  // 루미엘(중립 선): 약한 정면 바늘 + 빗나가지 않는 유도 부적. 부적은 조금 날아간 뒤 닿은 작은 적탄 하나를 지우고 함께 사라짐. 전체로 초당 2개까지만.
   // 파워가 오르면 부적 수가 늚 (약 140)
   LM(p, out, focus, L) {
     const t = p.fireT;
@@ -587,13 +587,13 @@ class Game {
       }
       // 지우는 탄: 닿은 작은 적탄을 지우고 자기도 사라짐(지운 만큼 화력을 잃음)
       // 몸 앞의 방패가 되지 않게 어느 정도 날아간 뒤(약 100px)부터만 지움
-      // 전체로는 20프레임에 하나까지만(초당 3개) 지워 가벼운 보조에 머물게 함
+      // 전체로는 30프레임에 하나까지만(초당 2개) 지워 가벼운 보조에 머물게 함
       if (s.erase > 0 && !s.dead && s.t > 12 && !(this.eraseCd > 0)) {
         for (const b of this.bullets) {
           if (b.dead || b.r > 4 || dist2(s.x, s.y, b.x, b.y) > 64) continue;
           b.dead = true; this.score += 20;
           this.fx.push({ kind: 'spark', x: b.x, y: b.y, t: 0, life: 20, color: 'purple' });
-          this.eraseCd = 20;
+          this.eraseCd = 30;
           if (--s.erase <= 0) { s.dead = true; break; }
         }
       }
