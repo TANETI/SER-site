@@ -398,9 +398,7 @@ class Game {
     for (const c of this.chants) {
       c.t++;
       // 영창 한 줄이 뜰 때마다 종소리(호명 줄은 더 길게)
-      const i = c.t / c.step;
-      if (Number.isInteger(i) && i < c.lines.length) SFX.chime(i === c.lines.length - 1);
-      else if (c.t === 1) SFX.chime(c.lines.length === 1);
+      for (const gr of c.groups) gr.lines.forEach((_, i) => { if (c.t === gr.start + i * c.step + 1) SFX.chime(gr.last); });
     }
     this.shakeMag = this.shakeMag < 0.3 ? 0 : this.shakeMag * 0.86;
     this.chants = this.chants.filter(c => c.t < c.end + c.fade);
@@ -426,7 +424,7 @@ class Game {
       if (--this.phaseT <= 0) this.restart();
     }
 
-    if (this.slow && ++this.slow.t >= this.slow.dur) { this.slow = null; SFX.slowOut(); }
+    if (this.slow && ++this.slow.t >= this.slow.dur) { if (this.slow.k < 1) SFX.slowOut(); this.slow = null; }
     this.updateAreas();
     this.updateItems();
     this.updateBullets();
@@ -596,7 +594,7 @@ class Game {
     const p = this.player;
     for (const a of this.areas) {
       a.t++;
-      if (a.t === a.warn) { SFX.strike(); this.shake(4); }
+      if (a.t === a.warn && a.dur > 0) { SFX.strike(); this.shake(4); }
       if (a.t > a.warn && a.t <= a.warn + a.dur &&
           p.x > a.x - HIT_R && p.x < a.x + a.w + HIT_R && p.y > a.y - HIT_R && p.y < a.y + a.h + HIT_R) this.hitPlayer();
     }
@@ -781,20 +779,31 @@ function makeAPI(G) {
       return a;
     },
     // 불렛타임: frames 동안 적 탄이 k배 속도로 움직임. 플레이어는 그대로
-    bulletTime(k, frames) { G.slow = { k, dur: frames, t: 0 }; SFX.slowIn(); },
+    bulletTime(k, frames) { G.slow = { k, dur: frames, t: 0 }; k < 1 ? SFX.slowIn() : SFX.overclock(); },
     // 보호막: 통상탄을 막음(봄은 통과)
     shield(who, frames) { who.shield = frames; who.shieldMax = frames; },
     // 고정 구역 보호막: 안으로 들어온 자기 탄을 지움 {x,y,r,dur}
     zone(o = {}) { const z = { x: o.x ?? G.boss.x, y: o.y ?? G.boss.y, r: o.r ?? 56, dur: o.dur ?? 300, t: 0 }; G.zones.push(z); return z; },
     // 영창: 화면 상단에 한 줄씩 떠오른 뒤 사라짐. 마지막 줄이 호명.
     // yield* 하면 호명 줄이 뜰 때까지 기다림(= 전조 시간). {by, color, step, hold, corner:'left'|'right'}
+    // 본문은 두 줄씩 묶어 나타났다가 함께 사라지고, 마지막 호명 줄은 따로 크게 뜸. 한 줄 간격은 step의 1.15배.
+    // yield* 하면 호명 줄이 드러나기 시작할 때까지 기다림(= 전조)
     *chant(lines, o = {}) {
       if (typeof lines === 'string') lines = CHANTS[lines];
-      const step = o.step ?? 40, hold = o.hold ?? 20;
+      const step = Math.round((o.step ?? 40) * 1.15), hold = Math.round(step * 0.7), fade = 18;
       const corner = o.corner || (o.by && o.by !== G.boss ? 'right' : 'left');
-      const c = { lines, t: 0, step, end: lines.length * step + hold + 30, fade: 20, corner, color: o.color || o.by?.chantColor || '#ffe6a0' };
+      const groups = [], body = lines.slice(0, -1);
+      let t = 0;
+      for (let i = 0; i < body.length; i += 2) {
+        const ls = body.slice(i, i + 2);
+        groups.push({ lines: ls, start: t, end: t + ls.length * step + hold, last: false });
+        t += ls.length * step + hold + fade;
+      }
+      const callAt = t;
+      groups.push({ lines: [lines[lines.length - 1]], start: t, end: t + step + (o.hold ?? 20) + 50, last: true });
+      const c = { groups, t: 0, step, fade, corner, end: groups[groups.length - 1].end, color: o.color || o.by?.chantColor || '#ffe6a0' };
       G.chants.push(c);
-      yield lines.length * step + hold;
+      yield callAt + Math.round(step * 0.5);
     },
     // 잡몹: {x,y,vx,vy,hp,r,run(e,s)}
     enemy(o = {}) {
@@ -945,20 +954,64 @@ function splitToFit(g, text, maxW) {
   }
   return best < 0 ? [text] : [text.slice(0, best), text.slice(best + 1)];
 }
+// 영창 그리기: 글자가 왼쪽부터 번지듯 드러나고(끝에 빛 알갱이), 금빛에서 흰빛으로 빛이 훑고 지나감.
+// 뒤에는 어두운 판, 아래에는 자라나는 장식선. 호명 줄은 더 크고 굵게
 function drawChants(G, g) {
   g.textBaseline = 'top';
   G.chants.forEach((c, row) => {
-    const n = c.lines.length, i = Math.min(n - 1, Math.floor(c.t / c.step)), last = i === n - 1;
-    const t0 = i * c.step, t1 = last ? c.end + c.fade : t0 + c.step, fi = 12;
-    const a = Math.max(0, Math.min(1, (c.t - t0) / fi, (t1 - c.t) / fi));
-    // 동시에 읊으면 줄을 달리해 겹치지 않게 함
-    const right = c.corner === 'right', x = right ? W - 10 : 10, y = 44 + row * 40;
-    const slide = (1 - Math.min(1, (c.t - t0) / fi)) * 8 * (right ? 1 : -1);
-    g.globalAlpha = a; g.textAlign = right ? 'right' : 'left';
-    g.font = (last ? 'bold 15px ' : '14px ') + CHANT_FONT;
-    g.shadowColor = c.color; g.shadowBlur = last ? 12 : 8;
-    g.fillStyle = last ? '#fff' : c.color;
-    splitToFit(g, c.lines[i], W - 20).forEach((part, k) => g.fillText(part, x + slide, y + k * 18));
+    const right = c.corner === 'right', x0 = right ? W - 12 : 12, yBase = 44 + row * 62;
+    for (const gr of c.groups) {
+      if (c.t < gr.start || c.t > gr.end + c.fade) continue;
+      const out = c.t > gr.end ? Math.max(0, 1 - (c.t - gr.end) / c.fade) : 1;
+      const size = gr.last ? 16 : 14, lh = size + 8;
+      g.font = `${gr.last ? 'bold ' : ''}${size}px ${CHANT_FONT}`;
+      const rows = [];
+      gr.lines.forEach((line, i) => splitToFit(g, line, W - 44).forEach(part => rows.push({ text: part, at: gr.start + i * c.step })));
+      const maxW = Math.max(...rows.map(r => g.measureText(r.text).width));
+      const h = rows.length * lh + 10, openK = Math.min(1, (c.t - gr.start) / 12);
+
+      // 뒤판: 글자 쪽이 짙고 바깥으로 옅어짐
+      g.globalAlpha = out * openK;
+      const pl = right ? x0 - maxW - 24 : x0 - 8, pw = maxW + 32;
+      const pg = g.createLinearGradient(right ? pl + pw : pl, 0, right ? pl : pl + pw, 0);
+      pg.addColorStop(0, 'rgba(8,6,18,0.72)'); pg.addColorStop(0.75, 'rgba(8,6,18,0.45)'); pg.addColorStop(1, 'rgba(8,6,18,0)');
+      g.fillStyle = pg; g.fillRect(pl, yBase - 6, pw, h);
+
+      rows.forEach((r, k) => {
+        const p = Math.max(0, Math.min(1, (c.t - r.at) / (c.step * 0.8)));
+        if (p <= 0) return;
+        const tw = g.measureText(r.text).width, y = yBase + k * lh, left = right ? x0 - tw : x0;
+        // 드러나는 폭만큼 잘라 그림
+        g.save();
+        g.beginPath(); g.rect(left - 4, y - 6, (tw + 8) * p, lh + 6); g.clip();
+        // 빛이 한 번 훑고 지나감
+        const sweep = (c.t - r.at) * 4 - tw * 0.3;
+        const tg = g.createLinearGradient(left + sweep - 40, 0, left + sweep + 40, 0);
+        tg.addColorStop(0, c.color); tg.addColorStop(0.5, '#ffffff'); tg.addColorStop(1, c.color);
+        g.globalAlpha = out * Math.min(1, p * 1.6);
+        g.shadowColor = c.color; g.shadowBlur = gr.last ? 16 : 10;
+        g.fillStyle = tg; g.textAlign = 'left';
+        g.fillText(r.text, left, y);
+        if (gr.last) { g.shadowBlur = 0; g.globalAlpha *= 0.5; g.fillStyle = '#fff'; g.fillText(r.text, left, y); }
+        g.restore();
+        // 번지는 끝의 빛 알갱이
+        if (p < 1) {
+          const ex = left + tw * p, glow = g.createRadialGradient(ex, y + size / 2, 0, ex, y + size / 2, 9);
+          glow.addColorStop(0, 'rgba(255,255,255,0.9)'); glow.addColorStop(1, 'rgba(255,255,255,0)');
+          g.globalAlpha = out; g.fillStyle = glow; g.fillRect(ex - 9, y + size / 2 - 9, 18, 18);
+        }
+      });
+
+      // 장식선: 글 아래에서 자라나고 끝에 작은 마름모
+      const grow = Math.min(1, (c.t - gr.start) / (c.step * 1.2)), lw = (maxW + 6) * grow, ly = yBase + rows.length * lh + 1;
+      g.globalAlpha = out * 0.8; g.strokeStyle = c.color; g.lineWidth = 1;
+      const lx0 = right ? x0 : x0, lx1 = right ? x0 - lw : x0 + lw;
+      const lg = g.createLinearGradient(lx0, 0, lx1, 0);
+      lg.addColorStop(0, c.color); lg.addColorStop(1, c.color + '00');
+      g.strokeStyle = lg; g.beginPath(); g.moveTo(lx0, ly); g.lineTo(lx1, ly); g.stroke();
+      g.fillStyle = c.color; g.beginPath();
+      g.moveTo(lx0, ly - 3); g.lineTo(lx0 + (right ? -3 : 3), ly); g.lineTo(lx0, ly + 3); g.lineTo(lx0 + (right ? 3 : -3), ly); g.closePath(); g.fill();
+    }
   });
   g.shadowBlur = 0; g.globalAlpha = 1; g.textAlign = 'left';
 }
@@ -1069,6 +1122,7 @@ function drawLasers(G, g) {
 function drawAreas(G, g) {
   g.textAlign = 'center'; g.textBaseline = 'middle';
   for (const a of G.areas) {
+    if (a.t > a.warn && a.dur === 0) continue;   // 예고 전용
     if (a.t <= a.warn) {
       // 예고: 테두리 깜빡임, 발동이 가까울수록 빠르게. 번호는 순서
       const fast = a.t > a.warn - 20;
@@ -1220,12 +1274,13 @@ function drawHitbox(G, g) {
 function drawFieldUI(G, g) {
   const b = G.boss, sp = G.spell;
   if (G.slow) {
-    // 불렛타임: 화면이 푸르게 가라앉고 남은 시간 막대
-    const k = 1 - G.slowFactor();
-    g.globalAlpha = 0.18 * k / (1 - G.slow.k); g.fillStyle = '#4fa8ff'; g.fillRect(0, 0, W, H);
-    g.globalAlpha = 1; g.fillStyle = '#bfe4ff'; g.font = 'bold 13px Consolas, monospace'; g.textAlign = 'left'; g.textBaseline = 'top';
-    g.fillText('BULLET TIME', 8, H - 22);
-    g.fillStyle = 'rgba(191,228,255,0.8)'; g.fillRect(100, H - 17, (W - 110) * (1 - G.slow.t / G.slow.dur), 4);
+    // 불렛타임은 화면이 푸르게, 오버클럭은 붉게. 남은 시간 막대
+    const over = G.slow.k > 1, k = (1 - G.slowFactor()) / (1 - G.slow.k);
+    const tint = over ? '#ff4a5a' : '#4fa8ff', ink = over ? '#ffc2c8' : '#bfe4ff';
+    g.globalAlpha = 0.16 * k; g.fillStyle = tint; g.fillRect(0, 0, W, H);
+    g.globalAlpha = 1; g.fillStyle = ink; g.font = 'bold 13px Consolas, monospace'; g.textAlign = 'left'; g.textBaseline = 'top';
+    g.fillText(over ? 'OVERCLOCK' : 'BULLET TIME', 8, H - 22);
+    g.globalAlpha = 0.8; g.fillRect(100, H - 17, (W - 110) * (1 - G.slow.t / G.slow.dur), 4); g.globalAlpha = 1;
   }
   g.font = '12px system-ui, "Malgun Gothic", sans-serif'; g.textBaseline = 'top';
   if (!b.hidden && !sp.survival) {

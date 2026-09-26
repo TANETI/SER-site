@@ -37,7 +37,8 @@
 //   s.warnLine({x, y, x2, y2, dur})           판정 없는 빨간 예고선
 //   s.extendTime(초)                          제한시간 연장
 //   s.area({x, y, w, h, warn, dur, label, color})   사각 구역 공격. 번호(label)를 붙여 순서를 보여 줌
-//   s.bulletTime(배율, 프레임)                 적 탄만 느려짐(플레이어는 그대로)
+//   s.bulletTime(배율, 프레임)                 적 탄 속도 배율(1보다 작으면 불렛타임, 크면 오버클럭). 플레이어는 그대로
+//   s.area({... dur: 0})                      판정 없이 예고만 띄움
 //   ivyVine(s, {...}) · ivyLeaf(...)           담쟁이 덩굴·잎 (리크니스)
 //   s.rand(a, b) · s.randInt(a, b) · s.pick(arr) · s.frame · s.hpRate · s.TAU · s.W · s.H
 //   영창 키: FILIUS1 FILIUS2 PATER1 PATER2 SPIRITUS1 NUNC_DIMITTIS CONFITEOR. 배열을 직접 넘겨 일부 줄만 읊을 수도 있음
@@ -951,6 +952,77 @@ const SPELLS = [
     },
   },
   {
+    name: '논스펠 · 이즘 4',
+    type: 'nonspell', boss: '이즘', bossColor: '#8fe8ff', hp: 2800, time: 40, start: [192, 70],
+    *run(s) {
+      // 바이너리 비: 세로 8줄이 켜짐(1)·꺼짐(0)으로 바뀜. 켜질 줄을 먼저 표시하고 그 줄에만 데이터 비가 쏟아짐.
+      // 이전 비가 다 내린 뒤 다음 신호가 오도록 사이를 둠
+      const lanes = 8, lw = s.W / lanes;
+      for (let w = 0; ; w++) {
+        const on = s.lv(3, 4, 4, 5, 5), pick = [...Array(lanes).keys()].sort(() => Math.random() - 0.5).slice(0, on);
+        const warn = s.lv(50, 42, 36);
+        for (const i of pick) s.area({ x: i * lw + 2, y: 0, w: lw - 4, h: s.H, warn, dur: 0, label: '1', color: '#35d6ff' });
+        yield warn;
+        for (let t = 0; t < 120; t += 3) {
+          for (const i of pick) if (Math.random() < s.lv(0.35, 0.5, 0.6, 0.7, 0.8)) {
+            s.fire({ x: i * lw + s.rand(6, lw - 6), y: -6, ang: Math.PI / 2, spd: s.sp(s.rand(3, 4.5)), shape: 'small', color: 'cyan' });
+          }
+          yield 3;
+        }
+        if (s.diff > 0) s.spread(3, s.aim(), 0.3, { spd: s.sp(2.4), shape: 'rice', color: 'white' });
+        yield 70;
+      }
+    },
+  },
+  {
+    name: '「감정 학습」(가칭)',
+    type: 'spell', boss: '이즘', bossColor: '#8fe8ff', hp: 3000, time: 48, start: [192, 70],
+    *run(s) {
+      // 이즘은 감정을 학습하며 자라는 AI. 플레이어가 머문 가로 자리를 기록해 두었다가 자주 머문 곳을 노림.
+      // 한곳에 오래 버티면 점점 그 자리가 위험해짐
+      const bins = 12, bw = s.W / bins, heat = Array(bins).fill(0);
+      s.task(function* () {
+        for (;;) {
+          heat[Math.min(bins - 1, Math.floor(s.player.x / bw))] += 1;
+          for (let i = 0; i < bins; i++) heat[i] *= 0.997;
+          yield 1;
+        }
+      }());
+      yield 90;
+      for (let w = 0; ; w++) {
+        const hot = [...heat.keys()].sort((a, b) => heat[b] - heat[a]).slice(0, s.lv(1, 2, 2, 3, 3));
+        const ty = s.H - 60;
+        for (const b of hot) s.mark({ x: (b + 0.5) * bw, y: ty, dur: s.lv(46, 40, 34) });
+        yield s.lv(46, 40, 34);
+        for (const b of hot) {
+          const tx = (b + 0.5) * bw;
+          s.spread(s.lv(5, 7, 7, 9, 9), Math.atan2(ty - s.boss.y, tx - s.boss.x), 0.045, { spd: s.sp(4.5), shape: 'knife', color: 'pink' });
+        }
+        s.ring(s.cnt(24), { offset: s.rand(0, s.TAU), spd: s.sp(1.5), shape: 'small', color: 'cyan' });
+        yield s.wait(50);
+        if (w % 4 === 3) yield* s.wander();
+      }
+    },
+  },
+  {
+    name: '「오버클럭」(가칭)',
+    type: 'spell', boss: '이즘', bossColor: '#8fe8ff', hp: 3000, time: 48, start: [192, 80],
+    *run(s) {
+      // 불렛타임의 반대: 경고 뒤 잠깐 적 탄 시계만 빨라짐. 평소엔 느긋한 탄을 깔아 두었다가 한꺼번에 몰아침
+      for (;;) {
+        for (let k = 0; k < 4; k++) {
+          s.ring(s.cnt(18), { offset: s.rand(0, s.TAU), spd: s.sp(1.1), shape: 'orb', color: 'cyan' });
+          if (s.diff > 0) s.spread(3, s.aim(), 0.25, { spd: s.sp(1.5), shape: 'rice', color: 'white' });
+          yield s.wait(32);
+        }
+        s.say(s.boss, 'OVERCLOCK', 50);
+        yield 45;
+        s.bulletTime(s.lv(1.5, 1.7, 1.9, 2, 2.1), 120);
+        yield 150;
+      }
+    },
+  },
+  {
     name: '「열흘 같은 하루」(가칭)',
     type: 'spell', boss: '이즘', bossColor: '#8fe8ff', hp: 3000, time: 60, start: [192, 70],
     *run(s) {
@@ -1141,7 +1213,7 @@ const BOSS_RUNS = [
     ],
   },
   {
-    title: '엑스트라 2 · 이즘', name: '이즘', power: 4, hpScale: 2.75,
+    title: '엑스트라 2 · 이즘', name: '이즘', power: 4, hpScale: 1.85,
     seq: [
       spellOf('논스펠 · 이즘 1'),
       spellOf('「순차 격자 타격」(가칭)'),
@@ -1149,6 +1221,9 @@ const BOSS_RUNS = [
       spellOf('「예측 사격」(가칭)'),
       spellOf('논스펠 · 이즘 3'),
       spellOf('「가상 전투 시뮬레이션」(가칭)'),
+      spellOf('논스펠 · 이즘 4'),
+      spellOf('「감정 학습」(가칭)'),
+      spellOf('「오버클럭」(가칭)'),
       spellOf('「열흘 같은 하루」(가칭)'),
     ],
   },

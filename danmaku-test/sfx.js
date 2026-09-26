@@ -97,6 +97,7 @@ const SFX = {
   boom()    { if (this.ok('boom', 0.5)) { this.tone('sine', 150, 30, 1.2, 0.35); this.hiss(1.4, 0.4, 'lowpass', 5000, 80, 1, 0, true); this.tone('sawtooth', 400, 60, 0.6, 0.06, 0.05); } },
   tick(last) { if (this.ok('tick', 0.5)) this.tone('square', last ? 1200 : 880, last ? 1200 : 880, 0.05, 0.04); },
   slowIn()  { if (this.ok('slowIn', 0.3)) { this.tone('sine', 900, 110, 0.7, 0.13, 0, true); this.hiss(0.7, 0.08, 'lowpass', 3000, 200); } },
+  overclock() { if (this.ok('overclock', 0.3)) { this.tone('sawtooth', 200, 1400, 0.35, 0.06); this.tone('square', 1400, 1400, 0.3, 0.02, 0.35); } },
   slowOut() { if (this.ok('slowOut', 0.3)) this.tone('sine', 110, 900, 0.4, 0.1); },
   extend()  { if (this.ok('extend', 0.3)) [520, 780, 1040].forEach((f, i) => this.tone('sine', f, f, 0.3, 0.07, i * 0.09, true)); },
 };
