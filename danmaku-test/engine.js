@@ -6,6 +6,10 @@ const W = 384, H = 448;          // 플레이 영역
 const FX = 32, FY = 16;          // 화면(640×480) 안 플레이 영역 위치
 const SC = 2;                    // 캔버스 내부 배율
 const HIT_R = 2.4, GRAZE_R = 18;
+const START_LIVES = 5, START_BOMBS = 3;
+// 난이도: 0=이지, 1=노말, 2=하드(잠정 최고). 패턴은 s.lv·s.cnt·s.wait·s.sp로 난이도를 반영한다
+const DIFFS = ['이지', '노말', '하드(잠정 최고)'];
+const DENSITY = [0.45, 0.7, 1], INTERVAL = [1.8, 1.35, 1], SPEED = [0.75, 0.88, 1];
 
 // ── 탄 스프라이트 ──────────────────────────────────────────
 const COLORS = {
@@ -178,7 +182,7 @@ class Game {
     this.cv = canvas;
     this.g = canvas.getContext('2d');
     this.keys = new Set(); this.pressed = new Set();
-    this.speed = 1; this.invincible = true; this.loop = true; this.paused = false;
+    this.speed = 1; this.invincible = false; this.difficulty = 1; this.loop = true; this.paused = false;
     this.spells = []; this.spellIndex = 0;
     this.angel = 'AR';
     this.error = '';
@@ -192,6 +196,20 @@ class Game {
   fail(e) { console.error(e); this.error = String(e && e.message || e); }
 
   // ── 패턴 수명주기 ──
+  // 단일 패턴 연습: 목숨·폭탄을 채우고 시작
+  startSingle(i = this.spellIndex) { this.run = null; this.resetLives(); this.start(i); }
+  // 보스전: 여러 패턴을 이어서, 목숨·폭탄을 이어 가며 진행
+  startRun(run) {
+    this.run = { ...run, idx: 0 };
+    this.resetLives();
+    this.start(this.spells.indexOf(run.seq[0]));
+  }
+  restart() { this.run ? this.startRun(this.run) : this.startSingle(); }
+  resetLives() {
+    this.player = this.player || {};
+    this.player.lives = START_LIVES; this.player.bombs = START_BOMBS;
+  }
+
   start(i = this.spellIndex) {
     this.spellIndex = (i + this.spells.length) % this.spells.length;
     const sp = this.spell = this.spells[this.spellIndex];
@@ -199,16 +217,32 @@ class Game {
     this.partners = []; this.chants = []; this.zones = [];
     this.tasks.clear(); this.error = '';
     this.player = this.player || {};
-    Object.assign(this.player, { x: W / 2, y: H - 48, inv: 60, fireT: 0, bomb: null, options: [], flash: 0 });
+    const cont = this.run && this.run.idx > 0, prev = this.boss;
+    if (!cont) Object.assign(this.player, { x: W / 2, y: H - 48, options: [] });
+    Object.assign(this.player, { inv: 60, fireT: 0, bomb: null, flash: 0 });
     this.stats = { miss: 0, hits: 0, bombs: 0, dmgLog: new Array(60).fill(0), dmgNow: 0 };
     const b = this.boss = { x: W / 2, y: -40, hp: sp.hp || 1000, maxHp: sp.hp || 1000, move: null, hidden: sp.type === 'stage', t: 0,
       name: sp.boss || '', color: sp.bossColor || '#d8d0ff', shield: 0, glow: 0, contact: false };
+    if (cont && prev && !prev.hidden) { b.x = prev.x; b.y = prev.y; }
     this.moveBoss(sp.start?.[0] ?? W / 2, sp.start?.[1] ?? 110, 45);
     this.frame = 0; this.phase = 'intro'; this.phaseT = 50;
     this.timer = (sp.time || 30) * 60;
     this.banner = sp.type === 'spell' ? { text: sp.name, t: 0 } : null;
-    this.result = null;
+    if (this.banner) SFX.spell();
+    this.result = null; this.timeFlash = null;
     if (b.hidden) { b.x = W / 2; b.y = -200; b.move = null; }
+  }
+
+  // 결과 화면이 끝난 뒤 다음 패턴
+  next() {
+    const r = this.run;
+    if (r) {
+      r.idx++;
+      if (r.idx < r.seq.length) this.start(this.spells.indexOf(r.seq[r.idx]));
+      else if (this.loop) this.startRun(r);
+      else this.startSingle(this.spellIndex);
+    } else if (this.loop) this.startSingle(this.spellIndex);
+    else this.startSingle(this.spellIndex + 1);
   }
 
   moveBoss(x, y, dur, who = this.boss) {
@@ -233,12 +267,12 @@ class Game {
   endSpell(reason) {
     const sp = this.spell;
     const captured = reason !== 'timeout' || sp.survival ? this.stats.miss === 0 && this.stats.bombs === 0 : false;
-    if (captured && sp.type === 'spell') this.score += Math.floor(1000000 * this.timer / (sp.time * 60) + 100000);
+    if (captured && sp.type === 'spell') { this.score += Math.floor(1000000 * this.timer / (sp.time * 60) + 100000); SFX.capture(); }
     this.clearBullets(true);
     this.tasks.clear();
     this.enemies.forEach(e => this.killEnemy(e, false));
     this.result = { captured: captured && sp.type === 'spell', reason, t: 0, stats: { ...this.stats } };
-    this.phase = 'result'; this.phaseT = 150;
+    this.phase = 'result'; this.phaseT = this.run ? 100 : 150;
   }
 
   clearBullets(points) {
@@ -253,6 +287,7 @@ class Game {
     // 정화 연출: 사람 실루엣이 떠오름
     this.fx.push({ kind: 'purify', x: e.x, y: e.y, t: 0, life: 50 });
     if (reward) this.score += 3000;
+    SFX.kill();
   }
 
   // ── 틱 ──
@@ -281,7 +316,9 @@ class Game {
       else if (!b.hidden && !sp.survival && b.hp <= 0) this.endSpell('defeat');
     } else if (this.phase === 'result') {
       this.result.t++;
-      if (--this.phaseT <= 0) this.start(this.loop ? this.spellIndex : this.spellIndex + 1);
+      if (--this.phaseT <= 0) this.next();
+    } else if (this.phase === 'gameover') {
+      if (--this.phaseT <= 0) this.restart();
     }
 
     this.updateBullets();
@@ -317,9 +354,13 @@ class Game {
 
     if (k.has('KeyZ') && !p.bomb) { SHOT_TYPES[this.angel](p, this.shots, focus); p.fireT++; } else p.fireT = 0;
 
-    if (this.pressed.has('KeyX') && !p.bomb && this.phase !== 'result') {
+    if (this.pressed.has('KeyX') && !p.bomb && this.phase === 'active') {
       // 봄: 0.5초 차지(무적) 후 확산하며 탄 소거
-      p.bomb = { t: 0 }; p.inv = Math.max(p.inv, 30 + 150); this.stats.bombs++;
+      if (p.bombs > 0 || this.invincible) {
+        if (!this.invincible) p.bombs--;
+        p.bomb = { t: 0 }; p.inv = Math.max(p.inv, 30 + 150); this.stats.bombs++;
+        SFX.bomb();
+      } else SFX.empty();
     }
     if (p.bomb) {
       const bm = p.bomb; bm.t++;
@@ -337,19 +378,28 @@ class Game {
     const b = this.boss;
     if (b.hidden || this.phase !== 'active' || this.spell.survival) return;
     b.hp = Math.max(0, b.hp - d); this.stats.dmgNow += d; this.score += Math.round(d * 10);
+    SFX.hit();
   }
 
   hitPlayer() {
     const p = this.player;
     if (p.inv > 0) return;
     if (this.invincible) {
-      this.stats.hits++; p.flash = 20; p.inv = 20;
+      this.stats.hits++; p.flash = 20; p.inv = 20; SFX.hurt();
       return;
     }
+    if (this.phase !== 'active' && this.phase !== 'intro') return;
     this.stats.miss++;
     this.fx.push({ kind: 'burst', x: p.x, y: p.y, t: 0, life: 40 });
+    SFX.die();
     this.clearBullets(false);
     p.x = W / 2; p.y = H - 48; p.inv = 150; p.bomb = null;
+    // 한 번 죽을 때마다 목숨 하나. 폭탄은 다시 3개로
+    p.lives--; p.bombs = START_BOMBS;
+    if (p.lives <= 0) {
+      this.tasks.clear(); this.clearBullets(false);
+      this.phase = 'gameover'; this.phaseT = 240;
+    }
   }
 
   updateBullets() {
@@ -369,7 +419,7 @@ class Game {
       if (b.dead) continue;
       const d = dist2(b.x, b.y, p.x, p.y), r = b.r + HIT_R, gr = b.r + GRAZE_R;
       if (d < r * r) { this.hitPlayer(); if (!this.invincible) break; }
-      else if (d < gr * gr && !b.grazed) { b.grazed = true; this.graze++; this.score += 500; this.fx.push({ kind: 'graze', x: p.x, y: p.y, t: 0, life: 12 }); }
+      else if (d < gr * gr && !b.grazed) { b.grazed = true; this.graze++; this.score += 500; this.fx.push({ kind: 'graze', x: p.x, y: p.y, t: 0, life: 12 }); SFX.graze(); }
     }
     this.bullets = this.bullets.filter(b => !b.dead);
   }
@@ -398,6 +448,7 @@ class Game {
   // 사슬: 예고선 깜빡임 → 선을 따라 빠르게 뻗음 → 유지 → 천천히 걷힘. 뻗은 구간 전체가 판정.
   updateChain(l, p) {
     const t = l.t - l.warn, { shoot, hold, retract } = l;
+    if (t === 1) SFX.chain();
     if (t <= 0) l.tip = 0;
     else if (t <= shoot) { const k = t / shoot; l.tip = l.len * (1 - (1 - k) ** 3); }
     else if (t <= shoot + hold) l.tip = l.len;
@@ -434,12 +485,12 @@ class Game {
       }
       s.x += s.vx; s.y += s.vy; s.t = (s.t || 0) + 1;
       if (s.x < -20 || s.x > W + 20 || s.y < -20 || s.y > H + 20 || (s.life && s.t > s.life)) { s.dead = true; continue; }
-      for (const e of targets) if (!e.dead && dist2(s.x, s.y, e.x, e.y) < (e.r + 6) ** 2) { e.hp -= s.dmg; e.hurt = 4; s.dead = true; break; }
-      if (!s.dead && this.zones.some(z => dist2(s.x, s.y, z.x, z.y) < z.r * z.r)) { s.dead = true; this.fx.push({ kind: 'block', x: s.x, y: s.y, t: 0, life: 10 }); continue; }
+      for (const e of targets) if (!e.dead && dist2(s.x, s.y, e.x, e.y) < (e.r + 6) ** 2) { e.hp -= s.dmg; e.hurt = 4; s.dead = true; SFX.hit(); break; }
+      if (!s.dead && this.zones.some(z => dist2(s.x, s.y, z.x, z.y) < z.r * z.r)) { s.dead = true; this.fx.push({ kind: 'block', x: s.x, y: s.y, t: 0, life: 10 }); SFX.block(); continue; }
       if (!s.dead && !b.hidden && this.phase === 'active' && dist2(s.x, s.y, b.x, b.y) < 30 * 30) {
         s.dead = true;
         // 필리우스 제1식은 약한 공격을 막음: 통상탄은 막히고 봄은 통함
-        if (b.shield > 0) { this.fx.push({ kind: 'block', x: s.x, y: s.y, t: 0, life: 10 }); continue; }
+        if (b.shield > 0) { this.fx.push({ kind: 'block', x: s.x, y: s.y, t: 0, life: 10 }); SFX.block(); continue; }
         this.damageBoss(s.dmg); b.hurt = 3;
       }
       if (s.dead && Math.random() < 0.5) this.fx.push({ kind: 'hit', x: s.x, y: s.y, t: 0, life: 8, color: s.color });
@@ -457,9 +508,11 @@ class Game {
   handleKeys() {
     const take = c => this.pressed.delete(c);
     if (take('Escape')) this.paused = !this.paused;
-    if (take('KeyR')) this.start();
-    if (take('BracketRight')) { this.start(this.spellIndex + 1); this.onChange?.(); }
-    if (take('BracketLeft')) { this.start(this.spellIndex - 1); this.onChange?.(); }
+    if (take('KeyR')) this.restart();
+    if (take('BracketRight')) { this.startSingle(this.spellIndex + 1); this.onChange?.(); }
+    if (take('BracketLeft')) { this.startSingle(this.spellIndex - 1); this.onChange?.(); }
+    if (take('KeyM')) { SFX.setMuted(!SFX.muted); this.onChange?.(); }
+    if (take('KeyD')) { this.difficulty = (this.difficulty + 1) % DIFFS.length; this.restart(); this.onChange?.(); }
     if (take('KeyI')) { this.invincible = !this.invincible; this.onChange?.(); }
     for (const [code, a] of [['Digit1', 'AR'], ['Digit2', 'UR'], ['Digit3', 'LM'], ['Digit4', 'RH']]) if (take(code)) { this.angel = a; this.onChange?.(); }
   }
@@ -490,6 +543,20 @@ function makeAPI(G) {
     get frame() { return G.frame; },
     get timeLeft() { return G.timer; },
     get hpRate() { return G.boss.hp / G.boss.maxHp; },
+    get diff() { return G.difficulty; },
+    lv: (...v) => v[Math.min(G.difficulty, v.length - 1)],                       // 난이도별 값 고르기 (이지, 노말, 하드)
+    cnt: n => Math.max(1, Math.round(n * DENSITY[G.difficulty])),                // 탄 개수
+    wait: f => Math.max(1, Math.round(f * INTERVAL[G.difficulty])),              // 발사 간격(프레임)
+    sp: v => v * SPEED[G.difficulty],                                            // 탄속
+    // 제한시간 연장(초). 타이머 옆에 +n 표시
+    extendTime(sec) { G.timer += sec * 60; G.timeFlash = { text: '+' + sec.toFixed(2), t: 0 }; SFX.extend(); },
+    // 보스를 지금 자리 근처로 조금만 옮김. 너무 자주 쓰지 않는다(4초에 한 번 정도)
+    *wander(range = 50, dur = 60) {
+      const b = G.boss;
+      const x = Math.max(90, Math.min(W - 90, b.x + (Math.random() * 2 - 1) * range));
+      const y = Math.max(80, Math.min(140, b.y + (Math.random() * 2 - 1) * range * 0.4));
+      G.moveBoss(x, y, dur); yield dur;
+    },
     rand: (a = 0, b = 1) => a + Math.random() * (b - a),
     randInt: (a, b) => Math.floor(a + Math.random() * (b - a + 1)),
     pick: arr => arr[Math.floor(Math.random() * arr.length)],
@@ -504,7 +571,7 @@ function makeAPI(G) {
         maxSpd: o.maxSpd, minSpd: o.minSpd,
         cart: o.vx !== undefined || o.vy !== undefined || o.ax !== undefined || o.ay !== undefined,
         vx: o.vx ?? 0, vy: o.vy ?? 0, ax: o.ax ?? 0, ay: o.ay ?? 0,
-        shape: o.shape || 'small', color: o.color || 'red', r: o.r ?? def.r,
+        shape: o.shape || 'small', color: o.color || 'red', r: o.r ?? def.r, alpha: o.alpha ?? 1,
         fn: o.fn, margin: o.margin ?? 32, marginTop: o.marginTop ?? 0, data: o.data || {},
       };
       G.bullets.push(b);
@@ -827,9 +894,10 @@ function drawBullets(G, g) {
     const k = b.t < 6 ? 1 + (6 - b.t) * 0.15 : 1; // 발사 순간 살짝 크게
     const c = Math.cos(a) * k, sn = Math.sin(a) * k;
     g.setTransform(base.a * c, base.a * sn, -base.a * sn, base.a * c, base.e + b.x * base.a, base.f + b.y * base.a);
+    g.globalAlpha = b.alpha;
     g.drawImage(img, -s / 2, -s / 2, s, s);
   }
-  g.setTransform(base);
+  g.setTransform(base); g.globalAlpha = 1;
 }
 
 function drawFx(G, g) {
@@ -883,12 +951,21 @@ function drawBomb(G, g) {
   g.globalAlpha = 1; g.lineWidth = 1;
 }
 
+// 피격 판정은 항상 표시: 빨간 테두리 안의 흰 점이 실제 판정 크기.
+// 저속일 때는 주변에 회전하는 링을 더해 위치를 찾기 쉽게 함
 function drawHitbox(G, g) {
   const p = G.player;
-  if (!p.focus && !p.flash) return;
-  g.fillStyle = p.flash ? '#ff3b4a' : '#fff';
-  g.strokeStyle = p.flash ? '#ff3b4a' : ANGELS[G.angel].accent; g.lineWidth = 1;
-  g.beginPath(); g.arc(p.x, p.y, HIT_R + 2, 0, TAU); g.stroke();
+  if (G.phase === 'gameover') return;
+  const hurt = p.flash > 0;
+  if (p.focus) {
+    g.save(); g.translate(p.x, p.y); g.rotate(G.bgT * 0.05);
+    g.strokeStyle = 'rgba(255,255,255,0.55)'; g.lineWidth = 1.2; g.setLineDash([5, 4]);
+    g.beginPath(); g.arc(0, 0, 14, 0, TAU); g.stroke(); g.setLineDash([]); g.restore();
+  }
+  g.fillStyle = 'rgba(0,0,0,0.6)'; g.beginPath(); g.arc(p.x, p.y, HIT_R + 3.2, 0, TAU); g.fill();
+  g.strokeStyle = hurt ? '#ffffff' : '#ff2a3a'; g.lineWidth = 1.6;
+  g.beginPath(); g.arc(p.x, p.y, HIT_R + 2.2, 0, TAU); g.stroke();
+  g.fillStyle = hurt ? '#ff2a3a' : '#ffffff';
   g.beginPath(); g.arc(p.x, p.y, HIT_R, 0, TAU); g.fill();
 }
 
@@ -903,6 +980,10 @@ function drawFieldUI(G, g) {
   const sec = Math.max(0, G.timer) / 60;
   g.textAlign = 'right'; g.fillStyle = sec < 10 ? '#ff6b7a' : '#fff'; g.font = 'bold 14px Consolas, monospace';
   g.fillText(sec.toFixed(2), W - 6, 2);
+  if (G.timeFlash && G.timeFlash.t++ < 90) {
+    g.globalAlpha = 1 - G.timeFlash.t / 90; g.fillStyle = '#9fe8a8';
+    g.fillText(G.timeFlash.text, W - 60, 2 + G.timeFlash.t * 0.1); g.globalAlpha = 1;
+  }
   // 스펠 선언
   if (G.banner) {
     const t = G.banner.t, x = t < 20 ? W + 20 - (t / 20) * 26 : W - 6, y = t < 60 ? 200 : Math.max(18, 200 - (t - 60) * 8);
@@ -916,10 +997,19 @@ function drawFieldUI(G, g) {
     const r = G.result;
     g.textAlign = 'center'; g.font = 'bold 18px system-ui, "Malgun Gothic", sans-serif';
     g.fillStyle = r.captured ? '#f5c542' : '#c8c8d8';
-    const txt = r.captured ? '스펠카드 획득' : G.spell.type === 'stage' ? '웨이브 종료' : r.reason === 'timeout' ? (G.spell.survival ? '내구 실패' : '시간 초과') : G.spell.type === 'spell' ? '격파 (획득 실패)' : '격파';
+    const runDone = G.run && G.run.idx >= G.run.seq.length - 1 && r.reason === 'defeat';
+    const txt = runDone ? `${G.run.name} 격파!` : r.captured ? '스펠카드 획득' : G.spell.type === 'stage' ? '웨이브 종료' : r.reason === 'timeout' ? (G.spell.survival ? '내구 실패' : '시간 초과') : G.spell.type === 'spell' ? '격파 (획득 실패)' : '격파';
     g.fillText(txt, W / 2, 150);
     g.font = '12px system-ui, "Malgun Gothic", sans-serif'; g.fillStyle = '#fff';
     g.fillText(`피탄 ${r.stats.miss + r.stats.hits} · 봄 ${r.stats.bombs}`, W / 2, 178);
+    g.textAlign = 'left';
+  }
+  if (G.phase === 'gameover') {
+    g.fillStyle = 'rgba(0,0,0,0.6)'; g.fillRect(0, 0, W, H);
+    g.fillStyle = '#ff6b7a'; g.textAlign = 'center'; g.font = 'bold 24px system-ui, "Malgun Gothic", sans-serif';
+    g.fillText('게임 오버', W / 2, H / 2 - 24);
+    g.fillStyle = '#fff'; g.font = '12px system-ui, "Malgun Gothic", sans-serif';
+    g.fillText('R 바로 재시작 · 잠시 후 자동 재시작', W / 2, H / 2 + 12);
     g.textAlign = 'left';
   }
   if (G.paused) {
@@ -941,9 +1031,18 @@ function drawHUD(G, g) {
   g.fillStyle = '#f5c542'; g.font = 'bold 16px system-ui, "Malgun Gothic", sans-serif';
   g.fillText('탄막 테스트', x, 20);
   const st = G.stats, dps = st.dmgLog.reduce((a, b) => a + b, 0);
+  // 목숨·폭탄
+  const p = G.player;
+  g.font = '13px system-ui, "Malgun Gothic", sans-serif';
+  g.fillStyle = '#9090a8'; g.fillText('목숨', x, 50); g.fillText('폭탄', x, 72);
+  g.font = '15px system-ui, "Segoe UI Symbol", sans-serif';
+  for (let i = 0; i < START_LIVES + 2; i++) { g.fillStyle = i < p.lives ? '#ff6b9a' : '#3a3a4a'; if (i < Math.max(p.lives, START_LIVES)) g.fillText('♥', x + 48 + i * 17, 48); }
+  for (let i = 0; i < Math.max(p.bombs, START_BOMBS); i++) { g.fillStyle = i < p.bombs ? '#7fe0a0' : '#3a3a4a'; g.fillText('✦', x + 48 + i * 17, 70); }
+  if (G.invincible) { g.fillStyle = '#9090a8'; g.font = '11px system-ui, "Malgun Gothic", sans-serif'; g.fillText('무적: 목숨·폭탄 소모 없음', x, 92); }
   const rows = [
-    ['패턴', `${G.spellIndex + 1} / ${G.spells.length}`],
+    ['패턴', G.run ? `${G.run.name} ${G.run.idx + 1}/${G.run.seq.length}` : `${G.spellIndex + 1} / ${G.spells.length}`],
     ['기체', ANGELS[G.angel].name],
+    ['난이도', DIFFS[G.difficulty]],
     ['점수', G.score.toLocaleString()],
     ['그레이즈', G.graze],
     ['피탄', G.invincible ? `${st.hits} (무적)` : st.miss],
@@ -951,16 +1050,16 @@ function drawHUD(G, g) {
     ['탄 수', G.bullets.length + (G.lasers.length ? ` + 레이저 ${G.lasers.length}` : '')],
     ['DPS', dps.toFixed(0)],
     ['보스 HP', G.boss.hidden ? '-' : `${Math.ceil(G.boss.hp)} / ${G.boss.maxHp}`],
-    ['속도', G.speed + '×'],
+    ['속도', G.speed + '×' + (SFX.muted ? ' · 소리 끔' : '')],
     ['FPS', G.fps.toFixed(0)],
   ];
   g.font = '13px system-ui, "Malgun Gothic", sans-serif';
   rows.forEach(([k, v], i) => {
-    g.fillStyle = '#9090a8'; g.fillText(k, x, 56 + i * 24);
-    g.fillStyle = '#fff'; g.fillText(String(v), x + 72, 56 + i * 24);
+    g.fillStyle = '#9090a8'; g.fillText(k, x, 112 + i * 21);
+    g.fillStyle = '#fff'; g.fillText(String(v), x + 72, 112 + i * 21);
   });
   g.fillStyle = '#9090a8'; g.font = '11px system-ui, "Malgun Gothic", sans-serif';
-  wrap(g, G.spell.name, x, 56 + rows.length * 24 + 10, 176, 15);
+  wrap(g, G.spell.name, x, 112 + rows.length * 21 + 8, 176, 15);
 }
 
 function wrap(g, text, x, y, w, lh) {
