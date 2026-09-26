@@ -209,7 +209,7 @@ class Game {
     this.cv = canvas;
     this.g = canvas.getContext('2d');
     this.keys = new Set(); this.pressed = new Set();
-    this.speed = 1; this.invincible = false; this.difficulty = 1; this.practicePower = MAX_POWER; this.loop = true; this.paused = false;
+    this.speed = 1; this.invincible = false; this.difficulty = 1; this.practicePower = 0;   // 단일 패턴 연습도 기본은 파워 0(패널에서 올림) this.loop = true; this.paused = false;
     this.spells = []; this.spellIndex = 0;
     this.angel = 'AR';
     this.error = '';
