@@ -11,11 +11,12 @@
 //   *run(s) { ... }                          // 제너레이터. yield n = n프레임 대기
 // }
 //
-// 난이도 (0=이지 1=노말 2=하드. 지금까지 만든 값이 하드)
-//   s.lv(이지, 노말, 하드)   난이도별 값 고르기
-//   s.cnt(n)   탄 개수를 난이도에 맞게 줄임(이지 45%, 노말 70%)
-//   s.wait(f)  발사 간격을 늘림(이지 1.8배, 노말 1.35배)
-//   s.sp(v)    탄속을 줄임(이지 75%, 노말 88%)
+// 난이도 (0=이지 1=노말 2=하드 3=베리하드 4=헬. 패턴에 적은 기준값이 하드)
+//   s.lv(이지, 노말, 하드, ...)   난이도별 값 고르기. 값이 모자라면 마지막 값을 씀
+//   s.cnt(n)   탄 개수 배율(이지 55%, 노말 80%, 베리하드 120%, 헬 140%)
+//   s.wait(f)  발사 간격 배율(이지 1.6배 … 헬 0.78배)
+//   s.sp(v)    탄속 배율(이지 82% … 헬 112%)
+//   체력·제한시간은 엔진이 3.5배로 늘려 적용(내구 스펠·잡몹 구간 제외)
 //
 // s 주요 함수
 //   s.fire({ang, spd, shape, color, accel, angVel, maxSpd, minSpd, x, y, fn, alpha})
@@ -41,6 +42,10 @@
 //   s.rand(a, b) · s.randInt(a, b) · s.pick(arr) · s.frame · s.hpRate · s.TAU · s.W · s.H
 //   영창 키: FILIUS1 FILIUS2 PATER1 PATER2 SPIRITUS1 NUNC_DIMITTIS CONFITEOR. 배열을 직접 넘겨 일부 줄만 읊을 수도 있음
 //   s.say(대상, '짧은 표시', 프레임)            머리 위 말풍선
+//   s.mark({x, y, dur})                       판정 없는 조준 표시(빨간 십자선)
+//   s.ghost(x, y, color)                      잔상 한 점
+//   s.player.vx · s.player.vy                 플레이어의 이번 프레임 이동량(예측 조준용)
+//   동료에 ghost = true를 주면 반투명 사본으로 그려짐
 //   extra: true                               엑스트라 패턴. 고른 난이도보다 한 단계 위로 계산 (chants.js, 세계관 원문 그대로)
 //   s.fire({..., soft: true})  딱밤 탄: 맞아도 목숨이 줄지 않고 잠깐 느려짐
 //   탄의 alpha는 판정이 그대로이므로 0.35 아래로 내리지 않는다
@@ -141,7 +146,7 @@ const SPELLS = [
       for (let f = 0; ; f++) {
         a += 0.13 + 0.05 * Math.sin(f * 0.01);
         for (let i = 0; i < s.lv(3, 4, 4); i++) s.fire({ ang: a + i * s.TAU / s.lv(3, 4, 4), spd: s.sp(2.6), shape: 'rice', color: 'purple' });
-        if (s.diff === 2 || (s.diff === 1 && f % 2 === 0)) for (let i = 0; i < 3; i++) s.fire({ ang: -a * 0.7 + i * s.TAU / 3, spd: s.sp(1.8), shape: 'small', color: 'pink' });
+        if (s.diff >= 2 || (s.diff === 1 && f % 2 === 0)) for (let i = 0; i < 3; i++) s.fire({ ang: -a * 0.7 + i * s.TAU / 3, spd: s.sp(1.8), shape: 'small', color: 'pink' });
         yield s.wait(5);
       }
     },
@@ -508,7 +513,7 @@ const SPELLS = [
     *run(s) {
       // 밥알(흰 쌀탄)은 위로 솟았다 중력으로 떨어지고, 카레(갈색 큰 탄)는 느리게 흘러내림
       for (let f = 0; ; f++) {
-        if (f % s.lv(3, 2, 3) === 0 || (s.diff === 2 && f % 3 === 1)) s.fire({ vx: s.rand(-2.6, 2.6), vy: s.rand(-5.5, -3.5), ay: 0.07, shape: 'rice', color: 'white', marginTop: 200 });
+        if (f % s.lv(3, 2, 3) === 0 || (s.diff >= 2 && f % 3 === 1)) s.fire({ vx: s.rand(-2.6, 2.6), vy: s.rand(-5.5, -3.5), ay: 0.07, shape: 'rice', color: 'white', marginTop: 200 });
         if (f % s.wait(30) === 0) {
           for (let i = 0; i < s.lv(3, 4, 5); i++) s.fire({ vx: s.rand(-1.5, 1.5), vy: s.rand(-3, -1.5), ay: 0.035, shape: 'big', color: 'brown', marginTop: 200 });
         }
@@ -655,7 +660,7 @@ const SPELLS = [
       const tilt = 0.6, span = s.H * Math.tan(tilt);
       for (let w = 0; ; w++) {
         const gap = s.lv(130, 110, 90), warn = s.lv(60, 50, 45), lines = [];
-        const dirs = s.diff === 2 ? [1, -1] : [w % 2 ? 1 : -1];
+        const dirs = s.diff >= 2 ? [1, -1] : [w % 2 ? 1 : -1];
         for (const dir of dirs) {
           const ang = Math.PI / 2 - dir * tilt, off = s.rand(0, gap);
           for (let x0 = (dir > 0 ? -span : 0) + off; x0 < (dir > 0 ? s.W : s.W + span); x0 += gap) {
@@ -732,13 +737,84 @@ const SPELLS = [
     },
   },
   {
+    name: '「예측 사격」(가칭)',
+    type: 'spell', boss: '이즘', bossColor: '#8fe8ff', hp: 3000, time: 45, start: [192, 70],
+    *run(s) {
+      // 움직이는 방향을 읽어 도착할 자리에 조준 표시를 먼저 띄우고, 표시가 사라질 즈음 그 자리에 닿도록 쏨.
+      // 멈추거나 방향을 틀면 빗나감
+      for (let w = 0; ; w++) {
+        for (let k = 0; k < s.lv(3, 4, 5, 6); k++) {
+          const p = s.player, delay = s.lv(20, 16, 12, 10), travel = s.lv(22, 18, 16, 14), lead = delay + travel;
+          const tx = Math.max(10, Math.min(s.W - 10, p.x + (p.vx || 0) * lead));
+          const ty = Math.max(10, Math.min(s.H - 10, p.y + (p.vy || 0) * lead));
+          s.mark({ x: tx, y: ty, dur: lead });
+          yield delay;
+          const a = Math.atan2(ty - s.boss.y, tx - s.boss.x), dist = Math.hypot(tx - s.boss.x, ty - s.boss.y);
+          s.spread(s.lv(3, 3, 5, 5), a, 0.06, { spd: Math.max(4, dist / travel), shape: 'knife', color: 'red' });
+          yield s.lv(20, 16, 14, 12);
+        }
+        s.ring(s.cnt(24), { offset: s.rand(0, s.TAU), spd: s.sp(1.6), shape: 'small', color: 'cyan' });
+        yield s.wait(60);
+        if (w % 3 === 2) yield* s.wander();
+      }
+    },
+  },
+  {
+    name: '논스펠 · 이즘 3',
+    type: 'nonspell', boss: '이즘', bossColor: '#8fe8ff', hp: 2800, time: 36, start: [192, 90],
+    *run(s) {
+      // 프레임 스킵: 탄이 잠깐 멈칫했다가 진행 방향으로 한 번에 튀어 나감. 튄 자리에 잔상이 남음
+      const skip = (b, s) => {
+        const k = b.t % 36;
+        if (k === 24) { b.data.spd = b.spd; b.spd = 0; }
+        else if (k === 32) {
+          s.ghost(b.x, b.y, b.color);
+          b.spd = b.data.spd; b.x += Math.cos(b.ang) * b.spd * 10; b.y += Math.sin(b.ang) * b.spd * 10;
+        }
+      };
+      for (let w = 1; ; w++) {
+        const off = s.rand(0, s.TAU), n = s.cnt(22);
+        for (let i = 0; i < n; i++) s.fire({ ang: off + i * s.TAU / n, spd: s.sp(2.2), shape: 'small', color: 'cyan', fn: skip });
+        yield s.wait(28);
+        if (w % 2 === 0) s.spread(s.lv(1, 3, 3, 5), s.aim(), 0.2, { spd: s.sp(3), shape: 'rice', color: 'white', fn: skip });
+        if (w % 8 === 0) yield* s.wander();
+      }
+    },
+  },
+  {
+    name: '「가상 전투 시뮬레이션」(가칭)',
+    type: 'spell', boss: '이즘', bossColor: '#8fe8ff', hp: 3200, time: 50, start: [192, 80],
+    *run(s) {
+      // 이즘이 반투명 사본을 띄워 같은 공격을 여러 자리에서 흉내 냄. 사본은 맞지 않고, 조금씩 늦게 쏨(어긋남)
+      const n = s.lv(2, 2, 3, 3, 4), clones = [];
+      for (let i = 0; i < n; i++) { const c = s.partner({ name: '', x: s.boss.x, y: s.boss.y, color: '#8fe8ff' }); c.ghost = true; clones.push(c); }
+      for (let w = 0; ; w++) {
+        clones.forEach((c, i) => s.move(s.W * (i + 1) / (n + 1), s.rand(60, 150), 40, c));
+        yield 50;
+        for (let k = 0; k < 4; k++) {
+          for (const src of [s.boss, ...clones]) {
+            const real = src === s.boss, delay = real ? 1 : 1 + (clones.indexOf(src) + 1) * s.lv(10, 8, 6, 5);
+            s.task(function* () {
+              yield delay;
+              s.spread(s.lv(3, 3, 5, 5), s.aim(src.x, src.y), 0.22, { x: src.x, y: src.y, spd: s.sp(2.6), shape: real ? 'rice' : 'small', color: real ? 'white' : 'cyan' });
+            }());
+          }
+          yield s.wait(36);
+        }
+        s.ring(s.cnt(20), { offset: s.rand(0, s.TAU), spd: s.sp(1.5), shape: 'rice', color: 'white' });
+        yield s.wait(40);
+        if (w % 2 === 1) yield* s.wander(60, 40);
+      }
+    },
+  },
+  {
     name: '「열흘 같은 하루」(가칭)',
     type: 'spell', boss: '이즘', bossColor: '#8fe8ff', hp: 3000, time: 60, start: [192, 70],
     *run(s) {
       // 불렛타임 동안 위에서 미로 띠가 내려옴. 좁은 통로를 따라 빠져나가야 함
       const cell = 12, fall = 5, k = 0.22;
       for (;;) {
-        const rows = s.lv(14, 18, 22), gapW = s.lv(46, 36, 28), shift = s.lv(8, 11, 14);
+        const rows = s.lv(14, 18, 22, 24, 26), gapW = s.lv(46, 36, 28, 25, 22), shift = s.lv(8, 11, 14, 15, 16);
         const dur = Math.round((s.H + rows * cell + 40) / (fall * k));
         s.bulletTime(k, dur + 40);
         yield 20;
@@ -919,6 +995,9 @@ const BOSS_RUNS = [
       spellOf('논스펠 · 이즘 1'),
       spellOf('「순차 격자 타격」(가칭)'),
       spellOf('논스펠 · 이즘 2'),
+      spellOf('「예측 사격」(가칭)'),
+      spellOf('논스펠 · 이즘 3'),
+      spellOf('「가상 전투 시뮬레이션」(가칭)'),
       spellOf('「열흘 같은 하루」(가칭)'),
     ],
   },

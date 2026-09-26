@@ -9,12 +9,14 @@ const HIT_R = 2.4, GRAZE_R = 18;
 const START_LIVES = 3, START_BOMBS = 3;
 // 파워 0.00~4.00. 정수 부분이 탄 단계. 작은 P +0.02, 큰 P +0.25, 죽으면 -0.5
 const MAX_POWER = 4, P_SMALL = 0.02, P_BIG = 0.25, DEATH_POWER_LOSS = 0.5;
-// 난이도별 보스 체력 배율. 엑스트라는 한 단계 위(4번째 값=엑스트라 하드)
-const HP_MUL = [0.6, 0.8, 1, 1.15];
-// 난이도: 0=이지, 1=노말, 2=하드(잠정 최고). 패턴은 s.lv·s.cnt·s.wait·s.sp로 난이도를 반영한다
-const DIFFS = ['이지', '노말', '하드(잠정 최고)'];
-// 엑스트라 패턴(extra: true)은 고른 난이도보다 한 단계 위로 계산한다. 4번째 값은 하드 위(엑스트라 하드)
-const DENSITY = [0.45, 0.7, 1, 1.2], INTERVAL = [1.8, 1.35, 1, 0.88], SPEED = [0.75, 0.88, 1, 1.06];
+// 난이도별 보스 체력 배율. 엑스트라는 한 단계 위
+const HP_MUL = [0.7, 0.85, 1, 1.15, 1.3, 1.45];
+// 패턴에 적힌 체력·제한시간에 곱하는 전체 배율(내구 스펠·잡몹 구간·허수아비 제외)
+const HP_SCALE = 3.5, TIME_SCALE = 3.5;
+// 난이도: 0=이지 1=노말 2=하드 3=베리하드 4=헬. 패턴은 s.lv·s.cnt·s.wait·s.sp로 난이도를 반영한다.
+// 하드가 시험판 처음의 잠정 최고 밀도. 엑스트라 패턴(extra: true)은 한 단계 위로 계산하며 6번째 값은 헬 위
+const DIFFS = ['이지', '노말', '하드', '베리하드', '헬'];
+const DENSITY = [0.55, 0.8, 1, 1.2, 1.4, 1.6], INTERVAL = [1.6, 1.25, 1, 0.88, 0.78, 0.7], SPEED = [0.82, 0.92, 1, 1.06, 1.12, 1.16];
 
 // ── 탄 스프라이트 ──────────────────────────────────────────
 const COLORS = {
@@ -221,7 +223,7 @@ class Game {
   }
 
   // 실제로 쓰는 난이도. 엑스트라 패턴은 한 단계 위(최대 3)
-  effDiff() { return Math.min(3, this.difficulty + (this.spell && this.spell.extra ? 1 : 0)); }
+  effDiff() { return Math.min(DENSITY.length - 1, this.difficulty + (this.spell && this.spell.extra ? 1 : 0)); }
 
   fail(e) { console.error(e); this.error = String(e && e.message || e); }
 
@@ -253,13 +255,14 @@ class Game {
     if (!cont) Object.assign(this.player, { x: W / 2, y: H - 48, options: [] });
     Object.assign(this.player, { inv: 60, fireT: 0, bomb: null, flash: 0, stun: 0 });
     this.stats = { miss: 0, hits: 0, bombs: 0, dmgLog: new Array(60).fill(0), dmgNow: 0 };
-    const hp = sp.hp >= 99999 ? sp.hp : Math.max(1, Math.round((sp.hp || 1000) * HP_MUL[this.effDiff()]));
+    const scaled = sp.hp < 99999 && !sp.survival && sp.type !== 'stage';
+    const hp = sp.hp >= 99999 ? sp.hp : Math.max(1, Math.round((sp.hp || 1000) * HP_MUL[this.effDiff()] * (scaled ? HP_SCALE : 1)));
     const b = this.boss = { x: W / 2, y: -40, hp, maxHp: hp, move: null, hidden: sp.type === 'stage', t: 0,
       name: sp.boss || '', color: sp.bossColor || '#d8d0ff', shield: 0, glow: 0, contact: false };
     if (cont && prev && !prev.hidden) { b.x = prev.x; b.y = prev.y; }
     this.moveBoss(sp.start?.[0] ?? W / 2, sp.start?.[1] ?? 110, 45);
     this.frame = 0; this.phase = 'intro'; this.phaseT = cont ? 100 : 70;
-    this.timer = (sp.time || 30) * 60;
+    this.timer = this.timerMax = Math.round((sp.time || 30) * 60 * (scaled ? TIME_SCALE : 1));
     this.banner = sp.type === 'spell' ? { text: sp.name, t: 0 } : null;
     if (this.banner) SFX.spell();
     this.result = null; this.timeFlash = null;
@@ -300,7 +303,7 @@ class Game {
   endSpell(reason) {
     const sp = this.spell;
     const captured = reason !== 'timeout' || sp.survival ? this.stats.miss === 0 && this.stats.bombs === 0 : false;
-    if (captured && sp.type === 'spell') { this.score += Math.floor(1000000 * this.timer / (sp.time * 60) + 100000); SFX.capture(); }
+    if (captured && sp.type === 'spell') { this.score += Math.floor(1000000 * this.timer / this.timerMax + 100000); SFX.capture(); }
     this.clearBullets(true);
     this.tasks.clear(); this.areas = []; this.slow = null;
     // 논스펠은 작은 P만, 스펠은 큰 P 하나를 더 줌
@@ -412,8 +415,10 @@ class Game {
     let dy = (k.has('ArrowDown') ? 1 : 0) - (k.has('ArrowUp') ? 1 : 0);
     const spd = (focus ? 2 : 4.5) * (p.stun > 0 ? 0.45 : 1), n = dx && dy ? Math.SQRT1_2 : 1;
     if (p.stun > 0) p.stun--;
+    const ox = p.x, oy = p.y;
     p.x = Math.max(8, Math.min(W - 8, p.x + dx * spd * n));
     p.y = Math.max(16, Math.min(H - 16, p.y + dy * spd * n));
+    p.vx = p.x - ox; p.vy = p.y - oy;
     p.tilt = dx;
     if (p.inv > 0) p.inv--;
     if (p.flash > 0) p.flash--;
@@ -670,6 +675,9 @@ function makeAPI(G) {
     wait: f => Math.max(1, Math.round(f * INTERVAL[G.effDiff()])),               // 발사 간격(프레임)
     sp: v => v * SPEED[G.effDiff()],                                             // 탄속
     // 머리 위 말풍선(대사 대신 짧은 절차 표시용): who=보스·동료
+    ghost(x, y, color) { G.fx.push({ kind: 'ghost', x, y, color, t: 0, life: 20 }); },
+    // 판정 없는 조준 표시(빨간 십자선) {x,y,dur}
+    mark(o) { G.fx.push({ kind: 'mark', x: o.x, y: o.y, t: 0, life: o.dur ?? 30 }); },
     say(who, text, frames = 90) { G.fx.push({ kind: 'say', who, text, t: 0, life: frames }); },
     // 제한시간 연장(초). 타이머 옆에 +n 표시
     extendTime(sec) { G.timer += sec * 60; G.timeFlash = { text: '+' + sec.toFixed(2), t: 0 }; SFX.extend(); },
@@ -848,6 +856,15 @@ function drawBoss(G, g) {
 // 몸체 자리표시 + 이름 + 오른손 발광 + 보호막
 function drawActor(G, g, a, isBoss) {
   const r = isBoss ? 14 : 11;
+  if (a.ghost) {
+    // 가상 사본: 반투명하게, 가끔 옆으로 튀는 잡음
+    g.save(); g.globalAlpha = 0.35 + (Math.random() < 0.08 ? 0.3 : 0);
+    g.translate(Math.random() < 0.06 ? (Math.random() * 2 - 1) * 6 : 0, 0);
+    g.fillStyle = a.color; g.beginPath(); g.arc(a.x, a.y, r, 0, TAU); g.fill();
+    g.strokeStyle = '#fff'; g.setLineDash([3, 3]); g.beginPath(); g.arc(a.x, a.y, r + 4, 0, TAU); g.stroke(); g.setLineDash([]);
+    g.restore();
+    return;
+  }
   if (a.glow > 0) {
     // 파테르 제1식: 오른손이 황금빛으로 빛남
     const gx = a.x + r + 3, gy = a.y + 2, pulse = 8 + Math.sin(a.t * 0.4) * 2;
@@ -1109,6 +1126,14 @@ function drawFx(G, g) {
     } else if (f.kind === 'text') {
       g.globalAlpha = 1 - k; g.fillStyle = '#ffe28a'; g.font = 'bold 16px system-ui, "Malgun Gothic", sans-serif';
       g.textAlign = 'center'; g.textBaseline = 'bottom'; g.fillText(f.text, f.x, f.y - k * 16); g.textAlign = 'left'; g.textBaseline = 'top';
+    } else if (f.kind === 'mark') {
+      // 조준 표시: 빨간 십자선이 좁혀 들어옴
+      const r = 16 * (1 - k) + 5;
+      g.globalAlpha = Math.sin(f.t * 0.8) > 0 ? 0.95 : 0.4; g.strokeStyle = '#ff2a3a'; g.lineWidth = 1.5;
+      g.beginPath(); g.arc(f.x, f.y, r, 0, TAU);
+      g.moveTo(f.x - r - 5, f.y); g.lineTo(f.x + r + 5, f.y); g.moveTo(f.x, f.y - r - 5); g.lineTo(f.x, f.y + r + 5); g.stroke();
+    } else if (f.kind === 'ghost') {
+      g.globalAlpha = 0.5 * (1 - k); g.fillStyle = COLORS[f.color] || f.color; g.fillRect(f.x - 2, f.y - 2, 4, 4);
     } else if (f.kind === 'say') {
       const a = f.who, fade = Math.min(1, (f.life - f.t) / 15, f.t / 8);
       g.globalAlpha = fade; g.font = 'bold 12px system-ui, "Malgun Gothic", sans-serif';
