@@ -61,5 +61,6 @@ const SFX = {
   strike()  { if (this.ok('strike', 0.06)) { this.hiss(0.15, 0.25, 'lowpass', 1800, 200); this.tone('square', 220, 110, 0.1, 0.06); } },
   slowIn()  { if (this.ok('slowIn', 0.3)) this.tone('sine', 900, 120, 0.6, 0.15); },
   slowOut() { if (this.ok('slowOut', 0.3)) this.tone('sine', 120, 900, 0.4, 0.12); },
+  flick()   { if (this.ok('flick', 0.2)) { this.tone('square', 1800, 1200, 0.03, 0.08); this.tone('triangle', 400, 300, 0.08, 0.06, 0.02); } },
   extend()  { if (this.ok('extend', 0.3)) [520, 780].forEach((f, i) => this.tone('sine', f, f, 0.3, 0.09, i * 0.1)); },
 };

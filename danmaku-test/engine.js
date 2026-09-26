@@ -224,13 +224,13 @@ class Game {
     this.player = this.player || {};
     const cont = this.run && this.run.idx > 0, prev = this.boss;
     if (!cont) Object.assign(this.player, { x: W / 2, y: H - 48, options: [] });
-    Object.assign(this.player, { inv: 60, fireT: 0, bomb: null, flash: 0 });
+    Object.assign(this.player, { inv: 60, fireT: 0, bomb: null, flash: 0, stun: 0 });
     this.stats = { miss: 0, hits: 0, bombs: 0, dmgLog: new Array(60).fill(0), dmgNow: 0 };
     const b = this.boss = { x: W / 2, y: -40, hp: sp.hp || 1000, maxHp: sp.hp || 1000, move: null, hidden: sp.type === 'stage', t: 0,
       name: sp.boss || '', color: sp.bossColor || '#d8d0ff', shield: 0, glow: 0, contact: false };
     if (cont && prev && !prev.hidden) { b.x = prev.x; b.y = prev.y; }
     this.moveBoss(sp.start?.[0] ?? W / 2, sp.start?.[1] ?? 110, 45);
-    this.frame = 0; this.phase = 'intro'; this.phaseT = 50;
+    this.frame = 0; this.phase = 'intro'; this.phaseT = cont ? 100 : 70;
     this.timer = (sp.time || 30) * 60;
     this.banner = sp.type === 'spell' ? { text: sp.name, t: 0 } : null;
     if (this.banner) SFX.spell();
@@ -277,7 +277,7 @@ class Game {
     this.tasks.clear(); this.areas = []; this.slow = null;
     this.enemies.forEach(e => this.killEnemy(e, false));
     this.result = { captured: captured && sp.type === 'spell', reason, t: 0, stats: { ...this.stats } };
-    this.phase = 'result'; this.phaseT = this.run ? 100 : 150;
+    this.phase = 'result'; this.phaseT = 170;
   }
 
   clearBullets(points) {
@@ -345,7 +345,8 @@ class Game {
     p.focus = focus;
     let dx = (k.has('ArrowRight') ? 1 : 0) - (k.has('ArrowLeft') ? 1 : 0);
     let dy = (k.has('ArrowDown') ? 1 : 0) - (k.has('ArrowUp') ? 1 : 0);
-    const spd = focus ? 2 : 4.5, n = dx && dy ? Math.SQRT1_2 : 1;
+    const spd = (focus ? 2 : 4.5) * (p.stun > 0 ? 0.45 : 1), n = dx && dy ? Math.SQRT1_2 : 1;
+    if (p.stun > 0) p.stun--;
     p.x = Math.max(8, Math.min(W - 8, p.x + dx * spd * n));
     p.y = Math.max(16, Math.min(H - 16, p.y + dy * spd * n));
     p.tilt = dx;
@@ -432,6 +433,12 @@ class Game {
       if (b.x < -m || b.x > W + m || b.y < -m - b.marginTop || b.y > H + m) b.dead = true;
       if (b.dead) continue;
       const d = dist2(b.x, b.y, p.x, p.y), r = b.r + HIT_R, gr = b.r + GRAZE_R;
+      if (d < r * r && b.soft) {
+        // 딱밤: 별로 아프지 않음. 목숨 대신 잠깐 움직임이 둔해짐
+        b.dead = true;
+        if (p.inv <= 0 && !(p.stun > 0)) { p.stun = 45; this.fx.push({ kind: 'text', text: '딱!', x: p.x, y: p.y - 14, t: 0, life: 40 }); SFX.flick(); }
+        continue;
+      }
       if (d < r * r) { this.hitPlayer(); if (!this.invincible) break; }
       else if (d < gr * gr && !b.grazed) { b.grazed = true; this.graze++; this.score += 500; this.fx.push({ kind: 'graze', x: p.x, y: p.y, t: 0, life: 12 }); SFX.graze(); }
     }
@@ -597,7 +604,7 @@ function makeAPI(G) {
         maxSpd: o.maxSpd, minSpd: o.minSpd,
         cart: o.vx !== undefined || o.vy !== undefined || o.ax !== undefined || o.ay !== undefined,
         vx: o.vx ?? 0, vy: o.vy ?? 0, ax: o.ax ?? 0, ay: o.ay ?? 0,
-        shape: o.shape || 'small', color: o.color || 'red', r: o.r ?? def.r, alpha: o.alpha ?? 1,
+        shape: o.shape || 'small', color: o.color || 'red', r: o.r ?? def.r, alpha: o.alpha ?? 1, soft: !!o.soft,
         fn: o.fn, margin: o.margin ?? 32, marginTop: o.marginTop ?? 0, data: o.data || {},
       };
       G.bullets.push(b);
@@ -984,6 +991,9 @@ function drawFx(G, g) {
       g.globalAlpha = Math.sin(f.t * (f.t > f.life - 12 ? 1.6 : 0.6)) > 0 ? 0.9 : 0.25;
       g.strokeStyle = '#ff2a3a'; g.lineWidth = 2;
       g.beginPath(); g.moveTo(f.x, f.y); g.lineTo(f.x2, f.y2); g.stroke();
+    } else if (f.kind === 'text') {
+      g.globalAlpha = 1 - k; g.fillStyle = '#ffe28a'; g.font = 'bold 16px system-ui, "Malgun Gothic", sans-serif';
+      g.textAlign = 'center'; g.textBaseline = 'bottom'; g.fillText(f.text, f.x, f.y - k * 16); g.textAlign = 'left'; g.textBaseline = 'top';
     } else if (f.kind === 'block') {
       g.globalAlpha = 0.8 * (1 - k); g.strokeStyle = '#e8f6ff'; g.lineWidth = 1;
       g.beginPath(); g.arc(f.x, f.y, 3 + k * 5, 0, TAU); g.stroke();

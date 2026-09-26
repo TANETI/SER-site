@@ -40,6 +40,7 @@
 //   ivyVine(s, {...}) · ivyLeaf(...)           담쟁이 덩굴·잎 (리크니스)
 //   s.rand(a, b) · s.randInt(a, b) · s.pick(arr) · s.frame · s.hpRate · s.TAU · s.W · s.H
 //   영창 키: FILIUS1 FILIUS2 PATER1 PATER2 SPIRITUS1 NUNC_DIMITTIS (chants.js, 세계관 원문 그대로)
+//   s.fire({..., soft: true})  딱밤 탄: 맞아도 목숨이 줄지 않고 잠깐 느려짐
 //   탄의 alpha는 판정이 그대로이므로 0.35 아래로 내리지 않는다
 //
 // shape: small orb big rice knife star link leaf
@@ -288,6 +289,85 @@ const SPELLS = [
           yield* s.moveTo(s.rand(140, 244), s.rand(80, 110), 40);
         }
         yield 30;
+      }
+    },
+  },
+  {
+    name: '논스펠 · 마리의 딱밤',
+    type: 'nonspell', boss: '마르코', bossColor: '#e0c89a', hp: 2600, time: 35, start: [250, 100],
+    *run(s) {
+      const mari = churchDuo(s, [110, 80]);
+      // 마르코: 묵직한 조준탄
+      s.task(function* () {
+        for (let w = 1; ; w++) {
+          s.spread(s.lv(1, 3, 3), s.aim(), 0.3, { spd: s.sp(3.4), shape: 'orb', color: 'gold' });
+          yield s.wait(60);
+          if (w % 4 === 0) yield* s.wander(40, 50);
+        }
+      }());
+      // 마리: 파테르 제1식으로 딱밤. 필리우스 전문이라 파테르의 위력이 나오지 않아 별로 아프지 않음
+      // → 맞아도 목숨은 그대로, 잠깐 움직임만 둔해짐. 그 사이 마르코의 탄을 조심
+      for (;;) {
+        yield 150;
+        yield* s.chant('PATER1', { by: mari });
+        mari.glow = 140;
+        for (let k = 0; k < s.lv(3, 4, 5); k++) {
+          s.spread(s.lv(3, 5, 5), s.aim(mari.x, mari.y), 0.28, { x: mari.x, y: mari.y, spd: s.sp(2.6), shape: 'big', color: 'yellow', soft: true });
+          yield 24;
+        }
+      }
+    },
+  },
+  {
+    name: '필리우스 제2식 — 그의 백성을 두르시리로다',
+    type: 'spell', boss: '마르코', bossColor: '#e0c89a', hp: 3000, time: 55, start: [232, 95],
+    *run(s) {
+      // 마리가 둘을 감싸는 구역 보호막을 세움. 보호막이 서 있는 동안은 자기 탄이 들어가지 않음
+      // → 마리가 다시 영창하는 동안(보호막이 없는 동안)이 공격할 때
+      const mari = churchDuo(s, [152, 95]);
+      for (;;) {
+        s.task(function* () {   // 영창 중에도 가벼운 견제
+          for (let k = 0; k < 4; k++) { s.spread(s.lv(1, 3, 3), s.aim(), 0.35, { spd: s.sp(2.4), shape: 'small', color: 'orange' }); yield s.wait(45); }
+        }());
+        yield* s.chant('FILIUS2', { by: mari });
+        const dur = s.lv(240, 300, 360);
+        s.zone({ x: 192, y: 95, r: 82, dur });
+        // 보호막 안의 마르코: 황금 탄을 보호막 밖으로 크게 돌려 던짐. 마리는 유지하느라 쏘지 않음
+        for (let t = 0; t < dur; t += s.wait(50)) {
+          const a = s.aim();
+          s.fire({ ang: a, spd: s.sp(3.6), shape: 'big', color: 'gold' });
+          s.ring(s.cnt(20), { offset: s.rand(0, s.TAU), spd: s.sp(1.8), shape: 'rice', color: 'gold' });
+          yield s.wait(50);
+        }
+        yield 30;
+      }
+    },
+  },
+  {
+    name: '필리우스 제1식 — 불꽃이 너를 사르지 못하리니',
+    type: 'spell', survival: true, boss: '마르코', bossColor: '#e0c89a', hp: 1, time: 40, start: [192, 100],
+    *run(s) {
+      // 내구 스펠: 마리가 마르코에게 보호막을 계속 씌우는 동안 버티기
+      const mari = churchDuo(s);
+      yield* s.chant('FILIUS1', { by: mari });
+      s.shield(s.boss, 60 * 60);
+      s.task(mariRings(s, mari, 90));
+      for (;;) {
+        yield* s.chant('PATER2', { by: s.boss, step: 36 });
+        for (let k = 0; k < 2; k++) {
+          const px = s.player.x, py = s.player.y, d = Math.hypot(px - s.boss.x, py - s.boss.y) || 1;
+          const stop = Math.max(0, d - 80);
+          const tx = s.boss.x + (px - s.boss.x) / d * stop, ty = Math.min(s.boss.y + (py - s.boss.y) / d * stop, s.H - 130);
+          s.warnLine({ x: s.boss.x, y: s.boss.y, x2: tx, y2: ty, dur: s.lv(48, 40, 34) });
+          yield s.lv(48, 40, 34);
+          s.boss.contact = true;
+          yield* s.moveTo(tx, ty, 20);
+          s.boss.contact = false;
+          s.ring(s.cnt(18), { spd: 0.6, accel: 0.04, maxSpd: s.sp(2), shape: 'orb', color: 'gold' });
+          yield 45;
+          yield* s.moveTo(s.rand(140, 244), s.rand(80, 110), 45);
+        }
+        yield 40;
       }
     },
   },
@@ -719,7 +799,10 @@ const BOSS_RUNS = [
     seq: [
       spellOf('논스펠 · 마리와 마르코'),
       spellOf('파테르 제1식 — 나의 의로운 오른손으로 너를 붙들리라', '마르코'),
+      spellOf('논스펠 · 마리의 딱밤'),
+      spellOf('필리우스 제2식 — 그의 백성을 두르시리로다'),
       spellOf('파테르 제2식 — 능히 일어나지 못하게 하리니'),
+      spellOf('필리우스 제1식 — 불꽃이 너를 사르지 못하리니'),
     ],
   },
 ];
