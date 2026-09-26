@@ -23,8 +23,39 @@
 //   s.enemy({x, y, vx, vy, hp, run: function* (e, s) {...}})
 //   s.rand(a, b) · s.randInt(a, b) · s.pick(arr) · s.frame · s.hpRate · s.TAU · s.W · s.H
 //
+//   s.partner({name, x, y, to:[x,y], color})  함께 나오는 동료(체력 없음). s.move(x, y, 프레임, 동료)로 이동
+//   yield* s.chant('PATER1', {by, step})     화면 상단에 영창을 한 줄씩 띄움. 호명 줄이 뜰 때까지 기다림(전조)
+//   s.shield(대상, 프레임)                    보호막. 통상탄은 막고 봄은 통과
+//   s.zone({x, y, r, dur})                    고정 구역 보호막. 들어온 자기 탄을 지움
+//   s.warnLine({x, y, x2, y2, dur})           판정 없는 빨간 예고선
+//   영창 키: FILIUS1 FILIUS2 PATER1 PATER2 NUNC_DIMITTIS (chants.js, 세계관 원문 그대로)
+//
 // shape: small orb big rice knife star link
 // color: red orange yellow green cyan blue purple pink white gold brown black
+
+// ── 성당교회 공통 ──
+// 마르코 보스에 마리를 동료로 붙임. 영창 색은 마르코=금빛, 마리=하늘빛
+function churchDuo(s, at = [80, 70]) {
+  s.boss.chantColor = '#ffe6a0';
+  const mari = s.partner({ name: '마리', x: -30, y: 40, to: at, color: '#cfe8ff' });
+  mari.chantColor = '#cfe8ff';
+  return mari;
+}
+// 마리가 가끔 필리우스 제1식으로 마르코에게 보호막을 씌움
+function* mariShield(s, mari, every = 480, dur = 240) {
+  for (;;) {
+    yield every;
+    yield* s.chant('FILIUS1', { by: mari });
+    s.shield(s.boss, dur);
+  }
+}
+// 마리의 느린 원형탄
+function* mariRings(s, mari, every = 60) {
+  for (let k = 0; ; k++) {
+    s.ring(14, { x: mari.x, y: mari.y, offset: k * 0.23, spd: 1.5, shape: 'orb', color: 'cyan' });
+    yield every;
+  }
+}
 
 const SPELLS = [
   {
@@ -122,9 +153,107 @@ const SPELLS = [
     },
   },
   {
-    name: 'Clavis Collata — NUNC DIMITTIS (패턴 시험)',
-    type: 'spell', hp: 3600, time: 50, start: [192, 100],
+    name: '논스펠 · 마리와 마르코',
+    type: 'nonspell', boss: '마르코', bossColor: '#e0c89a', hp: 2600, time: 35, start: [240, 100],
     *run(s) {
+      const mari = churchDuo(s, [120, 80]);
+      let holding = false;
+      // 마리: 구역 보호막을 유지하는 동안은 다른 탄을 쏘지 않음
+      s.task(function* () {
+        for (let k = 0; ; k++) {
+          if (!holding) s.ring(14, { x: mari.x, y: mari.y, offset: k * 0.23, spd: 1.5, shape: 'orb', color: 'cyan' });
+          yield 50;
+        }
+      }());
+      s.task(function* () {
+        for (;;) {
+          yield 200;
+          yield* s.chant('FILIUS2', { by: mari });
+          holding = true;
+          s.zone({ x: s.boss.x, y: s.boss.y, r: 52, dur: 300 });
+          yield 300;
+          holding = false;
+        }
+      }());
+      // 마르코: 묵직한 조준 3연발. 구역 보호막 안에 있는 동안은 자리를 지킴
+      for (;;) {
+        for (let k = 0; k < 3; k++) { s.spread(3, s.aim(), 0.3, { spd: 3.6, shape: 'orb', color: 'gold' }); yield 12; }
+        yield 50;
+        if (!holding) yield* s.moveTo(s.rand(200, 290), s.rand(80, 130), 40);
+      }
+    },
+  },
+  {
+    name: '파테르 제1식 — 나의 의로운 오른손으로 너를 붙들리라',
+    type: 'spell', boss: '마르코', bossColor: '#e0c89a', hp: 3600, time: 50, start: [192, 100],
+    *run(s) {
+      const mari = churchDuo(s);
+      s.task(mariShield(s, mari));
+      s.task(mariRings(s, mari, 70));
+      for (;;) {
+        // 전조: 영창하는 동안은 가벼운 탄만
+        const light = s.task(function* () {
+          for (;;) { s.spread(5, s.aim(), 0.25, { spd: 2.2, shape: 'small', color: 'orange' }); yield 30; }
+        }());
+        yield* s.chant('PATER1', { by: s.boss });
+        light.return();
+        // 오른손이 황금빛으로 빛나는 동안 강화된 몸놀림으로 따라붙어 황금 주먹을 날림
+        s.boss.glow = 250;
+        for (let k = 0; k < 4; k++) {
+          yield* s.moveTo(Math.max(60, Math.min(s.W - 60, s.player.x)), s.rand(90, 130), 20);
+          s.fire({
+            ang: s.aim(), spd: 5.5, shape: 'big', color: 'gold',
+            // 지나간 자리 양옆으로 작은 탄을 흘림
+            fn: (b, s) => {
+              if (b.t % 5) return;
+              for (const d of [-1, 1]) s.fire({ x: b.x, y: b.y, ang: b.ang + d * Math.PI / 2, spd: 0.8, accel: 0.02, maxSpd: 2.2, shape: 'small', color: 'yellow' });
+            },
+          });
+          s.ring(24, { offset: s.rand(0, s.TAU), spd: 2.4, shape: 'rice', color: 'gold' });
+          yield 36;
+        }
+        yield* s.moveTo(192, 100, 40);
+        yield 30;
+      }
+    },
+  },
+  {
+    name: '파테르 제2식 — 능히 일어나지 못하게 하리니',
+    type: 'spell', boss: '마르코', bossColor: '#e0c89a', hp: 3600, time: 55, start: [192, 100],
+    *run(s) {
+      const mari = churchDuo(s);
+      s.task(mariShield(s, mari, 540));
+      s.task(mariRings(s, mari, 55));
+      for (;;) {
+        // 제1식보다 봉독이 길어 발동이 느림
+        yield* s.chant('PATER2', { by: s.boss, step: 30 });
+        for (let k = 0; k < 3; k++) {
+          const tx = s.player.x, ty = Math.min(s.player.y, s.H - 60);
+          s.warnLine({ x: s.boss.x, y: s.boss.y, x2: tx, y2: ty, dur: 32 });
+          yield 32;
+          // 사거리가 없으므로 직접 달려듦. 돌진 중에는 몸에 닿아도 피격
+          s.boss.contact = true;
+          yield* s.moveTo(tx, ty, 18);
+          s.boss.contact = false;
+          s.ring(32, { spd: 2.2, shape: 'orb', color: 'gold' });
+          s.ring(32, { offset: Math.PI / 32, spd: 1.4, shape: 'small', color: 'yellow' });
+          yield 40;   // 붙든 자리에서 잠시 멈춤 = 공격 기회
+          yield* s.moveTo(s.rand(120, 264), s.rand(80, 110), 40);
+        }
+        yield 30;
+      }
+    },
+  },
+  {
+    name: 'Clavis Collata — NUNC DIMITTIS (패턴 시험)',
+    type: 'spell', boss: '예로니모', bossColor: '#e8e0c8', hp: 3600, time: 60, start: [192, 100],
+    *run(s) {
+      // 전조: 고유 클라비스 영창. 읊는 동안은 느린 원형탄만
+      const light = s.task(function* () {
+        for (let k = 0; ; k++) { s.ring(12, { offset: k * 0.3, spd: 1.3, shape: 'small', color: 'gold' }); yield 40; }
+      }());
+      yield* s.chant('NUNC_DIMITTIS', { by: s.boss, step: 16 });
+      light.return();
       // 화면 가장자리의 한 점에서 목표점을 지나는 사슬. 목표를 주지 않으면 필드 안 무작위 지점
       function edgeChain(target) {
         const side = s.randInt(0, 2);

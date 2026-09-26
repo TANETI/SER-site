@@ -196,11 +196,13 @@ class Game {
     this.spellIndex = (i + this.spells.length) % this.spells.length;
     const sp = this.spell = this.spells[this.spellIndex];
     this.bullets = []; this.lasers = []; this.enemies = []; this.shots = []; this.fx = [];
+    this.partners = []; this.chants = []; this.zones = [];
     this.tasks.clear(); this.error = '';
     this.player = this.player || {};
     Object.assign(this.player, { x: W / 2, y: H - 48, inv: 60, fireT: 0, bomb: null, options: [], flash: 0 });
     this.stats = { miss: 0, hits: 0, bombs: 0, dmgLog: new Array(60).fill(0), dmgNow: 0 };
-    const b = this.boss = { x: W / 2, y: -40, hp: sp.hp || 1000, maxHp: sp.hp || 1000, move: null, hidden: sp.type === 'stage', t: 0 };
+    const b = this.boss = { x: W / 2, y: -40, hp: sp.hp || 1000, maxHp: sp.hp || 1000, move: null, hidden: sp.type === 'stage', t: 0,
+      name: sp.boss || '', color: sp.bossColor || '#d8d0ff', shield: 0, glow: 0, contact: false };
     this.moveBoss(sp.start?.[0] ?? W / 2, sp.start?.[1] ?? 110, 45);
     this.frame = 0; this.phase = 'intro'; this.phaseT = 50;
     this.timer = (sp.time || 30) * 60;
@@ -209,9 +211,23 @@ class Game {
     if (b.hidden) { b.x = W / 2; b.y = -200; b.move = null; }
   }
 
-  moveBoss(x, y, dur) {
-    const b = this.boss;
-    b.move = { x0: b.x, y0: b.y, x1: x, y1: y, t: 0, dur: Math.max(1, dur) };
+  moveBoss(x, y, dur, who = this.boss) {
+    who.move = { x0: who.x, y0: who.y, x1: x, y1: y, t: 0, dur: Math.max(1, dur) };
+  }
+
+  // 보스·동료 공통: 이동 보간, 보호막·발광 감소, 몸통 판정
+  updateActor(a) {
+    if (a.move) {
+      const m = a.move; m.t++;
+      const k = Math.min(1, m.t / m.dur), e = 1 - Math.pow(1 - k, 3);
+      a.x = m.x0 + (m.x1 - m.x0) * e; a.y = m.y0 + (m.y1 - m.y0) * e;
+      if (k >= 1) a.move = null;
+    }
+    a.t++;
+    if (a.shield > 0) a.shield--;
+    if (a.glow > 0) a.glow--;
+    const p = this.player;
+    if (a.contact && !a.hidden && dist2(a.x, a.y, p.x, p.y) < 16 * 16) this.hitPlayer();
   }
 
   endSpell(reason) {
@@ -246,13 +262,12 @@ class Game {
     this.updatePlayer();
 
     const b = this.boss;
-    if (b.move) {
-      const m = b.move; m.t++;
-      const k = Math.min(1, m.t / m.dur), e = 1 - Math.pow(1 - k, 3);
-      b.x = m.x0 + (m.x1 - m.x0) * e; b.y = m.y0 + (m.y1 - m.y0) * e;
-      if (k >= 1) b.move = null;
-    }
-    b.t++;
+    this.updateActor(b);
+    for (const a of this.partners) this.updateActor(a);
+    for (const c of this.chants) c.t++;
+    this.chants = this.chants.filter(c => c.t < c.end + c.fade);
+    for (const z of this.zones) z.t++;
+    this.zones = this.zones.filter(z => z.t < z.dur);
 
     if (this.phase === 'intro') {
       if (--this.phaseT <= 0) {
@@ -420,7 +435,13 @@ class Game {
       s.x += s.vx; s.y += s.vy; s.t = (s.t || 0) + 1;
       if (s.x < -20 || s.x > W + 20 || s.y < -20 || s.y > H + 20 || (s.life && s.t > s.life)) { s.dead = true; continue; }
       for (const e of targets) if (!e.dead && dist2(s.x, s.y, e.x, e.y) < (e.r + 6) ** 2) { e.hp -= s.dmg; e.hurt = 4; s.dead = true; break; }
-      if (!s.dead && !b.hidden && this.phase === 'active' && dist2(s.x, s.y, b.x, b.y) < 30 * 30) { this.damageBoss(s.dmg); s.dead = true; b.hurt = 3; }
+      if (!s.dead && this.zones.some(z => dist2(s.x, s.y, z.x, z.y) < z.r * z.r)) { s.dead = true; this.fx.push({ kind: 'block', x: s.x, y: s.y, t: 0, life: 10 }); continue; }
+      if (!s.dead && !b.hidden && this.phase === 'active' && dist2(s.x, s.y, b.x, b.y) < 30 * 30) {
+        s.dead = true;
+        // 필리우스 제1식은 약한 공격을 막음: 통상탄은 막히고 봄은 통함
+        if (b.shield > 0) { this.fx.push({ kind: 'block', x: s.x, y: s.y, t: 0, life: 10 }); continue; }
+        this.damageBoss(s.dmg); b.hurt = 3;
+      }
       if (s.dead && Math.random() < 0.5) this.fx.push({ kind: 'hit', x: s.x, y: s.y, t: 0, life: 8, color: s.color });
     }
     this.shots = this.shots.filter(s => !s.dead);
@@ -516,8 +537,31 @@ function makeAPI(G) {
       return l;
     },
     task(gen, owner) { return G.tasks.add(gen, owner); },
-    *moveTo(x, y, dur = 60) { G.moveBoss(x, y, dur); yield dur; },
-    move(x, y, dur = 60) { G.moveBoss(x, y, dur); },
+    // who를 주면 동료를 움직임. 기본은 보스
+    *moveTo(x, y, dur = 60, who) { G.moveBoss(x, y, dur, who); yield dur; },
+    move(x, y, dur = 60, who) { G.moveBoss(x, y, dur, who); },
+    // 함께 싸우는 동료(체력 없음, 공격받지 않음): {name,x,y,color}
+    partner(o = {}) {
+      const a = { name: o.name || '', x: o.x ?? W / 2, y: o.y ?? -40, color: o.color || '#cfe8ff', t: 0, shield: 0, glow: 0, contact: false, move: null };
+      if (o.to) G.moveBoss(o.to[0], o.to[1], o.dur ?? 45, a);
+      G.partners.push(a);
+      return a;
+    },
+    // 판정 없는 빨간 예고선: {x,y,x2,y2,dur}
+    warnLine(o) { G.fx.push({ kind: 'warnline', x: o.x ?? G.boss.x, y: o.y ?? G.boss.y, x2: o.x2, y2: o.y2, t: 0, life: o.dur ?? 30 }); },
+    // 보호막: 통상탄을 막음(봄은 통과)
+    shield(who, frames) { who.shield = frames; who.shieldMax = frames; },
+    // 고정 구역 보호막: 안으로 들어온 자기 탄을 지움 {x,y,r,dur}
+    zone(o = {}) { const z = { x: o.x ?? G.boss.x, y: o.y ?? G.boss.y, r: o.r ?? 56, dur: o.dur ?? 300, t: 0 }; G.zones.push(z); return z; },
+    // 영창: 화면 상단에 한 줄씩 떠오른 뒤 사라짐. 마지막 줄이 호명.
+    // yield* 하면 호명 줄이 뜰 때까지 기다림(= 전조 시간). {by, color, step, hold}
+    *chant(lines, o = {}) {
+      if (typeof lines === 'string') lines = CHANTS[lines];
+      const step = o.step ?? 24, hold = o.hold ?? 20;
+      const c = { lines, t: 0, step, end: lines.length * step + hold + 30, fade: 40, color: o.color || o.by?.chantColor || '#ffe6a0' };
+      G.chants.push(c);
+      yield lines.length * step + hold;
+    },
     // 잡몹: {x,y,vx,vy,hp,r,run(e,s)}
     enemy(o = {}) {
       const e = { x: o.x ?? W / 2, y: o.y ?? -20, vx: o.vx ?? 0, vy: o.vy ?? 0, hp: o.hp ?? 30, r: o.r ?? 14, t: 0, color: o.color || 'red' };
@@ -562,6 +606,7 @@ function render(G) {
   drawFx(G, g);
   drawBomb(G, g);
   drawHitbox(G, g);
+  drawChants(G, g);
   drawFieldUI(G, g);
   g.restore();
 
@@ -582,6 +627,8 @@ function drawBackground(G, g) {
 
 function drawBoss(G, g) {
   const b = G.boss;
+  for (const z of G.zones) drawZone(g, z);
+  for (const a of G.partners) drawActor(G, g, a, false);
   if (b.hidden) return;
   g.save(); g.translate(b.x, b.y);
   // 마법진
@@ -594,11 +641,69 @@ function drawBoss(G, g) {
   g.rotate(-b.t * 0.05);
   g.beginPath(); g.arc(0, 0, 30, 0, TAU); g.stroke();
   g.restore();
-  // 몸체 자리표시
-  g.fillStyle = b.hurt > 0 ? '#fff' : '#d8d0ff';
-  g.beginPath(); g.arc(b.x, b.y, 14, 0, TAU); g.fill();
-  g.fillStyle = '#6a5acd'; g.beginPath(); g.arc(b.x, b.y, 8, 0, TAU); g.fill();
-  if (b.hurt > 0) b.hurt--;
+  drawActor(G, g, b, true);
+}
+
+// 몸체 자리표시 + 이름 + 오른손 발광 + 보호막
+function drawActor(G, g, a, isBoss) {
+  const r = isBoss ? 14 : 11;
+  if (a.glow > 0) {
+    // 파테르 제1식: 오른손이 황금빛으로 빛남
+    const gx = a.x + r + 3, gy = a.y + 2, pulse = 8 + Math.sin(a.t * 0.4) * 2;
+    const gr = g.createRadialGradient(gx, gy, 0, gx, gy, pulse * 2);
+    gr.addColorStop(0, '#fff'); gr.addColorStop(0.3, '#ffd24a'); gr.addColorStop(1, '#ffd24a00');
+    g.fillStyle = gr; g.beginPath(); g.arc(gx, gy, pulse * 2, 0, TAU); g.fill();
+  }
+  g.fillStyle = a.hurt > 0 ? '#fff' : a.color;
+  g.beginPath(); g.arc(a.x, a.y, r, 0, TAU); g.fill();
+  g.fillStyle = 'rgba(0,0,0,0.35)'; g.beginPath(); g.arc(a.x, a.y, r * 0.55, 0, TAU); g.fill();
+  if (a.hurt > 0) a.hurt--;
+  if (a.shield > 0) {
+    // 영적 보호막: 물리 장벽이 아니므로 흐릿한 막으로 표현. 끝날 때 깜빡임
+    const k = a.shield < 60 && Math.floor(a.shield / 5) % 2 ? 0.3 : 1;
+    g.globalAlpha = 0.35 * k; g.fillStyle = '#bfe4ff';
+    g.beginPath(); g.arc(a.x, a.y, 30, 0, TAU); g.fill();
+    g.globalAlpha = k; g.strokeStyle = '#ffffff'; g.lineWidth = 2;
+    g.beginPath(); g.arc(a.x, a.y, 30 + Math.sin(a.t * 0.2) * 1.5, 0, TAU); g.stroke();
+    g.globalAlpha = 1;
+  }
+  if (a.name) {
+    g.font = '10px system-ui, "Malgun Gothic", sans-serif'; g.textAlign = 'center'; g.textBaseline = 'top';
+    g.fillStyle = 'rgba(255,255,255,0.7)'; g.fillText(a.name, a.x, a.y + r + 4); g.textAlign = 'left';
+  }
+}
+
+function drawZone(g, z) {
+  const k = Math.min(1, z.t / 15, (z.dur - z.t) / 20);
+  g.globalAlpha = 0.18 * k; g.fillStyle = '#bfe4ff';
+  g.beginPath(); g.arc(z.x, z.y, z.r, 0, TAU); g.fill();
+  g.globalAlpha = 0.7 * k; g.strokeStyle = '#e8f6ff'; g.lineWidth = 1.5;
+  g.setLineDash([6, 4]); g.lineDashOffset = -z.t * 0.5;
+  g.beginPath(); g.arc(z.x, z.y, z.r, 0, TAU); g.stroke();
+  g.setLineDash([]); g.globalAlpha = 1;
+}
+
+// 영창: 화면 상단 가운데. 줄마다 서서히 떠오르고, 끝나면 함께 사라짐
+const CHANT_FONT = '"Gowun Batang", "Nanum Myeongjo", Batang, serif';
+function drawChants(G, g) {
+  let y = 40;
+  g.textAlign = 'center'; g.textBaseline = 'top';
+  for (const c of G.chants) {
+    const out = c.t > c.end ? 1 - (c.t - c.end) / c.fade : 1;
+    const rise = c.t > c.end ? (c.t - c.end) * 0.3 : 0;
+    c.lines.forEach((line, i) => {
+      const t0 = i * c.step, last = i === c.lines.length - 1;
+      if (c.t < t0) return;
+      const a = Math.min(1, (c.t - t0) / 14) * out;
+      g.globalAlpha = a;
+      g.font = (last ? 'bold 15px ' : '13px ') + CHANT_FONT;
+      g.shadowColor = c.color; g.shadowBlur = last ? 12 : 8;
+      g.fillStyle = last ? '#fff' : c.color;
+      g.fillText(line, W / 2, y + i * 19 + (last ? 4 : 0) - rise + (1 - Math.min(1, (c.t - t0) / 14)) * 4);
+    });
+    y += c.lines.length * 19 + 14;
+  }
+  g.shadowBlur = 0; g.globalAlpha = 1; g.textAlign = 'left';
 }
 
 function drawEnemies(G, g) {
@@ -735,6 +840,13 @@ function drawFx(G, g) {
     } else if (f.kind === 'hit') {
       g.globalAlpha = 0.7 * (1 - k); g.fillStyle = COLORS[f.color] || '#fff';
       g.beginPath(); g.arc(f.x, f.y - k * 6, 2 + k * 6, 0, TAU); g.fill();
+    } else if (f.kind === 'warnline') {
+      g.globalAlpha = Math.sin(f.t * (f.t > f.life - 12 ? 1.6 : 0.6)) > 0 ? 0.9 : 0.25;
+      g.strokeStyle = '#ff2a3a'; g.lineWidth = 2;
+      g.beginPath(); g.moveTo(f.x, f.y); g.lineTo(f.x2, f.y2); g.stroke();
+    } else if (f.kind === 'block') {
+      g.globalAlpha = 0.8 * (1 - k); g.strokeStyle = '#e8f6ff'; g.lineWidth = 1;
+      g.beginPath(); g.arc(f.x, f.y, 3 + k * 5, 0, TAU); g.stroke();
     } else if (f.kind === 'graze') {
       g.globalAlpha = 1 - k; g.fillStyle = '#fff';
       g.fillRect(f.x + (f.t * 1.7 % 20) - 10, f.y - 10 + (f.t * 2.3 % 20), 2, 2);
