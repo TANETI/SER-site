@@ -12,7 +12,7 @@ const MAX_POWER = 4, P_SMALL = 0.02, P_BIG = 0.25, DEATH_POWER_LOSS = 0.5;
 // 난이도별 보스 체력 배율. 엑스트라는 한 단계 위
 const HP_MUL = [0.7, 0.85, 1, 1.1, 1.2, 1.3];
 // 패턴에 적힌 체력·제한시간에 곱하는 배율(내구 스펠·잡몹 구간·허수아비 제외).
-// 보스전은 스테이지마다 hpScale로 따로 정해 노말 약 7.5분(이지 약 6분, 헬 9~10분)에 맞춤. 단일 패턴 연습은 기본값
+// 보스전은 스테이지마다 hpScale로 따로 정해 노말 약 6.5분(이지 5분대, 헬 8~9분)에 맞춤. 단일 패턴 연습은 기본값
 const HP_SCALE = 2.2;
 // 난이도: 0=이지 1=노말 2=하드 3=베리하드 4=헬. 패턴은 s.lv·s.cnt·s.wait·s.sp로 난이도를 반영한다.
 // 하드가 시험판 처음의 잠정 최고 밀도. 엑스트라 패턴(extra: true)은 한 단계 위로 계산하며 6번째 값은 헬 위
@@ -38,29 +38,39 @@ const SHAPES = {
   leaf:   { r: 3,   size: 16, oriented: true, draw: (g, c) => leafShape(g, c) },
 };
 
+// 적탄은 배경·자기 탄과 섞이지 않게 모두 어두운 테두리를 두르고 흰 심을 넣는다
+const EDGE = 'rgba(0,0,0,0.75)';
 function orb(g, x, y, r, c) {
-  const gr = g.createRadialGradient(x, y, 0, x, y, r);
-  gr.addColorStop(0, '#fff'); gr.addColorStop(0.45, '#fff'); gr.addColorStop(0.62, c); gr.addColorStop(1, c + '00');
+  const gr = g.createRadialGradient(x, y, r * 0.6, x, y, r);   // 바깥 광채
+  gr.addColorStop(0, c + '88'); gr.addColorStop(1, c + '00');
   g.fillStyle = gr; g.beginPath(); g.arc(x, y, r, 0, TAU); g.fill();
+  g.fillStyle = c; g.beginPath(); g.arc(x, y, r * 0.66, 0, TAU); g.fill();
+  g.strokeStyle = EDGE; g.lineWidth = 1; g.stroke();
+  g.fillStyle = '#fff'; g.beginPath(); g.arc(x, y, r * 0.38, 0, TAU); g.fill();
 }
 function ellipse(g, x, y, rx, ry, c) {
   g.fillStyle = c; g.beginPath(); g.ellipse(x, y, rx, ry, 0, 0, TAU); g.fill();
-  g.fillStyle = '#fff'; g.beginPath(); g.ellipse(x, y, rx * 0.6, ry * 0.45, 0, 0, TAU); g.fill();
+  g.strokeStyle = EDGE; g.lineWidth = 1; g.stroke();
+  g.fillStyle = '#fff'; g.beginPath(); g.ellipse(x, y, rx * 0.55, ry * 0.4, 0, 0, TAU); g.fill();
 }
 function knife(g, c) {
   g.fillStyle = c; g.beginPath(); g.moveTo(19, 10); g.lineTo(4, 6); g.lineTo(1, 10); g.lineTo(4, 14); g.closePath(); g.fill();
+  g.strokeStyle = EDGE; g.lineWidth = 1; g.stroke();
   g.fillStyle = '#fff'; g.beginPath(); g.moveTo(16, 10); g.lineTo(5, 8.5); g.lineTo(5, 11.5); g.closePath(); g.fill();
 }
 function star(g, x, y, r, c) {
   g.fillStyle = c; g.beginPath();
   for (let i = 0; i < 10; i++) { const a = -Math.PI / 2 + i * Math.PI / 5, rr = i % 2 ? r * 0.45 : r; g.lineTo(x + Math.cos(a) * rr, y + Math.sin(a) * rr); }
-  g.closePath(); g.fill(); g.fillStyle = '#fff'; g.beginPath(); g.arc(x, y, r * 0.3, 0, TAU); g.fill();
+  g.closePath(); g.fill(); g.strokeStyle = EDGE; g.lineWidth = 1; g.stroke();
+  g.fillStyle = '#fff'; g.beginPath(); g.arc(x, y, r * 0.3, 0, TAU); g.fill();
 }
 function leafShape(g, c) {
   g.fillStyle = c; g.beginPath(); g.moveTo(15, 8); g.quadraticCurveTo(8, 1, 1, 8); g.quadraticCurveTo(8, 15, 15, 8); g.fill();
+  g.strokeStyle = EDGE; g.lineWidth = 1; g.stroke();
   g.strokeStyle = '#eaffea'; g.lineWidth = 1; g.beginPath(); g.moveTo(14, 8); g.lineTo(3, 8); g.stroke();
 }
 function chainLink(g, c) {
+  g.strokeStyle = EDGE; g.lineWidth = 3.6; g.beginPath(); g.ellipse(7, 7, 6, 3.4, 0, 0, TAU); g.stroke();
   g.strokeStyle = c; g.lineWidth = 2.4; g.beginPath(); g.ellipse(7, 7, 6, 3.4, 0, 0, TAU); g.stroke();
   g.strokeStyle = '#fff'; g.lineWidth = 1; g.beginPath(); g.ellipse(7, 7, 6, 3.4, 0, 0, TAU); g.stroke();
 }
@@ -145,8 +155,10 @@ function shotSprite(shape, color) {
 
 // 탄 한 발: {x,y,vx,vy,dmg,shape,color,homing,turn,life,laser}
 // 파워 단계 L(0~4)에 따라 구성이 바뀐다. 괄호 안은 정지 표적에 붙어 쏠 때 최대 파워 기준 초당 피해량
+// 모든 기체 공통 대미지 배율. 표 안의 대미지·주석의 초당 피해량은 배율 적용 전 값
+const SHOT_DMG = 1.25;
 function shot(out, x, y, a, spd, dmg, shape, color, extra) {
-  out.push({ x, y, vx: Math.cos(a) * spd, vy: Math.sin(a) * spd, dmg, shape, color, ...extra });
+  out.push({ x, y, vx: Math.cos(a) * spd, vy: Math.sin(a) * spd, dmg: dmg * SHOT_DMG, shape, color, ...extra });
 }
 const UP = -Math.PI / 2;
 // 파워 단계별 표: [0, 1, 2, 3, 4]. 탄 줄 수·발사 간격(틱)·한 발 대미지가 함께 오른다.
@@ -179,16 +191,15 @@ const SHOT_TYPES = {
       shot(out, p.x, p.y - 6, a, 14, dmg, 'thorn', 'red', { life: 16 + (Math.random() * 3 | 0) });
     }
   },
-  // 루미엘(중립 선): 정면 바늘 1→2줄 + 파워 1부터 빗나가지 않는 유도 부적(2→4장).
-  // 부적은 조금 날아간 뒤 닿은 작은 적탄 하나를 지우고 함께 사라짐. 전체로 초당 2개까지만.
-  // 초당 피해량 약 40 / 85 / 95 / 130 / 150
+  // 루미엘(중립 선): 정면 바늘 1→2줄 + 파워 1부터 빗나가지 않는 유도 부적(2→4장). 부적이 빗나가지 않는 대신 화력은 가장 낮음
+  // 초당 피해량(대미지 배율 적용 전) 약 45 / 90 / 105 / 140 / 165
   LM(p, out, focus, L) {
-    const t = p.fireT, nN = [1, 2, 2, 2, 2][L], ivN = [6, 4, 3, 3, 3][L], dN = [4, 2, 1.6, 1.6, 1.6][L];
+    const t = p.fireT, nN = [1, 2, 2, 2, 2][L], ivN = [6, 4, 3, 3, 3][L], dN = [4.5, 2.2, 1.8, 1.8, 1.8][L];
     if (t % ivN === 0) for (let i = 0; i < nN; i++) shot(out, p.x + (nN > 1 ? (i ? 4 : -4) : 0), p.y - 10, UP, 16, dN, 'needle', 'pink');
     const ks = [[], [-1, 1], [-1, 1], [-1, -0.4, 0.4, 1], [-1, -0.4, 0.4, 1]][L], ivA = [0, 9, 7, 7, 5][L];
     if (ks.length && t % ivA === 0) {
       const spreadA = focus ? 0.35 : 0.9;
-      for (const k of ks) shot(out, p.x + k * 10, p.y, UP + k * spreadA, 8, focus ? 1.9 : 1.7, 'amulet', 'purple', { homing: true, turn: focus ? 0.25 : 0.14, life: 90, erase: 1 });
+      for (const k of ks) shot(out, p.x + k * 10, p.y, UP + k * spreadA, 8, focus ? 1.9 : 1.7, 'amulet', 'purple', { homing: true, turn: focus ? 0.25 : 0.14, life: 90 });
     }
   },
   // 라티엘(진 중립): 가운데 바늘 1→3줄 + 파워 2부터 옵션 둘의 별탄(4에서 겹별). 고속은 넓게, 저속은 옵션이 앞으로 모임.
@@ -212,7 +223,8 @@ class Game {
     this.cv = canvas;
     this.g = canvas.getContext('2d');
     this.keys = new Set(); this.pressed = new Set();
-    this.speed = 1; this.invincible = false; this.difficulty = 1; this.practicePower = 0;   // 단일 패턴 연습도 기본은 파워 0(패널에서 올림) this.loop = true; this.paused = false;
+    this.speed = 1; this.invincible = false; this.difficulty = 1; this.practicePower = 0;   // 단일 패턴 연습도 기본은 파워 0(패널에서 올림)
+    this.powerLock = false;   // 켜면 파워가 연습 파워에 고정(보스전 포함, 죽어도 안 줄고 아이템으로 안 오름) this.loop = true; this.paused = false;
     this.spells = []; this.spellIndex = 0;
     this.angel = 'AR';
     this.error = '';
@@ -240,7 +252,8 @@ class Game {
   restart() { this.run ? this.startRun(this.run) : this.startSingle(); }
   resetLives(power = 0) {
     this.player = this.player || {};
-    this.player.lives = START_LIVES; this.player.bombs = START_BOMBS; this.player.power = power;
+    // 파워 고정이면 보스전에서도 연습 파워를 씀
+    this.player.lives = START_LIVES; this.player.bombs = START_BOMBS; this.player.power = this.powerLock ? this.practicePower : power;
     this.items = [];
   }
 
@@ -342,7 +355,7 @@ class Game {
       if (d < 18 && this.phase !== 'gameover') {
         it.dead = true;
         const gain = it.kind === 'P' ? P_BIG : P_SMALL;
-        if (p.power >= MAX_POWER) this.score += it.kind === 'P' ? 5000 : 500;
+        if (p.power >= MAX_POWER || this.powerLock) this.score += it.kind === 'P' ? 5000 : 500;
         else {
           const before = Math.floor(p.power);
           p.power = Math.min(MAX_POWER, +(p.power + gain).toFixed(2));
@@ -478,7 +491,7 @@ class Game {
     p.x = W / 2; p.y = H - 48; p.inv = 150; p.bomb = null;
     // 한 번 죽을 때마다 목숨 하나. 폭탄은 다시 3개로
     p.lives--; p.bombs = START_BOMBS;
-    const lost = Math.min(p.power, DEATH_POWER_LOSS);
+    const lost = this.powerLock ? 0 : Math.min(p.power, DEATH_POWER_LOSS);
     p.power = +(p.power - lost).toFixed(2);
     if (lost > 0) this.dropItems(p.x, p.y - 30, 5, 0);
     if (p.lives <= 0) {
@@ -582,7 +595,6 @@ class Game {
 
   updateShots() {
     const b = this.boss, targets = this.enemies;
-    if (this.eraseCd > 0) this.eraseCd--;
     for (const s of this.shots) {
       if (s.homing) {
         const tgt = nearest(s, targets, b.hidden || this.phase !== 'active' ? null : b);
@@ -603,18 +615,6 @@ class Game {
         e.hp -= s.dmg; e.hurt = 4; SFX.hit();
         if (!s.pierce) { s.dead = true; break; }
       }
-      // 지우는 탄: 닿은 작은 적탄을 지우고 자기도 사라짐(지운 만큼 화력을 잃음)
-      // 몸 앞의 방패가 되지 않게 어느 정도 날아간 뒤(약 100px)부터만 지움
-      // 전체로는 30프레임에 하나까지만(초당 2개) 지워 가벼운 보조에 머물게 함
-      if (s.erase > 0 && !s.dead && s.t > 12 && !(this.eraseCd > 0)) {
-        for (const b of this.bullets) {
-          if (b.dead || b.r > 4 || dist2(s.x, s.y, b.x, b.y) > 64) continue;
-          b.dead = true; this.score += 20;
-          this.fx.push({ kind: 'spark', x: b.x, y: b.y, t: 0, life: 20, color: 'purple' });
-          this.eraseCd = 30;
-          if (--s.erase <= 0) { s.dead = true; break; }
-        }
-      }
       if (!s.dead && this.zones.some(z => dist2(s.x, s.y, z.x, z.y) < z.r * z.r)) { s.dead = true; this.fx.push({ kind: 'block', x: s.x, y: s.y, t: 0, life: 10 }); SFX.block(); continue; }
       if (!s.dead && !b.hidden && this.phase === 'active' && dist2(s.x, s.y, b.x, b.y) < 30 * 30) {
         s.dead = true;
@@ -622,7 +622,7 @@ class Game {
         if (b.shield > 0) { this.fx.push({ kind: 'block', x: s.x, y: s.y, t: 0, life: 10 }); SFX.block(); continue; }
         this.damageBoss(s.dmg); b.hurt = 3;
       }
-      if (s.dead && Math.random() < 0.5) this.fx.push({ kind: 'hit', x: s.x, y: s.y, t: 0, life: 8, color: s.color });
+      if (s.dead && Math.random() < 0.2) this.fx.push({ kind: 'hit', x: s.x, y: s.y, t: 0, life: 8, color: s.color });
     }
     this.shots = this.shots.filter(s => !s.dead);
   }
@@ -827,9 +827,9 @@ function render(G) {
 
 function drawBackground(G, g) {
   const gr = g.createLinearGradient(0, 0, 0, H);
-  gr.addColorStop(0, '#1b1530'); gr.addColorStop(1, '#0a0a14');
+  gr.addColorStop(0, '#120f22'); gr.addColorStop(1, '#07070e');
   g.fillStyle = gr; g.fillRect(0, 0, W, H);
-  g.strokeStyle = 'rgba(255,255,255,0.05)'; g.lineWidth = 1;
+  g.strokeStyle = 'rgba(255,255,255,0.03)'; g.lineWidth = 1;
   const off = (G.bgT * 0.8) % 32;
   g.beginPath();
   for (let y = off - 32; y < H; y += 32) { g.moveTo(0, y); g.lineTo(W, y); }
@@ -974,7 +974,7 @@ function drawShots(G, g) {
   g.lineCap = 'round';
   for (const s of G.shots) {
     if (!s.laser || s.trail.length < 4) continue;
-    for (const [w, c, al] of [[6, '#f5c542', 0.35], [2.5, '#ffffff', 0.9]]) {
+    for (const [w, c, al] of [[6, '#f5c542', 0.2], [2.5, '#ffffff', 0.55]]) {
       g.globalAlpha = al; g.strokeStyle = c; g.lineWidth = w; g.beginPath();
       g.moveTo(s.trail[0], s.trail[1]);
       for (let i = 2; i < s.trail.length; i += 2) g.lineTo(s.trail[i], s.trail[i + 1]);
@@ -983,7 +983,7 @@ function drawShots(G, g) {
   }
   g.lineCap = 'butt'; g.lineWidth = 1;
   const base = g.getTransform();
-  g.globalAlpha = 0.6;
+  g.globalAlpha = 0.38;
   for (const s of G.shots) {
     if (s.laser) continue;
     const def = SHOT_SHAPES[s.shape], img = shotSprite(s.shape, s.color);
@@ -1205,6 +1205,12 @@ function drawFieldUI(G, g) {
     g.fillStyle = 'rgba(0,0,0,0.4)'; g.fillRect(8, 6, W - 60, 4);
     g.fillStyle = '#fff'; g.fillRect(8, 6, (W - 60) * b.hp / b.maxHp, 4);
   }
+  if (G.run) {
+    // 보스전에서 이번 패턴 뒤로 남은 패턴 수
+    const left = G.run.seq.length - 1 - G.run.idx;
+    g.fillStyle = '#f5c542'; g.font = '10px system-ui, sans-serif'; g.textBaseline = 'top'; g.textAlign = 'left';
+    for (let i = 0; i < left; i++) g.fillText('★', 8 + i * 10, 12);
+  }
   // 시간
   const sec = Math.max(0, G.timer) / 60;
   g.textAlign = 'right'; g.fillStyle = sec < 10 ? '#ff6b7a' : '#fff'; g.font = 'bold 14px Consolas, monospace';
@@ -1229,8 +1235,9 @@ function drawFieldUI(G, g) {
     const r = G.result;
     g.textAlign = 'center'; g.font = 'bold 18px system-ui, "Malgun Gothic", sans-serif';
     g.fillStyle = r.captured ? '#f5c542' : '#c8c8d8';
-    const runDone = G.run && G.run.idx >= G.run.seq.length - 1 && r.reason === 'defeat';
-    const txt = runDone ? `${G.run.name} 격파!` : r.captured ? '스펠카드 획득' : G.spell.type === 'stage' ? '웨이브 종료' : r.reason === 'timeout' ? (G.spell.survival ? '내구 실패' : '시간 초과') : G.spell.type === 'spell' ? '격파 (획득 실패)' : '격파';
+    // 보스전 마지막 패턴을 넘기면(격파 또는 내구 스펠을 버팀) 완료 표시
+    const runDone = G.run && G.run.idx >= G.run.seq.length - 1 && (r.reason === 'defeat' || G.spell.survival);
+    const txt = runDone ? `${G.run.name} 클리어!` : r.captured ? '스펠카드 획득' : G.spell.type === 'stage' ? '웨이브 종료' : r.reason === 'timeout' ? (G.spell.survival ? '내구 실패' : '시간 초과') : G.spell.type === 'spell' ? '격파 (획득 실패)' : '격파';
     g.fillText(txt, W / 2, 150);
     g.font = '12px system-ui, "Malgun Gothic", sans-serif'; g.fillStyle = '#fff';
     g.fillText(`피탄 ${r.stats.miss + r.stats.hits} · 봄 ${r.stats.bombs}`, W / 2, 178);

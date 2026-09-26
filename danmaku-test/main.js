@@ -19,6 +19,30 @@ addEventListener('keydown', e => {
 });
 addEventListener('keyup', e => G.keys.delete(e.code));
 addEventListener('blur', () => G.keys.clear());
+// 탭이 가려지면 자동 일시정지
+document.addEventListener('visibilitychange', () => { if (document.hidden) G.paused = true; });
+
+// 터치: 화면을 누른 채 끌면 끈 만큼 기체가 움직이고(1:1) 자동 사격. 두 손가락으로 누르면 폭탄
+const cv = $('screen');
+let touch = null;
+cv.addEventListener('pointerdown', e => {
+  if (e.pointerType !== 'touch') return;
+  e.preventDefault();
+  if (touch && touch.id !== e.pointerId) { G.pressed.add('KeyX'); return; }
+  touch = { id: e.pointerId, x: e.clientX, y: e.clientY };
+  G.keys.add('KeyZ');
+});
+cv.addEventListener('pointermove', e => {
+  if (!touch || e.pointerId !== touch.id) return;
+  const k = 640 / cv.getBoundingClientRect().width;
+  G.player.x = Math.max(8, Math.min(W - 8, G.player.x + (e.clientX - touch.x) * k));
+  G.player.y = Math.max(16, Math.min(H - 16, G.player.y + (e.clientY - touch.y) * k));
+  touch.x = e.clientX; touch.y = e.clientY;
+});
+const endTouch = e => { if (touch && e.pointerId === touch.id) { touch = null; G.keys.delete('KeyZ'); } };
+cv.addEventListener('pointerup', endTouch);
+cv.addEventListener('pointercancel', endTouch);
+cv.style.touchAction = 'none';
 
 // ── 패널 ──
 const spellSel = $('spellSel'), angelSel = $('angelSel');
@@ -38,6 +62,7 @@ function syncPanel() {
   angelSel.value = G.angel;
   $('diffSel').value = G.difficulty;
   $('powSel').value = G.practicePower;
+  $('lockChk').checked = G.powerLock;
   $('invChk').checked = G.invincible;
   $('sndChk').checked = !SFX.muted;
   if (!$('editor').hidden) $('code').value = spellSource(G.spell);
@@ -53,7 +78,8 @@ spellSel.onchange = () => {
 };
 angelSel.onchange = () => { G.angel = angelSel.value; settle(angelSel); };
 $('diffSel').onchange = e => { G.difficulty = +e.target.value; G.restart(); settle(e.target); };
-$('powSel').onchange = e => { G.practicePower = +e.target.value; if (!G.run) G.startSingle(); settle(e.target); };
+$('powSel').onchange = e => { G.practicePower = +e.target.value; if (!G.run || G.powerLock) G.restart(); settle(e.target); };
+$('lockChk').onchange = e => { G.powerLock = e.target.checked; G.restart(); settle(e.target); };
 $('speedSel').onchange = e => { G.speed = +e.target.value; settle(e.target); };
 $('invChk').onchange = e => { G.invincible = e.target.checked; settle(e.target); };
 $('loopChk').onchange = e => { G.loop = e.target.checked; settle(e.target); };

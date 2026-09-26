@@ -90,15 +90,19 @@ function ivyLeaf(s, x, y, ang, stay) {
   });
 }
 // 덩굴 줄기: 머리(초록 큰 탄)가 굽이치며 자라고 지나간 자리에 잎을 남김
-// o: {x, y, ang, spd, len, every, stay, turn, wave, phase, curl, seek, margin, step(x, y, t)}
+// o: {x, y, ang, spd, len, gapPx, stay, turn, wave, phase, curl, seek, seekFor, margin, step(x, y, t)}
 // curl=매 프레임 일정하게 도는 양(spd / 반지름이면 원을 그림), step=머리가 움직일 때마다 불림
+// 잎은 gapPx 간격으로 붙음. 잎 판정(3)+기체 판정(2.4)이 양쪽에서 약 11px를 막으므로
+// 간격을 17px 이상으로 둬 어느 난이도에서도 잎 사이로 빠져나갈 틈을 남긴다(벽처럼 닫힌 덩굴 금지)
+// seek은 처음 seekFor 프레임(기본 70)만 쫓음. 계속 쫓으면 플레이어 둘레를 돌며 가둬 버림
 function* ivyVine(s, o) {
   let { x, y, ang } = o;
-  const spd = o.spd ?? 2.4, every = o.every ?? s.lv(7, 5, 4), m = o.margin ?? 20;
+  const spd = o.spd ?? 2.4, gapPx = o.gapPx ?? s.lv(26, 22, 19, 18, 17), m = o.margin ?? 20, seekFor = o.seekFor ?? 70;
   const head = s.fire({ x, y, spd: 0, shape: 'orb', color: 'green', margin: m + 20 });
+  let run = gapPx, side = 0;
   for (let t = 0; t < o.len && !head.dead; t++) {
     ang += (o.curl ?? 0) + Math.sin(t * (o.wave ?? 0.08) + (o.phase ?? 0)) * (o.turn ?? 0.03);
-    if (o.seek) {
+    if (o.seek && t < seekFor) {
       const want = Math.atan2(s.player.y - y, s.player.x - x);
       const da = ((want - ang + Math.PI * 3) % s.TAU) - Math.PI;
       ang += Math.max(-o.seek, Math.min(o.seek, da));
@@ -107,7 +111,8 @@ function* ivyVine(s, o) {
     head.x = x; head.y = y;
     if (o.step) o.step(x, y, t);
     if (x < -m || x > s.W + m || y < -m || y > s.H + m) break;
-    if (t % every === 0) ivyLeaf(s, x, y, ang + ((t / every) % 2 ? 0.9 : -0.9), (o.stay ?? 150) + t % 7);
+    run += spd;
+    if (run >= gapPx) { run -= gapPx; ivyLeaf(s, x, y, ang + (side++ % 2 ? 0.9 : -0.9), (o.stay ?? 150) + t % 7); }
     yield 1;
   }
   head.dead = true;
@@ -710,8 +715,8 @@ const SPELLS = [
         yield s.lv(50, 45, 40);
         const spd = s.sp(3.2), len = Math.round((s.TAU - gap) / 2 * R / spd), stay = s.lv(100, 120, 140);
         const a0 = gapAt + gap / 2, a1 = gapAt - gap / 2;
-        s.task(ivyVine(s, { x: cx + Math.cos(a0) * R, y: cy + Math.sin(a0) * R, ang: a0 + Math.PI / 2, spd, len, curl: spd / R, turn: 0, every: 3, stay, margin: 200 }));
-        s.task(ivyVine(s, { x: cx + Math.cos(a1) * R, y: cy + Math.sin(a1) * R, ang: a1 - Math.PI / 2, spd, len, curl: -spd / R, turn: 0, every: 3, stay, margin: 200 }));
+        s.task(ivyVine(s, { x: cx + Math.cos(a0) * R, y: cy + Math.sin(a0) * R, ang: a0 + Math.PI / 2, spd, len, curl: spd / R, turn: 0, stay, margin: 200 }));
+        s.task(ivyVine(s, { x: cx + Math.cos(a1) * R, y: cy + Math.sin(a1) * R, ang: a1 - Math.PI / 2, spd, len, curl: -spd / R, turn: 0, stay, margin: 200 }));
         for (let k = 0; k < 4; k++) { yield s.wait(40); s.spread(s.lv(1, 3, 3, 5), s.aim(), 0.25, { spd: s.sp(2.4), shape: 'leaf', color: 'ivy' }); }
         yield s.wait(120);
       }
@@ -734,7 +739,7 @@ const SPELLS = [
           }
         }
         yield warn;
-        for (const [x0, ang] of lines) s.task(ivyVine(s, { x: x0, y: -5, ang, spd: 6, len: 150, turn: 0, every: 3, stay: s.lv(90, 110, 130), margin: 400 }));
+        for (const [x0, ang] of lines) s.task(ivyVine(s, { x: x0, y: -5, ang, spd: 6, len: 150, turn: 0, stay: s.lv(90, 110, 130), margin: 400 }));
         for (let k = 0; k < 4; k++) { yield s.wait(40); if (s.diff > 0) s.spread(3, s.aim(), 0.3, { spd: s.sp(3), shape: 'small', color: 'pink' }); }
         yield s.wait(120);
       }
@@ -788,13 +793,13 @@ const SPELLS = [
     name: '논스펠 · 이즘 2',
     type: 'nonspell', boss: '이즘', bossColor: '#8fe8ff', hp: 2800, time: 36, start: [192, 80],
     *run(s) {
-      // 스캔: 세로 레이저가 한쪽 끝에서 반대쪽으로 차례로 훑음. 이미 훑고 지나간 쪽으로 피함
+      // 스캔: 세로 레이저가 한쪽 끝에서 반대쪽으로 차례로 훑음. 이미 훑고 지나간 쪽으로 피하거나 레이저 사이 틈(약 21px)에 섬
       for (let w = 0; ; w++) {
-        const col = 32, dir = w % 2 ? 1 : -1;
+        const col = 40, dir = w % 2 ? 1 : -1;
         for (let i = 0; i < s.W / col; i++) {
           const x = dir > 0 ? i * col + col / 2 : s.W - i * col - col / 2;
           s.laser({ x, y: 0, ang: Math.PI / 2, len: s.H, w: 20, warn: s.lv(50, 42, 36), dur: 14, color: 'cyan' });
-          yield s.lv(10, 8, 6);
+          yield s.lv(12, 10, 8, 7, 6);
         }
         for (let k = 0; k < 3; k++) { s.ring(s.cnt(20), { offset: k * 0.2, spd: s.sp(1.8), shape: 'small', color: 'white' }); yield s.wait(25); }
         yield s.wait(50);
@@ -1013,8 +1018,8 @@ SPELLS.push({
 });
 
 // 보스전: 목숨·폭탄·파워를 이어 가며 패턴을 순서대로. name은 오른쪽 표시용 짧은 이름, power는 시작 파워,
-// hpScale은 체력·제한시간 배율(노말에서 스테이지가 약 7.5분이 되도록 맞춘 값)
-// 엑스트라는 동방처럼 최대 파워로 시작하고, 본편 스테이지는 앞 구간의 잡몹에서 P를 모아 강화한다
+// hpScale은 체력·제한시간 배율(노말에서 스테이지가 약 6.5분이 되도록 맞춘 값)
+// 보스전은 잡몹 구간 없이 보스부터 시작한다. 시작 파워는 그 스테이지에 닿았을 때쯤의 값이고, 패턴이 끝날 때 떨어지는 P로 오른다
 function spellOf(name, boss) {
   const sp = SPELLS.find(x => x.name === name && (!boss || x.boss === boss));
   if (!sp) throw new Error('보스전 패턴 없음: ' + name);
@@ -1022,9 +1027,8 @@ function spellOf(name, boss) {
 }
 const BOSS_RUNS = [
   {
-    title: '엑스트라 · 진심 예로니모', name: '진심 예로니모', power: 4, hpScale: 2,
+    title: '엑스트라 · 진심 예로니모', name: '진심 예로니모', power: 4, hpScale: 2.4,
     seq: [
-      exOf(spellOf('잡몹 웨이브 · 날개 오르트로스')),
       exOf(spellOf('논스펠 · 예로니모 1')),
       exOf(spellOf('스피리투스 제1식 — 꺼져가는 등불을 끄지 아니하고')),
       exOf(spellOf('논스펠 · 예로니모 2')),
@@ -1034,9 +1038,8 @@ const BOSS_RUNS = [
     ],
   },
   {
-    title: '6스테이지 · 예로니모', name: '예로니모', power: 2, hpScale: 2.45,
+    title: '6스테이지 · 예로니모', name: '예로니모', power: 3, hpScale: 3,
     seq: [
-      spellOf('잡몹 웨이브 · 날개 오르트로스'),
       spellOf('논스펠 · 예로니모 1'),
       spellOf('스피리투스 제1식 — 꺼져가는 등불을 끄지 아니하고'),
       spellOf('논스펠 · 예로니모 2'),
@@ -1045,9 +1048,8 @@ const BOSS_RUNS = [
     ],
   },
   {
-    title: '7스테이지 · 리크니스', name: '리크니스', power: 2.5, hpScale: 1.65,
+    title: '7스테이지 · 리크니스', name: '리크니스', power: 3.5, hpScale: 1.95,
     seq: [
-      spellOf('잡몹 웨이브 · 날개 오르트로스'),
       spellOf('논스펠 · 리크니스 1'),
       spellOf('「벽을 타는 덩굴」(가칭)'),
       spellOf('논스펠 · 리크니스 2'),
@@ -1059,7 +1061,7 @@ const BOSS_RUNS = [
     ],
   },
   {
-    title: '엑스트라 2 · 이즘', name: '이즘', power: 4, hpScale: 2.55,
+    title: '엑스트라 2 · 이즘', name: '이즘', power: 4, hpScale: 2.75,
     seq: [
       spellOf('논스펠 · 이즘 1'),
       spellOf('「순차 격자 타격」(가칭)'),
@@ -1071,9 +1073,8 @@ const BOSS_RUNS = [
     ],
   },
   {
-    title: '2스테이지 · 마르코와 마리', name: '마르코·마리', power: 0.5, hpScale: 1.6,
+    title: '2스테이지 · 마르코와 마리', name: '마르코·마리', power: 1.5, hpScale: 3.2,
     seq: [
-      spellOf('잡몹 웨이브 · 날개 오르트로스'),
       spellOf('논스펠 · 마리와 마르코'),
       spellOf('파테르 제1식 — 나의 의로운 오른손으로 너를 붙들리라', '마르코'),
       spellOf('논스펠 · 마리의 딱밤'),
