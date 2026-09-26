@@ -35,12 +35,15 @@
 //   s.zone({x, y, r, dur})                    고정 구역 보호막. 들어온 자기 탄을 지움
 //   s.warnLine({x, y, x2, y2, dur})           판정 없는 빨간 예고선
 //   s.extendTime(초)                          제한시간 연장
+//   s.area({x, y, w, h, warn, dur, label, color})   사각 구역 공격. 번호(label)를 붙여 순서를 보여 줌
+//   s.bulletTime(배율, 프레임)                 적 탄만 느려짐(플레이어는 그대로)
+//   ivyVine(s, {...}) · ivyLeaf(...)           담쟁이 덩굴·잎 (리크니스)
 //   s.rand(a, b) · s.randInt(a, b) · s.pick(arr) · s.frame · s.hpRate · s.TAU · s.W · s.H
 //   영창 키: FILIUS1 FILIUS2 PATER1 PATER2 SPIRITUS1 NUNC_DIMITTIS (chants.js, 세계관 원문 그대로)
 //   탄의 alpha는 판정이 그대로이므로 0.35 아래로 내리지 않는다
 //
-// shape: small orb big rice knife star link
-// color: red orange yellow green cyan blue purple pink white gold brown black
+// shape: small orb big rice knife star link leaf
+// color: red orange yellow green ivy cyan blue purple pink white gold brown black
 
 // ── 성당교회 공통 ──
 // 마르코 보스에 마리를 동료로 붙임. 영창 색은 마르코=금빛, 마리=하늘빛
@@ -64,6 +67,40 @@ function* mariRings(s, mari, every = 60) {
     s.ring(s.cnt(14), { x: mari.x, y: mari.y, offset: k * 0.23, spd: s.sp(1.5), shape: 'orb', color: 'cyan' });
     yield s.wait(every);
   }
+}
+
+// ── 리크니스: 담쟁이 덩굴 ──
+// 잎: stay 프레임 동안 제자리에 붙어 있다가 흔들리며 떨어짐
+function ivyLeaf(s, x, y, ang, stay) {
+  return s.fire({
+    x, y, ang, spd: 0, shape: 'leaf', color: 'ivy', margin: 40,
+    fn: b => {
+      if (b.t < stay) return;
+      if (b.t === stay) { b.ang = Math.PI / 2; b.accel = 0.02; b.maxSpd = s.sp(1.6); }
+      b.x += Math.sin(b.t * 0.08 + b.y * 0.01) * 0.5;
+    },
+  });
+}
+// 덩굴 줄기: 머리(초록 큰 탄)가 굽이치며 자라고 지나간 자리에 잎을 남김
+// o: {x, y, ang, spd, len, every, stay, turn, wave, phase, curl, seek, margin}
+function* ivyVine(s, o) {
+  let { x, y, ang } = o;
+  const spd = o.spd ?? 2.4, every = o.every ?? s.lv(7, 5, 4), m = o.margin ?? 20;
+  const head = s.fire({ x, y, spd: 0, shape: 'orb', color: 'green', margin: m + 20 });
+  for (let t = 0; t < o.len && !head.dead; t++) {
+    ang += (o.curl ?? 0) + Math.sin(t * (o.wave ?? 0.08) + (o.phase ?? 0)) * (o.turn ?? 0.03);
+    if (o.seek) {
+      const want = Math.atan2(s.player.y - y, s.player.x - x);
+      const da = ((want - ang + Math.PI * 3) % s.TAU) - Math.PI;
+      ang += Math.max(-o.seek, Math.min(o.seek, da));
+    }
+    x += Math.cos(ang) * spd; y += Math.sin(ang) * spd;
+    head.x = x; head.y = y;
+    if (x < -m || x > s.W + m || y < -m || y > s.H + m) break;
+    if (t % every === 0) ivyLeaf(s, x, y, ang + ((t / every) % 2 ? 0.9 : -0.9), (o.stay ?? 150) + t % 7);
+    yield 1;
+  }
+  head.dead = true;
 }
 
 const SPELLS = [
@@ -440,6 +477,205 @@ const SPELLS = [
       }
     },
   },
+  {
+    name: '논스펠 · 리크니스 1',
+    type: 'nonspell', boss: '리크니스', bossColor: '#e8b4c8', hp: 2800, time: 35, start: [192, 100],
+    *run(s) {
+      // 사방으로 굽이치며 자라는 덩굴. 잎은 잠시 붙어 있다가 떨어짐
+      for (let w = 1; ; w++) {
+        const n = s.lv(3, 4, 5), base = s.rand(0, s.TAU);
+        for (let i = 0; i < n; i++) s.task(ivyVine(s, { x: s.boss.x, y: s.boss.y, ang: base + i * s.TAU / n, spd: s.sp(2.2), len: 160, turn: 0.035, phase: i, stay: s.lv(70, 90, 110) }));
+        for (let k = 0; k < 3; k++) { yield s.wait(30); s.spread(s.lv(1, 3, 3), s.aim(), 0.2, { spd: s.sp(3), shape: 'leaf', color: 'ivy' }); }
+        yield s.wait(60);
+        if (w % 3 === 0) yield* s.wander();
+      }
+    },
+  },
+  {
+    name: '「벽을 타는 덩굴」(가칭)',
+    type: 'spell', boss: '리크니스', bossColor: '#e8b4c8', hp: 3400, time: 45, start: [192, 90],
+    *run(s) {
+      for (;;) {
+        // 양쪽 벽을 아래에서 위로 타고 오르며 안쪽으로 가지를 뻗음. 좌우 가지 높이를 엇갈려 지그재그 통로를 남김
+        for (const side of [-1, 1]) {
+          const x0 = side < 0 ? 6 : s.W - 6;
+          s.task(function* () {
+            let y = s.H + 10;
+            const head = s.fire({ x: x0, y, spd: 0, shape: 'orb', color: 'green' });
+            for (let t = 0; y > -10 && !head.dead; t++) {
+              y -= s.sp(2.4); head.y = y;
+              if (t % 5 === 0) ivyLeaf(s, x0 + s.rand(-3, 3), y, -Math.PI / 2 + s.rand(-0.8, 0.8), s.lv(150, 190, 220));
+              if (t % 50 === (side < 0 ? 0 : 25) && y < s.H - 40 && y > 60) {
+                const reach = s.W * s.lv(0.35, 0.45, 0.55);
+                s.task(ivyVine(s, { x: x0, y, ang: side < 0 ? 0 : Math.PI, spd: s.sp(2.6), len: Math.round(reach / s.sp(2.6)), turn: 0.02, wave: 0.12, stay: s.lv(110, 140, 170) }));
+              }
+              yield 1;
+            }
+            head.dead = true;
+          }());
+        }
+        for (let k = 0; k < 6; k++) { s.spread(s.lv(3, 4, 5), s.aim(), 0.25, { spd: s.sp(2.6), shape: 'leaf', color: 'ivy' }); yield s.wait(35); }
+        yield s.wait(120);
+      }
+    },
+  },
+  {
+    name: '논스펠 · 리크니스 2',
+    type: 'nonspell', boss: '리크니스', bossColor: '#e8b4c8', hp: 3000, time: 35, start: [192, 110],
+    *run(s) {
+      // 잎 소용돌이 + 꽃잎 원형탄(노말 이상)
+      let a = 0;
+      for (let f = 0; ; f++) {
+        a += 0.11;
+        const arms = s.lv(2, 3, 4);
+        for (let i = 0; i < arms; i++) s.fire({ ang: a + i * s.TAU / arms, spd: s.sp(2.2), angVel: 0.006, shape: 'leaf', color: 'ivy' });
+        if (f % 20 === 0 && s.diff > 0) s.ring(s.cnt(16), { offset: -a, spd: s.sp(1.4), shape: 'small', color: 'pink' });
+        if (f % 300 === 299) yield* s.wander(40, 50);
+        yield s.lv(6, 5, 4);
+      }
+    },
+  },
+  {
+    name: '「뿌리를 찾는 덩굴」(가칭)',
+    type: 'spell', boss: '리크니스', bossColor: '#e8b4c8', hp: 3600, time: 50, start: [192, 90],
+    *run(s) {
+      // 2급 이상 오르트로스를 만들 수 있는 것은 리크니스뿐 → 고등급 날개 오르트로스를 불러냄
+      s.task(function* () {
+        for (;;) {
+          yield 240;
+          for (const side of [-1, 1]) s.enemy({
+            x: s.W / 2 + side * 120, y: -20, vy: 1.2, hp: s.lv(120, 180, 240), r: 18, color: 'red', label: '2급',
+            run: function* (e, s) {
+              yield 50; e.vy = 0;
+              for (let k = 0; k < 5; k++) { s.ring(s.cnt(18), { x: e.x, y: e.y, offset: k * 0.17, spd: s.sp(1.8), shape: 'rice', color: 'red' }); yield s.wait(40); }
+              e.vy = -1.2;
+            },
+          });
+          yield 360;
+        }
+      }());
+      // 플레이어를 더듬어 찾는 덩굴. 잎은 짧게 붙어 있음
+      for (;;) {
+        const n = s.lv(2, 2, 3);
+        for (let i = 0; i < n; i++) s.task(ivyVine(s, {
+          x: s.boss.x + (i - (n - 1) / 2) * 40, y: s.boss.y, ang: Math.PI / 2 + (i - (n - 1) / 2) * 0.8,
+          spd: s.sp(2.4), len: 200, seek: s.lv(0.012, 0.018, 0.024), turn: 0.02, stay: s.lv(50, 70, 90),
+        }));
+        yield s.wait(150);
+      }
+    },
+  },
+  {
+    name: '「담쟁이 정원」(가칭)',
+    type: 'spell', boss: '리크니스', bossColor: '#e8b4c8', hp: 3800, time: 55, start: [192, 90],
+    *run(s) {
+      // 예고선을 따라 덩굴이 빠르게 뻗어 사선 줄무늬(하드는 격자)를 만들고, 잎이 한꺼번에 떨어짐
+      const tilt = 0.6, span = s.H * Math.tan(tilt);
+      for (let w = 0; ; w++) {
+        const gap = s.lv(130, 110, 90), warn = s.lv(60, 50, 45), lines = [];
+        const dirs = s.diff === 2 ? [1, -1] : [w % 2 ? 1 : -1];
+        for (const dir of dirs) {
+          const ang = Math.PI / 2 - dir * tilt, off = s.rand(0, gap);
+          for (let x0 = (dir > 0 ? -span : 0) + off; x0 < (dir > 0 ? s.W : s.W + span); x0 += gap) {
+            s.warnLine({ x: x0, y: 0, x2: x0 + Math.cos(ang) * 700, y2: Math.sin(ang) * 700, dur: warn });
+            lines.push([x0, ang]);
+          }
+        }
+        yield warn;
+        for (const [x0, ang] of lines) s.task(ivyVine(s, { x: x0, y: -5, ang, spd: 6, len: 150, turn: 0, every: 3, stay: s.lv(90, 110, 130), margin: 400 }));
+        for (let k = 0; k < 4; k++) { yield s.wait(40); if (s.diff > 0) s.spread(3, s.aim(), 0.3, { spd: s.sp(3), shape: 'small', color: 'pink' }); }
+        yield s.wait(120);
+      }
+    },
+  },
+  {
+    name: '논스펠 · 이즘 1',
+    type: 'nonspell', boss: '이즘', bossColor: '#8fe8ff', hp: 2600, time: 30, start: [192, 100],
+    *run(s) {
+      // 데이터 묶음: 정사각형으로 뭉친 탄 덩어리를 조준해 보냄
+      for (let w = 1; ; w++) {
+        const a = s.aim() + s.rand(-0.3, 0.3), n = s.lv(2, 3, 3);
+        for (let i = 0; i < n; i++) for (let j = 0; j < n; j++) {
+          s.fire({ x: s.boss.x + (i - (n - 1) / 2) * 10, y: s.boss.y + (j - (n - 1) / 2) * 10, ang: a, spd: s.sp(3), shape: 'small', color: 'cyan' });
+        }
+        yield s.wait(20);
+        if (w % 4 === 0) s.ring(s.cnt(24), { offset: s.rand(0, s.TAU), spd: s.sp(1.6), shape: 'rice', color: 'white' });
+        if (w % 8 === 0) yield* s.wander();
+      }
+    },
+  },
+  {
+    name: '「순차 격자 타격」(가칭)',
+    type: 'spell', boss: '이즘', bossColor: '#8fe8ff', hp: 3200, time: 45, start: [192, 60],
+    *run(s) {
+      // 여러 칸에 번호 붙은 경고를 한꺼번에 띄우고 번호 순서대로 타격. 친 칸은 곧바로 다시 안전해짐
+      const cols = 4, rows = 5, cw = s.W / cols, ch = s.H / rows;
+      const first = s.lv(90, 75, 60), step = s.lv(40, 30, 22);
+      for (let w = 0; ; w++) {
+        const n = s.lv(4, 6, 8), cells = [];
+        // 플레이어가 서 있는 칸을 반드시 포함해 움직이게 함
+        cells.push(Math.min(cols - 1, Math.floor(s.player.x / cw)) + Math.min(rows - 1, Math.floor(s.player.y / ch)) * cols);
+        while (cells.length < n) { const c = s.randInt(0, cols * rows - 1); if (!cells.includes(c)) cells.push(c); }
+        cells.sort(() => Math.random() - 0.5);
+        cells.forEach((c, i) => s.area({ x: (c % cols) * cw, y: Math.floor(c / cols) * ch, w: cw, h: ch, warn: first + i * step, dur: 18, label: i + 1, color: '#35d6ff' }));
+        const total = first + n * step + 30;
+        for (let t = 0; t < total; t += s.wait(40)) {
+          if (s.diff > 0) s.spread(3, s.aim(), 0.3, { spd: s.sp(2.6), shape: 'small', color: 'white' });
+          yield s.wait(40);
+        }
+        // 한 번 걸러 가로줄 단위 타격
+        if (w % 2 === 1) {
+          const order = [...Array(rows).keys()].sort(() => Math.random() - 0.5).slice(0, s.lv(2, 3, 4));
+          order.forEach((r, i) => s.area({ x: 0, y: r * ch, w: s.W, h: ch, warn: first + Math.round(i * step * 1.5), dur: 18, label: i + 1, color: '#ffd23a' }));
+          yield first + Math.round(order.length * step * 1.5) + 30;
+        }
+      }
+    },
+  },
+  {
+    name: '논스펠 · 이즘 2',
+    type: 'nonspell', boss: '이즘', bossColor: '#8fe8ff', hp: 2800, time: 30, start: [192, 80],
+    *run(s) {
+      // 스캔: 세로 레이저가 한쪽 끝에서 반대쪽으로 차례로 훑음. 이미 훑고 지나간 쪽으로 피함
+      for (let w = 0; ; w++) {
+        const col = 32, dir = w % 2 ? 1 : -1;
+        for (let i = 0; i < s.W / col; i++) {
+          const x = dir > 0 ? i * col + col / 2 : s.W - i * col - col / 2;
+          s.laser({ x, y: 0, ang: Math.PI / 2, len: s.H, w: 20, warn: s.lv(50, 42, 36), dur: 14, color: 'cyan' });
+          yield s.lv(10, 8, 6);
+        }
+        for (let k = 0; k < 3; k++) { s.ring(s.cnt(20), { offset: k * 0.2, spd: s.sp(1.8), shape: 'small', color: 'white' }); yield s.wait(25); }
+        yield s.wait(50);
+      }
+    },
+  },
+  {
+    name: '「열흘 같은 하루」(가칭)',
+    type: 'spell', boss: '이즘', bossColor: '#8fe8ff', hp: 3000, time: 60, start: [192, 70],
+    *run(s) {
+      // 불렛타임 동안 위에서 미로 띠가 내려옴. 좁은 통로를 따라 빠져나가야 함
+      const cell = 12, fall = 5, k = 0.22;
+      for (;;) {
+        const rows = s.lv(14, 18, 22), gapW = s.lv(46, 36, 28), shift = s.lv(8, 11, 14);
+        const dur = Math.round((s.H + rows * cell + 40) / (fall * k));
+        s.bulletTime(k, dur + 40);
+        yield 20;
+        let cx = s.player.x;   // 첫 줄의 통로는 플레이어 바로 위에서 시작
+        for (let r = 0; r < rows; r++) {
+          cx = Math.max(gapW, Math.min(s.W - gapW, cx + s.rand(-1, 1) * shift));
+          for (let x = cell / 2; x < s.W; x += cell) {
+            if (Math.abs(x - cx) < gapW / 2) continue;
+            s.fire({ x, y: -10 - r * cell, ang: Math.PI / 2, spd: fall, shape: 'small', color: r % 2 ? 'cyan' : 'blue', marginTop: rows * cell + 40 });
+          }
+        }
+        yield dur;
+        s.clear();
+        yield 60;
+        for (let i = 0; i < 4; i++) { s.ring(s.cnt(20), { offset: i * 0.2, spd: s.sp(2), shape: 'rice', color: 'white' }); yield s.wait(30); }
+        yield 60;
+      }
+    },
+  },
 ];
 
 // 보스전: 목숨·폭탄을 이어 가며 패턴을 순서대로. name은 오른쪽 표시용 짧은 이름
@@ -457,6 +693,25 @@ const BOSS_RUNS = [
       spellOf('논스펠 · 예로니모 2'),
       spellOf('파테르 제1식 — 나의 의로운 오른손으로 너를 붙들리라', '예로니모'),
       spellOf('Clavis Collata — NUNC DIMITTIS'),
+    ],
+  },
+  {
+    title: '7스테이지 · 리크니스', name: '리크니스',
+    seq: [
+      spellOf('논스펠 · 리크니스 1'),
+      spellOf('「벽을 타는 덩굴」(가칭)'),
+      spellOf('논스펠 · 리크니스 2'),
+      spellOf('「뿌리를 찾는 덩굴」(가칭)'),
+      spellOf('「담쟁이 정원」(가칭)'),
+    ],
+  },
+  {
+    title: '엑스트라 2 · 이즘', name: '이즘',
+    seq: [
+      spellOf('논스펠 · 이즘 1'),
+      spellOf('「순차 격자 타격」(가칭)'),
+      spellOf('논스펠 · 이즘 2'),
+      spellOf('「열흘 같은 하루」(가칭)'),
     ],
   },
   {

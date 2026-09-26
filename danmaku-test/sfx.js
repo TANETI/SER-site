@@ -58,5 +58,8 @@ const SFX = {
   spell()   { if (this.ok('spell', 0.3)) { this.tone('sine', 880, 880, 0.5, 0.12); this.tone('sine', 1320, 1320, 0.6, 0.08, 0.08); } },
   capture() { if (this.ok('capture', 0.5)) [660, 880, 1100, 1320].forEach((f, i) => this.tone('triangle', f, f, 0.25, 0.1, i * 0.07)); },
   chain()   { if (this.ok('chain', 0.08)) { this.hiss(0.22, 0.2, 'highpass', 1200, 5000); this.tone('square', 1500, 900, 0.05, 0.04); } },
+  strike()  { if (this.ok('strike', 0.06)) { this.hiss(0.15, 0.25, 'lowpass', 1800, 200); this.tone('square', 220, 110, 0.1, 0.06); } },
+  slowIn()  { if (this.ok('slowIn', 0.3)) this.tone('sine', 900, 120, 0.6, 0.15); },
+  slowOut() { if (this.ok('slowOut', 0.3)) this.tone('sine', 120, 900, 0.4, 0.12); },
   extend()  { if (this.ok('extend', 0.3)) [520, 780].forEach((f, i) => this.tone('sine', f, f, 0.3, 0.09, i * 0.1)); },
 };

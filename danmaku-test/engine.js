@@ -13,7 +13,7 @@ const DENSITY = [0.45, 0.7, 1], INTERVAL = [1.8, 1.35, 1], SPEED = [0.75, 0.88, 
 
 // ── 탄 스프라이트 ──────────────────────────────────────────
 const COLORS = {
-  red: '#ff3b4a', orange: '#ff8a2a', yellow: '#ffd23a', green: '#3ddc6a', cyan: '#35d6ff',
+  ivy: '#3fae5a', red: '#ff3b4a', orange: '#ff8a2a', yellow: '#ffd23a', green: '#3ddc6a', cyan: '#35d6ff',
   blue: '#3a6bff', purple: '#a64dff', pink: '#ff5ec8', white: '#e8e8f4', gold: '#f5c542',
   brown: '#9a5420', black: '#30303c',
 };
@@ -27,6 +27,7 @@ const SHAPES = {
   knife:  { r: 2.6, size: 20, oriented: true, draw: (g, c) => knife(g, c) },
   star:   { r: 4,   size: 16, spin: true, draw: (g, c) => star(g, 8, 8, 7, c) },
   link:   { r: 3,   size: 14, oriented: true, draw: (g, c) => chainLink(g, c) },
+  leaf:   { r: 3,   size: 16, oriented: true, draw: (g, c) => leafShape(g, c) },
 };
 
 function orb(g, x, y, r, c) {
@@ -46,6 +47,10 @@ function star(g, x, y, r, c) {
   g.fillStyle = c; g.beginPath();
   for (let i = 0; i < 10; i++) { const a = -Math.PI / 2 + i * Math.PI / 5, rr = i % 2 ? r * 0.45 : r; g.lineTo(x + Math.cos(a) * rr, y + Math.sin(a) * rr); }
   g.closePath(); g.fill(); g.fillStyle = '#fff'; g.beginPath(); g.arc(x, y, r * 0.3, 0, TAU); g.fill();
+}
+function leafShape(g, c) {
+  g.fillStyle = c; g.beginPath(); g.moveTo(15, 8); g.quadraticCurveTo(8, 1, 1, 8); g.quadraticCurveTo(8, 15, 15, 8); g.fill();
+  g.strokeStyle = '#eaffea'; g.lineWidth = 1; g.beginPath(); g.moveTo(14, 8); g.lineTo(3, 8); g.stroke();
 }
 function chainLink(g, c) {
   g.strokeStyle = c; g.lineWidth = 2.4; g.beginPath(); g.ellipse(7, 7, 6, 3.4, 0, 0, TAU); g.stroke();
@@ -214,7 +219,7 @@ class Game {
     this.spellIndex = (i + this.spells.length) % this.spells.length;
     const sp = this.spell = this.spells[this.spellIndex];
     this.bullets = []; this.lasers = []; this.enemies = []; this.shots = []; this.fx = [];
-    this.partners = []; this.chants = []; this.zones = [];
+    this.partners = []; this.chants = []; this.zones = []; this.areas = []; this.slow = null;
     this.tasks.clear(); this.error = '';
     this.player = this.player || {};
     const cont = this.run && this.run.idx > 0, prev = this.boss;
@@ -269,7 +274,7 @@ class Game {
     const captured = reason !== 'timeout' || sp.survival ? this.stats.miss === 0 && this.stats.bombs === 0 : false;
     if (captured && sp.type === 'spell') { this.score += Math.floor(1000000 * this.timer / (sp.time * 60) + 100000); SFX.capture(); }
     this.clearBullets(true);
-    this.tasks.clear();
+    this.tasks.clear(); this.areas = []; this.slow = null;
     this.enemies.forEach(e => this.killEnemy(e, false));
     this.result = { captured: captured && sp.type === 'spell', reason, t: 0, stats: { ...this.stats } };
     this.phase = 'result'; this.phaseT = this.run ? 100 : 150;
@@ -321,6 +326,8 @@ class Game {
       if (--this.phaseT <= 0) this.restart();
     }
 
+    if (this.slow && ++this.slow.t >= this.slow.dur) { this.slow = null; SFX.slowOut(); }
+    this.updateAreas();
     this.updateBullets();
     this.updateLasers();
     this.updateEnemies();
@@ -402,17 +409,24 @@ class Game {
     }
   }
 
+  slowFactor() {
+    const sl = this.slow;
+    if (!sl) return 1;
+    const ramp = Math.min(1, sl.t / 20, (sl.dur - sl.t) / 20);
+    return 1 + (sl.k - 1) * Math.max(0, ramp);
+  }
+
   updateBullets() {
-    const p = this.player, bs = this.bullets;
+    const p = this.player, bs = this.bullets, k = this.slowFactor();
     for (const b of bs) {
       b.t++;
       if (b.fn) { try { b.fn(b, this.api); } catch (e) { this.fail(e); b.fn = null; } }
-      if (b.cart) { b.vx += b.ax; b.vy += b.ay; b.x += b.vx; b.y += b.vy; }
+      if (b.cart) { b.vx += b.ax * k; b.vy += b.ay * k; b.x += b.vx * k; b.y += b.vy * k; }
       else {
-        b.spd += b.accel; b.ang += b.angVel;
+        b.spd += b.accel * k; b.ang += b.angVel * k;
         if (b.maxSpd !== undefined && b.spd > b.maxSpd) b.spd = b.maxSpd;
         if (b.minSpd !== undefined && b.spd < b.minSpd) b.spd = b.minSpd;
-        b.x += Math.cos(b.ang) * b.spd; b.y += Math.sin(b.ang) * b.spd;
+        b.x += Math.cos(b.ang) * b.spd * k; b.y += Math.sin(b.ang) * b.spd * k;
       }
       const m = b.margin;
       if (b.x < -m || b.x > W + m || b.y < -m - b.marginTop || b.y > H + m) b.dead = true;
@@ -458,6 +472,18 @@ class Game {
     const d = segDist(p.x, p.y, l.x, l.y, l.x + Math.cos(l.ang) * l.tip, l.y + Math.sin(l.ang) * l.tip);
     if (d < l.w / 2 + HIT_R) this.hitPlayer();
     else if (d < l.w / 2 + GRAZE_R && l.t % 6 === 0) { this.graze++; this.score += 200; }
+  }
+
+  // 사각 구역 공격: 예고(번호·테두리 깜빡임) → 발동(채워짐, 판정) → 사라짐
+  updateAreas() {
+    const p = this.player;
+    for (const a of this.areas) {
+      a.t++;
+      if (a.t === a.warn) SFX.strike();
+      if (a.t > a.warn && a.t <= a.warn + a.dur &&
+          p.x > a.x - HIT_R && p.x < a.x + a.w + HIT_R && p.y > a.y - HIT_R && p.y < a.y + a.h + HIT_R) this.hitPlayer();
+    }
+    this.areas = this.areas.filter(a => a.t < a.warn + a.dur + 15);
   }
 
   updateEnemies() {
@@ -616,6 +642,14 @@ function makeAPI(G) {
     },
     // 판정 없는 빨간 예고선: {x,y,x2,y2,dur}
     warnLine(o) { G.fx.push({ kind: 'warnline', x: o.x ?? G.boss.x, y: o.y ?? G.boss.y, x2: o.x2, y2: o.y2, t: 0, life: o.dur ?? 30 }); },
+    // 사각 구역 공격 {x,y,w,h,warn,dur,label,color}. warn 동안 예고, dur 동안 판정
+    area(o) {
+      const a = { x: o.x, y: o.y, w: o.w, h: o.h, warn: o.warn ?? 60, dur: o.dur ?? 20, label: o.label ?? '', color: o.color || '#ff3b4a', t: 0 };
+      G.areas.push(a);
+      return a;
+    },
+    // 불렛타임: frames 동안 적 탄이 k배 속도로 움직임. 플레이어는 그대로
+    bulletTime(k, frames) { G.slow = { k, dur: frames, t: 0 }; SFX.slowIn(); },
     // 보호막: 통상탄을 막음(봄은 통과)
     shield(who, frames) { who.shield = frames; who.shieldMax = frames; },
     // 고정 구역 보호막: 안으로 들어온 자기 탄을 지움 {x,y,r,dur}
@@ -632,7 +666,7 @@ function makeAPI(G) {
     },
     // 잡몹: {x,y,vx,vy,hp,r,run(e,s)}
     enemy(o = {}) {
-      const e = { x: o.x ?? W / 2, y: o.y ?? -20, vx: o.vx ?? 0, vy: o.vy ?? 0, hp: o.hp ?? 30, r: o.r ?? 14, t: 0, color: o.color || 'red' };
+      const e = { x: o.x ?? W / 2, y: o.y ?? -20, vx: o.vx ?? 0, vy: o.vy ?? 0, hp: o.hp ?? 30, r: o.r ?? 14, t: 0, color: o.color || 'red', label: o.label || '' };
       G.enemies.push(e);
       if (o.run) G.tasks.add(o.run(e, s), e);
       return e;
@@ -669,6 +703,7 @@ function render(G) {
   drawEnemies(G, g);
   drawShots(G, g);
   drawPlayer(G, g);
+  drawAreas(G, g);
   drawLasers(G, g);
   drawBullets(G, g);
   drawFx(G, g);
@@ -797,6 +832,10 @@ function drawEnemies(G, g) {
     g.beginPath(); g.arc(e.x, e.y, e.r * 0.7, 0, TAU); g.fill();
     g.fillStyle = COLORS[e.color] || e.color; g.beginPath(); g.arc(e.x, e.y - 1, 3, 0, TAU); g.fill();
     if (e.hurt > 0) e.hurt--;
+    if (e.label) {
+      g.font = 'bold 10px system-ui, "Malgun Gothic", sans-serif'; g.textAlign = 'center'; g.textBaseline = 'bottom';
+      g.fillStyle = '#ff9ab0'; g.fillText(e.label, e.x, e.y - e.r - 2); g.textAlign = 'left'; g.textBaseline = 'top';
+    }
   }
 }
 
@@ -857,6 +896,28 @@ function drawLasers(G, g) {
     g.restore();
   }
   g.globalAlpha = 1;
+}
+
+function drawAreas(G, g) {
+  g.textAlign = 'center'; g.textBaseline = 'middle';
+  for (const a of G.areas) {
+    if (a.t <= a.warn) {
+      // 예고: 테두리 깜빡임, 발동이 가까울수록 빠르게. 번호는 순서
+      const fast = a.t > a.warn - 20;
+      g.globalAlpha = Math.sin(a.t * (fast ? 1.2 : 0.4)) > 0 ? 0.9 : 0.4;
+      g.strokeStyle = a.color; g.lineWidth = 2; g.strokeRect(a.x + 1, a.y + 1, a.w - 2, a.h - 2);
+      g.globalAlpha = 0.12; g.fillStyle = a.color; g.fillRect(a.x, a.y, a.w, a.h);
+      if (a.label !== '') {
+        g.globalAlpha = 0.9; g.fillStyle = '#fff'; g.font = 'bold 18px Consolas, monospace';
+        g.fillText(String(a.label), a.x + a.w / 2, a.y + a.h / 2);
+      }
+    } else {
+      const k = a.t <= a.warn + a.dur ? 1 : 1 - (a.t - a.warn - a.dur) / 15;
+      g.globalAlpha = 0.55 * k; g.fillStyle = a.color; g.fillRect(a.x, a.y, a.w, a.h);
+      g.globalAlpha = 0.8 * k; g.fillStyle = '#fff'; g.fillRect(a.x + 3, a.y + 3, a.w - 6, a.h - 6);
+    }
+  }
+  g.globalAlpha = 1; g.textAlign = 'left'; g.textBaseline = 'top';
 }
 
 function drawChain(G, g, l) {
@@ -971,6 +1032,14 @@ function drawHitbox(G, g) {
 
 function drawFieldUI(G, g) {
   const b = G.boss, sp = G.spell;
+  if (G.slow) {
+    // 불렛타임: 화면이 푸르게 가라앉고 남은 시간 막대
+    const k = 1 - G.slowFactor();
+    g.globalAlpha = 0.18 * k / (1 - G.slow.k); g.fillStyle = '#4fa8ff'; g.fillRect(0, 0, W, H);
+    g.globalAlpha = 1; g.fillStyle = '#bfe4ff'; g.font = 'bold 13px Consolas, monospace'; g.textAlign = 'left'; g.textBaseline = 'top';
+    g.fillText('BULLET TIME', 8, H - 22);
+    g.fillStyle = 'rgba(191,228,255,0.8)'; g.fillRect(100, H - 17, (W - 110) * (1 - G.slow.t / G.slow.dur), 4);
+  }
   g.font = '12px system-ui, "Malgun Gothic", sans-serif'; g.textBaseline = 'top';
   if (!b.hidden && !sp.survival) {
     g.fillStyle = 'rgba(0,0,0,0.4)'; g.fillRect(8, 6, W - 60, 4);
