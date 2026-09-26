@@ -10,9 +10,10 @@ const START_LIVES = 3, START_BOMBS = 3;
 // 파워 0.00~4.00. 정수 부분이 탄 단계. 작은 P +0.02, 큰 P +0.25, 죽으면 -0.5
 const MAX_POWER = 4, P_SMALL = 0.02, P_BIG = 0.25, DEATH_POWER_LOSS = 0.5;
 // 난이도별 보스 체력 배율. 엑스트라는 한 단계 위
-const HP_MUL = [0.7, 0.85, 1, 1.15, 1.3, 1.45];
-// 패턴에 적힌 체력·제한시간에 곱하는 전체 배율(내구 스펠·잡몹 구간·허수아비 제외)
-const HP_SCALE = 3.5, TIME_SCALE = 3.5;
+const HP_MUL = [0.7, 0.85, 1, 1.1, 1.2, 1.3];
+// 패턴에 적힌 체력·제한시간에 곱하는 배율(내구 스펠·잡몹 구간·허수아비 제외).
+// 보스전은 스테이지마다 hpScale로 따로 정해 노말 약 7.5분(이지 약 6분, 헬 9~10분)에 맞춤. 단일 패턴 연습은 기본값
+const HP_SCALE = 2.2;
 // 난이도: 0=이지 1=노말 2=하드 3=베리하드 4=헬. 패턴은 s.lv·s.cnt·s.wait·s.sp로 난이도를 반영한다.
 // 하드가 시험판 처음의 잠정 최고 밀도. 엑스트라 패턴(extra: true)은 한 단계 위로 계산하며 6번째 값은 헬 위
 const DIFFS = ['이지', '노말', '하드', '베리하드', '헬'];
@@ -256,13 +257,15 @@ class Game {
     Object.assign(this.player, { inv: 60, fireT: 0, bomb: null, flash: 0, stun: 0 });
     this.stats = { miss: 0, hits: 0, bombs: 0, dmgLog: new Array(60).fill(0), dmgNow: 0 };
     const scaled = sp.hp < 99999 && !sp.survival && sp.type !== 'stage';
-    const hp = sp.hp >= 99999 ? sp.hp : Math.max(1, Math.round((sp.hp || 1000) * HP_MUL[this.effDiff()] * (scaled ? HP_SCALE : 1)));
+    const k = scaled ? (this.run?.hpScale ?? HP_SCALE) : 1;
+    const hp = sp.hp >= 99999 ? sp.hp : Math.max(1, Math.round((sp.hp || 1000) * HP_MUL[this.effDiff()] * k));
     const b = this.boss = { x: W / 2, y: -40, hp, maxHp: hp, move: null, hidden: sp.type === 'stage', t: 0,
       name: sp.boss || '', color: sp.bossColor || '#d8d0ff', shield: 0, glow: 0, contact: false };
     if (cont && prev && !prev.hidden) { b.x = prev.x; b.y = prev.y; }
     this.moveBoss(sp.start?.[0] ?? W / 2, sp.start?.[1] ?? 110, 45);
     this.frame = 0; this.phase = 'intro'; this.phaseT = cont ? 100 : 70;
-    this.timer = this.timerMax = Math.round((sp.time || 30) * 60 * (scaled ? TIME_SCALE : 1));
+    // 제한시간도 난이도별 체력 배율을 따라가 난이도와 상관없이 '필요 시간/제한시간' 비율이 같게 함
+    this.timer = this.timerMax = Math.round((sp.time || 30) * 60 * k * (scaled ? HP_MUL[this.effDiff()] : 1));
     this.banner = sp.type === 'spell' ? { text: sp.name, t: 0 } : null;
     if (this.banner) SFX.spell();
     this.result = null; this.timeFlash = null;
