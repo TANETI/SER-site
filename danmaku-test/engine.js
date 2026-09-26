@@ -168,24 +168,26 @@ const SHOT_TYPES = {
       shot(out, p.x, p.y - 6, a, 14, focus ? 1.45 : 1.25, 'thorn', 'red', { life: 16 + (Math.random() * 3 | 0) });
     }
   },
-  // 루미엘: 약한 정면 바늘 + 빗나가지 않는 유도 부적. 파워가 오르면 부적 수가 늚 (약 140)
+  // 루미엘(중립 선): 약한 정면 바늘 + 빗나가지 않는 유도 부적. 부적은 조금 날아간 뒤 닿은 작은 적탄 하나를 지우고 함께 사라짐. 전체로 초당 3개까지만.
+  // 파워가 오르면 부적 수가 늚 (약 140)
   LM(p, out, focus, L) {
     const t = p.fireT;
     if (t % 3 === 0) for (const dx of [-4, 4]) shot(out, p.x + dx, p.y - 10, UP, 16, 1.2, 'needle', 'pink');
     const ks = [[-1, 1], [-1, 1], [-1, 1], [-1, -0.4, 0.4, 1], [-1, -0.4, 0.4, 1]][L], every = [8, 6, 5, 6, 5][L];
     if (t % every === 0) {
       const spreadA = focus ? 0.35 : 0.9;
-      for (const k of ks) shot(out, p.x + k * 10, p.y, UP + k * spreadA, 8, focus ? 1.9 : 1.7, 'amulet', 'purple', { homing: true, turn: focus ? 0.25 : 0.14, life: 90 });
+      for (const k of ks) shot(out, p.x + k * 10, p.y, UP + k * spreadA, 8, focus ? 1.9 : 1.7, 'amulet', 'purple', { homing: true, turn: focus ? 0.25 : 0.14, life: 90, erase: 1 });
     }
   },
-  // 라티엘: 가운데 바늘(파워 1부터 셋) + 파워 2부터 옵션 둘의 별탄. 고속은 넓게, 저속은 옵션이 앞으로 모임 (약 190)
+  // 라티엘(진 중립): 가운데 바늘(파워 1부터 셋) + 파워 2부터 옵션 둘의 별탄. 고속은 넓게, 저속은 옵션이 앞으로 모임.
+  // 별탄은 잡몹을 꿰뚫고 지나가 여러 마리를 고르게 맞힘(보스에게는 한 번 맞고 사라짐) (약 190)
   RH(p, out, focus, L) {
     if (p.fireT % 3) return;
     for (const dx of L ? [-5, 0, 5] : [-4, 4]) shot(out, p.x + dx, p.y - 10, UP, 16, 1.7, 'needle', 'cyan');
     for (const o of p.options) {
       const a = UP + (focus ? 0 : Math.sign(o.x - p.x) * 0.12);
-      if (L >= 4) for (const d of [-3, 3]) shot(out, o.x + d, o.y - 4, a, 13, 1.1, 'star', 'blue');
-      else shot(out, o.x, o.y - 4, a, 13, L >= 3 ? 1.8 : 1.2, 'star', 'blue');
+      if (L >= 4) for (const d of [-3, 3]) shot(out, o.x + d, o.y - 4, a, 13, 1.1, 'star', 'blue', { pierce: [] });
+      else shot(out, o.x, o.y - 4, a, 13, L >= 3 ? 1.8 : 1.2, 'star', 'blue', { pierce: [] });
     }
   },
 };
@@ -558,6 +560,7 @@ class Game {
 
   updateShots() {
     const b = this.boss, targets = this.enemies;
+    if (this.eraseCd > 0) this.eraseCd--;
     for (const s of this.shots) {
       if (s.homing) {
         const tgt = nearest(s, targets, b.hidden || this.phase !== 'active' ? null : b);
@@ -572,7 +575,24 @@ class Game {
       s.x += s.vx; s.y += s.vy; s.t = (s.t || 0) + 1;
       if (s.trail) { s.trail.push(s.x, s.y); if (s.trail.length > 24) s.trail.splice(0, 2); }
       if (s.x < -20 || s.x > W + 20 || s.y < -20 || s.y > H + 20 || (s.life && s.t > s.life)) { s.dead = true; continue; }
-      for (const e of targets) if (!e.dead && dist2(s.x, s.y, e.x, e.y) < (e.r + 6) ** 2) { e.hp -= s.dmg; e.hurt = 4; s.dead = true; SFX.hit(); break; }
+      for (const e of targets) {
+        if (e.dead || dist2(s.x, s.y, e.x, e.y) >= (e.r + 6) ** 2) continue;
+        if (s.pierce) { if (s.pierce.includes(e)) continue; s.pierce.push(e); }   // 꿰뚫는 탄은 같은 적을 한 번만
+        e.hp -= s.dmg; e.hurt = 4; SFX.hit();
+        if (!s.pierce) { s.dead = true; break; }
+      }
+      // 지우는 탄: 닿은 작은 적탄을 지우고 자기도 사라짐(지운 만큼 화력을 잃음)
+      // 몸 앞의 방패가 되지 않게 어느 정도 날아간 뒤(약 100px)부터만 지움
+      // 전체로는 20프레임에 하나까지만(초당 3개) 지워 가벼운 보조에 머물게 함
+      if (s.erase > 0 && !s.dead && s.t > 12 && !(this.eraseCd > 0)) {
+        for (const b of this.bullets) {
+          if (b.dead || b.r > 4 || dist2(s.x, s.y, b.x, b.y) > 64) continue;
+          b.dead = true; this.score += 20;
+          this.fx.push({ kind: 'spark', x: b.x, y: b.y, t: 0, life: 20, color: 'purple' });
+          this.eraseCd = 20;
+          if (--s.erase <= 0) { s.dead = true; break; }
+        }
+      }
       if (!s.dead && this.zones.some(z => dist2(s.x, s.y, z.x, z.y) < z.r * z.r)) { s.dead = true; this.fx.push({ kind: 'block', x: s.x, y: s.y, t: 0, life: 10 }); SFX.block(); continue; }
       if (!s.dead && !b.hidden && this.phase === 'active' && dist2(s.x, s.y, b.x, b.y) < 30 * 30) {
         s.dead = true;
