@@ -69,15 +69,17 @@ function fillSpells() {
 fillSpells();
 for (const [code, a] of Object.entries(ANGELS)) angelSel.add(new Option(a.name, code));
 DIFFS.forEach((d, i) => $('diffSel').add(new Option(d, i)));
-[0, 1, 2, 3, 4].forEach(v => $('powSel').add(new Option(v === 4 ? '4.00 (MAX)' : v.toFixed(2), v)));
+for (const id of ['powSel', 'stPowSel']) [0, 1, 2, 3, 4].forEach(v => $(id).add(new Option(v === 4 ? '4.00 (MAX)' : v.toFixed(2), v)));
 
 function syncPanel() {
   spellSel.value = G.run ? 'r' + BOSS_RUNS.findIndex(r => r.title === G.run.title) : G.spellIndex;
   angelSel.value = G.angel;
   $('diffSel').value = G.difficulty;
   $('powSel').value = G.practicePower;
-  $('lockChk').checked = G.powerLock;
-  $('invChk').checked = G.invincible;
+  $('lockChk').checked = $('stLockChk').checked = G.powerLock;
+  $('invChk').checked = $('stInvChk').checked = G.invincible;
+  $('stPowSel').value = G.practicePower;
+  $('skipChk').checked = G.skipStage;
   $('sndChk').checked = !SFX.muted;
   $('shakeChk').checked = G.shakeOn;
   $('speedSel').value = G.speed;
@@ -137,14 +139,24 @@ DIFFS.forEach((d, i) => {
 });
 for (const b of $('starts').children) b.onclick = () => { G.startStory(b.dataset.story); syncPanel(); settle(b); };
 $('stageRestart').onclick = e => { G.restart(); settle(e.target); };
+// 테스트 도구(스테이지 모드): 판을 다시 시작하지 않고 바로 적용
+$('stInvChk').onchange = e => { G.invincible = e.target.checked; settle(e.target); };
+$('stLockChk').onchange = e => { G.powerLock = e.target.checked; if (G.powerLock) G.player.power = G.practicePower; settle(e.target); };
+$('stPowSel').onchange = e => { G.practicePower = +e.target.value; if (G.powerLock) G.player.power = G.practicePower; settle(e.target); };
+$('skipChk').onchange = e => {
+  G.skipStage = e.target.checked;
+  try { localStorage.setItem('danmaku.skipStage', G.skipStage ? '1' : ''); } catch (err) { /* 저장 못 해도 진행 */ }
+  settle(e.target);
+};
+try { G.skipStage = !!localStorage.getItem('danmaku.skipStage'); } catch (e) { G.skipStage = false; }
 function setMode(mode) {
   document.body.dataset.mode = G.mode = mode;
   $('tabStage').setAttribute('aria-selected', mode === 'stage');
   $('tabRoom').setAttribute('aria-selected', mode === 'room');
   try { localStorage.setItem('danmaku.mode', mode); } catch (e) { /* 저장 못 해도 진행 */ }
   if (mode === 'stage') {
-    // 스테이지 모드는 연습 도구 없이: 무적·파워 고정·속도를 되돌리고 본편부터
-    G.invincible = false; G.powerLock = false; G.speed = 1;
+    // 스테이지 모드는 게임 속도를 1×로 되돌리고 본편부터(무적·파워 고정은 테스트 도구로 그대로 씀)
+    G.speed = 1;
     G.startStory('main');
   } else G.startSingle(G.spellIndex);
   G.paused = false;

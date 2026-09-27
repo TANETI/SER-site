@@ -1350,7 +1350,7 @@ const SPELLS = [
     type: 'spell', follow: true, boss: '예로니모', bossColor: '#e8e0c8', hp: 2600, time: 48, start: [192, 90],
     *run(s) {
       // NUNC DIMITTIS 뒤 단계(앞 단계와 한 체력바, 다시 선언하지 않음). 쇄도하는 쇠사슬: 화면 가장자리(위·왼쪽·오른쪽) 여기저기서 황금 사슬이 기체의 0.5초 전 자리를 향해 짧은 예고선 뒤 연달아 뻗음.
-      // 계속 움직이지 않으면 걸림(으아악! 도망쳐!). 가끔 사슬 머리 한두 개가 뱀처럼 기체를 쫓아오며 고리를 흘림(기체보다 느려 떼어 놓을 수 있음).
+      // 계속 움직이지 않으면 걸림(으아악! 도망쳐!). 가끔 사슬 머리 한두 개가 뱀처럼 기체를 쫓아오며 고리를 흘림(머리 속도 2로 고정, 고속 이동으로 떼어 놓을 수 있음).
       // 사슬 사이 간격은 스펠이 진행될수록 짧아지다가 한계에서 멈춤(s.wait의 압박 곡선)
       const hist = [];
       s.task(function* () { for (;;) { hist.push({ x: s.player.x, y: s.player.y }); if (hist.length > 60) hist.shift(); yield 1; } }());
@@ -1361,12 +1361,12 @@ const SPELLS = [
       };
       // 추적 사슬: 머리가 기체를 향해 조금씩 꺾으며 달려오고, 지나간 자리에 잠깐 남는 고리를 흘림
       const snake = () => {
-        const o = edge(), head = s.fire({ x: o.x, y: o.y, ang: Math.atan2(s.player.y - o.y, s.player.x - o.x), spd: s.sp(2.1), shape: 'big', color: 'gold', margin: 40,
+        const o = edge(), head = s.fire({ x: o.x, y: o.y, ang: Math.atan2(s.player.y - o.y, s.player.x - o.x), spd: 2, shape: 'big', color: 'gold', margin: 40,   // 머리 속도는 난이도·격화와 상관없이 2(고속 이동 3.6으로 떼어 놓음)
           fn: (b, s) => {
             const want = Math.atan2(s.player.y - b.y, s.player.x - b.x), da = ((want - b.ang + Math.PI * 3) % s.TAU) - Math.PI;
-            b.ang += Math.max(-0.035, Math.min(0.035, da));
+            b.ang += Math.max(-0.03, Math.min(0.03, da));
             if (b.t % 5 === 0) s.fire({ x: b.x, y: b.y, ang: b.ang, spd: 0, shape: 'link', color: 'gold', fn: c => { if (c.t > 45) c.dead = true; } });
-            if (b.t > 170) b.dead = true;
+            if (b.t > 150) b.dead = true;
           } });
         return head;
       };
@@ -1378,10 +1378,10 @@ const SPELLS = [
       for (let k = 0; ; k++) {
         const n = k % 4 === 3 ? 2 : 1;
         for (let j = 0; j < n; j++) {
-          const o = edge(), t = past(), warn = s.lv(36, 32, 28, 26, 25);
+          const o = edge(), t = past(), warn = s.lv(36, 32, 30, 30, 30);   // 베리하드·헬도 예고 0.5초
           s.chain({ x: o.x, y: o.y, ang: Math.atan2(t.y - o.y, t.x - o.x), len: 760, warn, shoot: 8, hold: 8, retract: 28 });
         }
-        yield Math.max(24, s.wait(s.lv(36, 32, 30, 30, 30)));   // 사슬 사이 간격(최소 0.4초)
+        yield Math.max(28, s.wait(s.lv(36, 32, 30, 30, 30)));   // 사슬 사이 간격(최소 약 0.47초)
       }
     },
   },
@@ -1706,12 +1706,12 @@ const SPELLS = [
       };
       // 추적 사슬: 머리가 기체를 향해 조금씩 꺾으며 달려오고, 지나간 자리에 잠깐 남는 고리를 흘림
       const snake = () => {
-        const o = edge(), head = s.fire({ x: o.x, y: o.y, ang: Math.atan2(s.player.y - o.y, s.player.x - o.x), spd: s.sp(2.1), shape: 'big', color: 'gold', margin: 40,
+        const o = edge(), head = s.fire({ x: o.x, y: o.y, ang: Math.atan2(s.player.y - o.y, s.player.x - o.x), spd: 2, shape: 'big', color: 'gold', margin: 40,   // 머리 속도는 난이도·격화와 상관없이 2(고속 이동 3.6으로 떼어 놓음)
           fn: (b, s) => {
             const want = Math.atan2(s.player.y - b.y, s.player.x - b.x), da = ((want - b.ang + Math.PI * 3) % s.TAU) - Math.PI;
-            b.ang += Math.max(-0.035, Math.min(0.035, da));
+            b.ang += Math.max(-0.03, Math.min(0.03, da));
             if (b.t % 5 === 0) s.fire({ x: b.x, y: b.y, ang: b.ang, spd: 0, shape: 'link', color: 'gold', fn: c => { if (c.t > 45) c.dead = true; } });
-            if (b.t > 170) b.dead = true;
+            if (b.t > 150) b.dead = true;
           } });
         return head;
       };
@@ -1733,10 +1733,10 @@ const SPELLS = [
           }
         }
         for (let j = 0; j < n; j++) {
-          const o = edge(), t = past(), warn = s.lv(36, 32, 28, 26, 25);
+          const o = edge(), t = past(), warn = s.lv(36, 32, 30, 30, 30);   // 베리하드·헬도 예고 0.5초
           s.chain({ x: o.x, y: o.y, ang: Math.atan2(t.y - o.y, t.x - o.x), len: 760, warn, shoot: 8, hold: 8, retract: 28 });
         }
-        yield Math.max(24, s.wait(s.lv(36, 32, 30, 30, 30)));   // 사슬 사이 간격(최소 0.4초)
+        yield Math.max(28, s.wait(s.lv(36, 32, 30, 30, 30)));   // 사슬 사이 간격(최소 약 0.47초)
       }
     },
   },
@@ -2624,8 +2624,8 @@ const BOSS_RUNS = [
 // 스테이지마다 세기 T(0~0.5)로 적 수·탄속·체력이 조금씩 오름. 끝나기 약 5초 전부터는 새 웨이브를 부르지 않아 화면이 비고 보스가 등장함.
 // 부채꼴은 fixed라 하드 이상·격화의 줄 추가를 받지 않음
 const MOB_HP = (T, big) => Math.round(big ? 200 + 400 * T : 10 + 16 * T);
-// 작은 개체는 작은 P 넷, 중형은 작은 P 여섯과 큰 P 셋(파워를 모으는 구간. 회피 봇 기준 30초에 약 +1.5)
-const MOB_DROP = [4, 0], MOB_DROP_BIG = [6, 3];
+// 작은 개체는 작은 P 둘, 중형은 작은 P 넷과 큰 P 하나(회피 봇 기준 30초에 약 +0.6). 보스 패턴 종료 때도 스테이지마다 약 +1.3~1.6을 얻어 3스테이지 무렵 MAX
+const MOB_DROP = [2, 0], MOB_DROP_BIG = [4, 1];
 const MOB_WAVES = {
   // 줄지어 내려오다 반대쪽으로 꺾으며 조준탄 한 번
   *line(s, T, col, side) {

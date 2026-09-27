@@ -91,6 +91,14 @@
       <div class="row"><button id="stageRestart" title="지금 스테이지를 처음부터 (R)">이 스테이지 다시 (R)</button></div>
     </section>
 
+    <section class="card mode-stage">
+      <h2>테스트 도구</h2>
+      <label class="check"><input type="checkbox" id="skipChk"> 도중 건너뛰기 <small>잡몹 구간 없이 보스부터</small></label>
+      <label class="check"><input type="checkbox" id="stInvChk"> 무적 <small>맞은 횟수만 셈 · I</small></label>
+      <label class="check"><input type="checkbox" id="stLockChk"> 파워 고정
+        <select id="stPowSel" style="width:auto;margin-left:auto" aria-label="고정할 파워"></select></label>
+    </section>
+
     <section class="card mode-room">
       <h2>패턴 테스트 룸</h2>
       <p class="lead">패턴 하나 또는 보스 하나를 골라 연습. 연습 도구를 쓸 수 있음.</p>
@@ -144,7 +152,8 @@
         <dt><kbd>Esc</kbd> <kbd>R</kbd></dt><dd>일시정지 · 처음부터</dd>
         <dt><kbd>M</kbd></dt><dd>소리 끄고 켜기</dd>
         <dt class="mode-room"><kbd>[</kbd> <kbd>]</kbd> <kbd>.</kbd></dt><dd class="mode-room">이전·다음 패턴 · 정지 중 한 프레임</dd>
-        <dt class="mode-room"><kbd>1</kbd>~<kbd>4</kbd> <kbd>D</kbd> <kbd>I</kbd></dt><dd class="mode-room">기체 · 난이도 · 무적</dd>
+        <dt class="mode-room"><kbd>1</kbd>~<kbd>4</kbd> <kbd>D</kbd></dt><dd class="mode-room">기체 · 난이도</dd>
+        <dt><kbd>I</kbd></dt><dd>무적 켜고 끄기(테스트용)</dd>
       </dl>
       <ul class="rules">
         <li>목숨은 노말 이하 4개, 하드 이상 3개. 폭탄 3개로 시작하고 죽으면 폭탄은 다시 3개, 파워는 0.5 줄어듦.</li>
@@ -155,11 +164,11 @@
     </details>
   </aside>
 </main>
-<script src="sfx.js?v=c985837c5e"></script>
-<script src="bgm.js?v=c985837c5e"></script>
-<script src="engine.js?v=c985837c5e"></script>
-<script src="chants.js?v=c985837c5e"></script>
-<script src="patterns.js?v=c985837c5e"></script>
-<script src="main.js?v=c985837c5e"></script>
+<script src="sfx.js?v=084333f4f5"></script>
+<script src="bgm.js?v=084333f4f5"></script>
+<script src="engine.js?v=084333f4f5"></script>
+<script src="chants.js?v=084333f4f5"></script>
+<script src="patterns.js?v=084333f4f5"></script>
+<script src="main.js?v=084333f4f5"></script>
 </body>
 </html>

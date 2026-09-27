@@ -362,7 +362,7 @@ class Game {
   startRun(run, carry = false) {
     // 보스전 동안 쌓는 상태(김예나 시청자 수 등)는 다시 시작하면 초기화
     // 본게임에서 도중(잡몹 구간)이 있으면 그것부터(idx -1). 패턴 테스트 룸의 보스전은 보스부터
-    const staged = !!(run.stage && this.story);
+    const staged = !!(run.stage && this.story && !this.skipStage);   // 도중 건너뛰기(테스트 도구)면 보스부터
     this.run = { ...run, idx: staged ? -1 : 0, bars: this.barsOf(run.seq, run.pages), yena: undefined, afterStage: false };
     if (carry && this.player) {
       const p = this.player;
@@ -846,12 +846,12 @@ class Game {
     if (take('Escape')) this.paused = !this.paused;
     if (take('KeyR')) this.restart();
     if (take('KeyM')) { SFX.setMuted(!SFX.muted); this.onChange?.(); }
-    // 패턴 전환·무적·기체·난이도 단축키는 패턴 테스트 룸에서만(스테이지 모드는 패널에서 고름)
-    if (this.mode === 'stage') { for (const c of ['BracketRight', 'BracketLeft', 'KeyD', 'KeyI', 'Digit1', 'Digit2', 'Digit3', 'Digit4']) this.pressed.delete(c); return; }
+    if (take('KeyI')) { this.invincible = !this.invincible; this.onChange?.(); }   // 무적(테스트 중이라 스테이지 모드에서도)
+    // 패턴 전환·기체·난이도 단축키는 패턴 테스트 룸에서만(스테이지 모드는 패널에서 고름)
+    if (this.mode === 'stage') { for (const c of ['BracketRight', 'BracketLeft', 'KeyD', 'Digit1', 'Digit2', 'Digit3', 'Digit4']) this.pressed.delete(c); return; }
     if (take('BracketRight')) { this.startSingle(this.spellIndex + 1); this.onChange?.(); }
     if (take('BracketLeft')) { this.startSingle(this.spellIndex - 1); this.onChange?.(); }
     if (take('KeyD')) { this.difficulty = (this.difficulty + 1) % DIFFS.length; this.restart(); this.onChange?.(); }
-    if (take('KeyI')) { this.invincible = !this.invincible; this.onChange?.(); }
     for (const [code, a] of [['Digit1', 'AR'], ['Digit2', 'UR'], ['Digit3', 'LM'], ['Digit4', 'RH']]) if (take(code)) { this.angel = a; this.onChange?.(); }
   }
 
