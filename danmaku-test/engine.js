@@ -17,7 +17,7 @@ const HP_MUL = [0.6, 0.7, 0.85, 1, 1.1, 1.2];
 // 보스 체력 전체 배율(제한시간에는 영향 없음)
 const BOSS_HP = 0.855;   // 0.9에서 5% 너프
 // 패턴에 적힌 체력·제한시간에 곱하는 배율(내구 스펠·잡몹 구간·허수아비 제외).
-// 보스전은 스테이지마다 hpScale로 따로 정해 노말 약 6.5분(이지 5분대, 헬 8~9분)에 맞춤. 단일 패턴 연습은 기본값
+// 보스전은 스테이지마다 hpScale로 길이를 따로 맞춤(BOSS_RUNS). 단일 패턴 연습은 이 기본값
 const HP_SCALE = 2.2;
 // 난이도: 0=이지 1=노말 2=하드 3=베리하드 4=헬. 패턴은 s.lv·s.cnt·s.wait·s.sp로 난이도를 반영한다.
 // 하드가 시험판 처음의 잠정 최고 밀도. 엑스트라 패턴(extra: true)은 한 단계 위로 계산하며 6번째 값은 헬 위
@@ -101,6 +101,56 @@ function sprite(shape, color) {
     spriteCache.set(key, s);
   }
   return s;
+}
+
+// ── 캐릭터 이미지(임시) ──────────────────────────────────
+// srp.issssm.com의 1번(기본) 이미지에서 얼굴·어깨를 잘라 보스·동료의 작은 초상으로, 102번(전투) 이미지에서 얼굴이 있는
+// 가로 띠를 잘라 스펠 컷인으로 씀. 불러오지 못하면 예전처럼 색 동그라미로 그림
+const IMG_BASE = 'https://srp.issssm.com/';
+const PORTRAIT_CODE = { '윤도연': 'YD', '고현성': 'KS', '마리': 'MR', '마르코': 'MC', '김예나': 'KY', '차서린': 'CS', '고태웅': 'KT',
+  '아즈라엘': 'AZ', '예로니모': 'JR', '리크니스': 'LY', '이즘': 'IZ', '시연': 'SY' };
+// 전투(102) 이미지가 있는 인물과, 컷인으로 자를 가로 띠(높이 34%)의 시작 위치(이미지 위에서부터 비율, 얼굴이 들어오게)
+const CUTIN_BAND = { KY: 0.08, CS: 0.03, KT: 0.08, KS: 0.13, JR: 0.2, SY: 0.12 };
+const CUTIN_CODES = new Set(Object.keys(CUTIN_BAND));
+// '예로니모(진심)', '마리 (기절)'처럼 괄호가 붙은 이름도 본래 인물로
+function codeOf(name) { return name ? PORTRAIT_CODE[name] || PORTRAIT_CODE[name.replace(/\s*\(.*\)$/, '')] || null : null; }
+const imgCache = new Map();
+// cook(img)로 한 번만 가공한 캔버스를 돌려줌. 아직 못 불러왔거나 실패면 null
+function charSprite(code, shot, cook) {
+  const key = code + '/' + shot;
+  let e = imgCache.get(key);
+  if (!e) {
+    e = { img: new Image(), ok: false, out: null };
+    e.img.onload = () => { e.ok = true; };
+    e.img.src = `${IMG_BASE}${code}/D/${shot}.webp`;
+    imgCache.set(key, e);
+  }
+  if (e.ok && !e.out) e.out = cook(e.img);
+  return e.out;
+}
+// 초상 카드: 1번 이미지 위쪽 가운데(얼굴·어깨)를 44×50 모서리 둥근 카드로
+function cookPortrait(img) {
+  const w = 44, h = 50, c = document.createElement('canvas');
+  c.width = w * SC; c.height = h * SC;
+  const g = c.getContext('2d'); g.scale(SC, SC);
+  g.beginPath(); g.roundRect(0, 0, w, h, 8); g.clip();
+  const sw = img.naturalWidth * 0.5, sh = sw * h / w;
+  g.drawImage(img, img.naturalWidth * 0.25, img.naturalHeight * 0.05, sw, sh, 0, 0, w, h);
+  return c;
+}
+// 컷인 띠: 102번 이미지의 가로 띠(top부터 34%)를 흐리게. 왼쪽에서 들어오므로 뒤따르는 왼쪽 끝이 잔상처럼 투명하게 사라짐
+function cookCutin(img, top) {
+  const w = 250, h = 58, c = document.createElement('canvas');
+  c.width = w * SC; c.height = h * SC;
+  const g = c.getContext('2d'); g.scale(SC, SC);
+  g.filter = 'blur(0.8px)';
+  g.drawImage(img, 0, img.naturalHeight * top, img.naturalWidth, img.naturalHeight * 0.34, 0, 0, w, h);
+  g.filter = 'none';
+  g.globalCompositeOperation = 'destination-in';
+  const gr = g.createLinearGradient(0, 0, w, 0);
+  gr.addColorStop(0, 'rgba(0,0,0,0)'); gr.addColorStop(0.35, 'rgba(0,0,0,0.75)'); gr.addColorStop(1, 'rgba(0,0,0,0.95)');
+  g.fillStyle = gr; g.fillRect(0, 0, w, h);
+  return c;
 }
 
 // ── 코루틴 ────────────────────────────────────────────────
@@ -357,6 +407,9 @@ class Game {
     // 제한시간도 난이도별 체력 배율을 따라가 난이도와 상관없이 '필요 시간/제한시간' 비율이 같게 함
     this.timer = this.timerMax = Math.round((sp.time || 30) * 60 * k * (scaled ? HP_MUL[this.effDiff()] : 1));
     this.banner = sp.type === 'spell' ? { text: sp.name, t: 0 } : null;
+    // 전투 이미지가 있는 인물의 스펠: 왼쪽에서 짧게 지나가는 컷인
+    const code = codeOf(sp.boss);
+    this.cutin = sp.type === 'spell' && code && CUTIN_CODES.has(code) ? { code, t: 0 } : null;
     if (this.banner) SFX.spell();
     this.result = null; this.timeFlash = null;
     if (b.hidden) { b.x = W / 2; b.y = -200; b.move = null; }
@@ -1020,9 +1073,27 @@ function drawActor(G, g, a, isBoss) {
     rg.addColorStop(0, '#ff304888'); rg.addColorStop(1, '#ff304800');
     g.fillStyle = rg; g.beginPath(); g.arc(a.x, a.y, pr, 0, TAU); g.fill();
   }
-  g.fillStyle = a.hurt > 0 ? '#fff' : a.color;
-  g.beginPath(); g.arc(a.x, a.y, r, 0, TAU); g.fill();
-  g.fillStyle = 'rgba(0,0,0,0.35)'; g.beginPath(); g.arc(a.x, a.y, r * 0.55, 0, TAU); g.fill();
+  const code = codeOf(a.name), pic = code && charSprite(code, '01', cookPortrait);
+  if (pic) {
+    // 초상 카드(기절한 동료는 흑백·반투명), 인물 색 테두리. 맞으면 잠깐 하얗게
+    const w = 44, h = 50, fainted = /기절/.test(a.name);
+    g.save();
+    if (fainted) { g.filter = 'grayscale(1)'; g.globalAlpha = 0.6; }
+    g.drawImage(pic, a.x - w / 2, a.y - h / 2, w, h);
+    g.filter = 'none';
+    g.strokeStyle = a.color; g.lineWidth = 2; g.beginPath(); g.roundRect(a.x - w / 2, a.y - h / 2, w, h, 8); g.stroke();
+    if (a.hurt > 0) { g.globalAlpha = 0.45; g.fillStyle = '#fff'; g.beginPath(); g.roundRect(a.x - w / 2, a.y - h / 2, w, h, 8); g.fill(); }
+    g.restore();
+    if (isBoss) {
+      // 피격 지점(몸통 판정 16px)
+      g.strokeStyle = '#ff3b4a'; g.lineWidth = 1.5; g.beginPath(); g.arc(a.x, a.y, 16, 0, TAU); g.stroke();
+      g.fillStyle = '#ff3b4a'; g.beginPath(); g.arc(a.x, a.y, 2, 0, TAU); g.fill();
+    }
+  } else {
+    g.fillStyle = a.hurt > 0 ? '#fff' : a.color;
+    g.beginPath(); g.arc(a.x, a.y, r, 0, TAU); g.fill();
+    g.fillStyle = 'rgba(0,0,0,0.35)'; g.beginPath(); g.arc(a.x, a.y, r * 0.55, 0, TAU); g.fill();
+  }
   if (a.hurt > 0) a.hurt--;
   if (a.shield > 0) {
     // 영적 보호막: 물리 장벽이 아니므로 흐릿한 막으로 표현. 끝날 때 깜빡임
@@ -1035,7 +1106,7 @@ function drawActor(G, g, a, isBoss) {
   }
   if (a.name) {
     g.font = '10px system-ui, "Malgun Gothic", sans-serif'; g.textAlign = 'center'; g.textBaseline = 'top';
-    g.fillStyle = 'rgba(255,255,255,0.7)'; g.fillText(a.name, a.x, a.y + r + 4); g.textAlign = 'left';
+    g.fillStyle = 'rgba(255,255,255,0.7)'; g.fillText(a.name, a.x, a.y + (pic ? 27 : r + 4)); g.textAlign = 'left';
   }
 }
 
@@ -1460,7 +1531,22 @@ function drawHitbox(G, g) {
   g.beginPath(); g.arc(p.x, p.y, HIT_R, 0, TAU); g.fill();
 }
 
+function drawCutin(G, g) {
+  const c = G.cutin;
+  if (!c || c.t > 70) return;
+  const strip = charSprite(c.code, '102', img => cookCutin(img, CUTIN_BAND[c.code]));
+  c.t++;
+  if (!strip) return;
+  // 0~10프레임 왼쪽에서 슉 들어오고, 50프레임부터 오른쪽으로 조금 밀리며 사라짐
+  const t = c.t, inK = Math.min(1, t / 10), e = 1 - Math.pow(1 - inK, 3), out = Math.max(0, (t - 50) / 20);
+  const x = -250 + (250 + 8) * e + out * 30, y = 118;
+  g.globalAlpha = 0.85 * (1 - out); g.drawImage(strip, x, y, 250, 58);
+  g.fillStyle = '#ffffff'; g.globalAlpha = 0.5 * (1 - out); g.fillRect(x, y, 250 * (1 - out), 1); g.fillRect(x, y + 57, 250 * (1 - out), 1);
+  g.globalAlpha = 1;
+}
+
 function drawFieldUI(G, g) {
+  drawCutin(G, g);
   const b = G.boss, sp = G.spell;
   if (G.slow) {
     // 불렛타임은 화면이 푸르게, 오버클럭(직전보다 빨라짐)은 붉게. 끝이 정해진 경우만 남은 시간 막대
@@ -1577,10 +1663,19 @@ function drawHUD(G, g) {
   g.font = '15px system-ui, "Segoe UI Symbol", sans-serif';
   for (let i = 0; i < Math.max(p.lives, livesFor(G.difficulty)); i++) { g.fillStyle = i < p.lives ? '#ff6b9a' : '#3a3a4a'; g.fillText('♥', x + 44 + i * 17, y - 2); }
   for (let i = 0; i < Math.max(p.bombs, START_BOMBS); i++) { g.fillStyle = i < p.bombs ? '#7fe0a0' : '#3a3a4a'; g.fillText('✦', x + 44 + i * 17, y + 20); }
-  g.fillStyle = '#2a2a3a'; g.fillRect(x + 44, y + 48, 90, 8);
-  g.fillStyle = p.power >= MAX_POWER ? '#ffd23a' : '#e8403a'; g.fillRect(x + 44, y + 48, 90 * p.power / MAX_POWER, 8);
-  g.fillStyle = '#fff'; g.font = '11px Consolas, monospace';
-  g.fillText(`${p.power >= MAX_POWER ? 'MAX' : p.power.toFixed(2)}${G.powerLock ? ' 고정' : ''}`, x + 140, y + 46);
+  // 파워: 4칸(단계마다 한 칸). 채운 칸 수 = 지금 단계, 다음 칸은 다음 단계까지 찬 만큼. 단계마다 색이 바뀜
+  const L = Math.min(MAX_POWER, Math.floor(p.power + 1e-6)), frac = p.power - L, LV = ['#8e8ea6', '#ff8a2a', '#ffe55c', '#3ddc9a', '#f0ad32'];
+  for (let i = 0; i < MAX_POWER; i++) {
+    const bx = x + 44 + i * 23;
+    g.fillStyle = '#2a2a3a'; g.fillRect(bx, y + 47, 20, 10);
+    const k = i < L ? 1 : i === L ? frac : 0;
+    if (k > 0) { g.fillStyle = i < L ? LV[L] : LV[Math.min(4, L + 1)] + '88'; g.fillRect(bx, y + 47, 20 * k, 10); }
+  }
+  g.fillStyle = L >= MAX_POWER ? LV[4] : '#fff'; g.font = 'bold 11px Consolas, monospace';
+  g.fillText(`${L >= MAX_POWER ? 'MAX' : 'Lv' + L}${G.powerLock ? ' 고정' : ''}`, x + 140, y + 46);
+  // 단계가 오르면 기체 위에 POWER UP
+  if (G.lastLevel !== undefined && L > G.lastLevel) G.fx.push({ kind: 'text', text: L >= MAX_POWER ? 'POWER MAX' : `POWER UP · Lv${L}`, x: p.x, y: p.y - 22, t: 0, life: 50 });
+  G.lastLevel = L;
   y += 72;
   g.font = font(12); g.fillStyle = '#8e8ea6'; g.fillText('점수', x, y); g.fillText('그레이즈', x, y + 20);
   g.fillStyle = '#fff'; g.font = font(13, true);
