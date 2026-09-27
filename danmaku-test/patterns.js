@@ -2188,7 +2188,7 @@ const BOSS_RUNS = [
     ],
   },
   {
-    title: '3스테이지-1 · 김예나', name: '김예나', power: 2, hpScale: 3.75,
+    title: '3스테이지-1 · 김예나', name: '김예나', power: 2, hpScale: 3.56,   // 전체 너프에 더해 5% 추가 너프(3.75×0.95)
     seq: [
       spellOf('논스펠 · 김예나 1'),
       spellOf('「셔터 찬스」(가칭)'),

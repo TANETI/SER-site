@@ -1,10 +1,10 @@
 'use strict';
 // 회피 봇: 패턴이 피할 수 있는지 거칠게 재는 개발용 도구. 게임 화면에서는 쓰지 않는다.
-// 매 프레임 17가지 이동(정지 + 8방향 × 고속·저속)을 15프레임 앞까지 굴려 보고
+// 매 프레임 17가지 이동(정지 + 8방향 × 고속 3.6·저속 1.6)을 15프레임 앞까지 굴려 보고
 // 탄과의 여유가 가장 큰 쪽을 고른다. 탄은 지금 속도·가속도로 곧게 간다고 가정한다.
 // 사용: 콘솔에서 dodgeTest(패턴 번호, 난이도, 프레임 수) → 피탄 수
 const BOT_MOVES = [[0, 0, 0]];
-for (const sp of [2, 4.5]) for (let i = 0; i < 8; i++) {
+for (const sp of [1.6, 3.6]) for (let i = 0; i < 8; i++) {
   const a = i * Math.PI / 4;
   BOT_MOVES.push([Math.round(Math.cos(a) * 1e6) / 1e6 * sp, Math.round(Math.sin(a) * 1e6) / 1e6 * sp, sp]);
 }

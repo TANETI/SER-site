@@ -15,7 +15,7 @@ const MAX_POWER = 4, P_SMALL = 0.02, P_BIG = 0.25, DEATH_POWER_LOSS = 0.5;
 // 기준을 한 칸 내림: 예전 이지 값이 지금 노말, 예전 노말 값이 지금 하드
 const HP_MUL = [0.6, 0.7, 0.85, 1, 1.1, 1.2];
 // 보스 체력 전체 배율(제한시간에는 영향 없음)
-const BOSS_HP = 0.9;
+const BOSS_HP = 0.855;   // 0.9에서 5% 너프
 // 패턴에 적힌 체력·제한시간에 곱하는 배율(내구 스펠·잡몹 구간·허수아비 제외).
 // 보스전은 스테이지마다 hpScale로 따로 정해 노말 약 6.5분(이지 5분대, 헬 8~9분)에 맞춤. 단일 패턴 연습은 기본값
 const HP_SCALE = 2.2;
@@ -26,9 +26,10 @@ const DENSITY = [0.55, 0.8, 1, 1.2, 1.4, 1.6], INTERVAL = [1.6, 1.25, 1, 0.88, 0
 
 // ── 탄 스프라이트 ──────────────────────────────────────────
 const COLORS = {
-  ivy: '#3fae5a', red: '#ff3b4a', orange: '#ff8a2a', yellow: '#ffd23a', green: '#3ddc6a', cyan: '#35d6ff',
-  blue: '#3a6bff', purple: '#a64dff', pink: '#ff5ec8', white: '#e8e8f4', gold: '#f5c542',
-  brown: '#9a5420', black: '#30303c',
+  // 배경이 거의 검정이라 어두운 색(파랑·보라·갈색)은 밝게 둠. 노랑(레몬)과 금색(호박)은 서로 구분되게 벌림
+  ivy: '#3fae5a', red: '#ff3b4a', orange: '#ff8a2a', yellow: '#ffe55c', green: '#3ddc6a', cyan: '#35d6ff',
+  blue: '#5b8cff', purple: '#bb6bff', pink: '#ff5ec8', white: '#e8e8f4', gold: '#f0ad32',
+  brown: '#cf8446', black: '#30303c',
   // void: 흰 광채를 두른 검은 탄(sprite에서 따로 그림)
 };
 
@@ -469,7 +470,10 @@ class Game {
     p.focus = focus;
     let dx = (k.has('ArrowRight') ? 1 : 0) - (k.has('ArrowLeft') ? 1 : 0);
     let dy = (k.has('ArrowDown') ? 1 : 0) - (k.has('ArrowUp') ? 1 : 0);
-    const spd = (focus ? 2 : 4.5) * (p.stun > 0 ? 0.45 : 1), n = dx && dy ? Math.SQRT1_2 : 1;
+    // 고속 3.6·저속 1.6px/프레임. 누르기 시작한 뒤 3프레임은 35%→57%→79%로 올라가서 짧게 톡 치면 조금만 움직임(미세 조정)
+    p.hold = dx || dy ? (p.hold || 0) + 1 : 0;
+    const ramp = Math.min(1, 0.13 + p.hold * 0.22);
+    const spd = (focus ? 1.6 : 3.6) * ramp * (p.stun > 0 ? 0.45 : 1), n = dx && dy ? Math.SQRT1_2 : 1;
     if (p.stun > 0) p.stun--;
     const ox = p.x, oy = p.y;
     p.x = Math.max(8, Math.min(W - 8, p.x + dx * spd * n));
