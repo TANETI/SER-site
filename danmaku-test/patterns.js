@@ -1587,9 +1587,11 @@ const SPELLS = [
     type: 'spell', boss: '이즘', bossColor: '#8fe8ff', hp: 3000, time: 50, start: [192, 60],
     *run(s) {
       // 안전지대 셋에 1·2·3 번호를 차례로 미리 보여 준 뒤, 빰! 1번만 남기고 화면이 탄막으로 찼다가 터져 사라지고,
-      // 빰! 2번만 남기고 … 번호 순서대로 옮겨 다니면 됨. 안전지대는 한 번에 옮길 수 있는 거리로만 이어짐
+      // 빰! 2번만 남기고 … 번호 순서대로 옮겨 다니면 됨. 안전지대는 한 번에 옮길 수 있는 거리로만 이어짐.
+      // 채워진 동안 탄막이 안전지대째 다음 번호 쪽으로 천천히 흘러가므로 안전지대를 따라 움직여야 하고,
+      // 그사이 보스가 안전지대 안에서 비킬 수 있는 느린 조준탄을 쏨
       const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
-      const R = s.lv(50, 44, 40, 36, 34), hold = s.lv(34, 30, 26, 24, 22), move = s.lv(52, 46, 40, 36, 34);
+      const R = s.lv(50, 44, 40, 36, 34), hold = s.lv(72, 66, 60, 56, 52), move = s.lv(52, 46, 40, 36, 34);
       for (let w = 0; ; w++) {
         const pts = [];
         let px = clamp(s.player.x, 60, s.W - 60), py = clamp(s.player.y, 190, s.H - 60);
@@ -1599,9 +1601,10 @@ const SPELLS = [
           pts.push({ x: px, y: py, r: R });
         }
         const preview = s.lv(110, 96, 86, 78, 72), stagger = 22, gap = hold + move;
+        const zones = [];
         pts.forEach((p, k) => s.task(function* () {
           yield k * stagger;
-          s.safeZone({ x: p.x, y: p.y, r: R, label: k + 1, dur: preview - k * stagger + k * gap + hold + 6 });
+          zones[k] = s.safeZone({ x: p.x, y: p.y, r: R, label: k + 1, dur: preview - k * stagger + k * gap + hold + 6 });
           s.sound('beep', k / 3);
         }()));
         // 번호를 외우는 동안 조준탄 줄기를 피하며 움직여야 함
@@ -1612,8 +1615,15 @@ const SPELLS = [
         }
         s.clear();
         for (let k = 0; k < 3; k++) {
-          const list = fillField(s, { holes: [pts[k]], spacing: s.lv(20, 19, 18, 17, 16), color: k % 2 ? 'cyan' : 'blue' });
-          yield hold;
+          // 흐를 방향: 다음 번호 쪽(마지막은 화면 가운데 쪽). 흐르는 거리는 다음 번호까지 거리의 절반 이하, 45px 이하
+          const to = pts[k + 1] || { x: s.W / 2, y: s.H - 120 }, dx = to.x - pts[k].x, dy = to.y - pts[k].y, d = Math.hypot(dx, dy) || 1;
+          const spd = Math.min(45, d * 0.5) / hold, motion = { vx: dx / d * spd, vy: dy / d * spd };
+          const list = fillField(s, { holes: [pts[k]], spacing: s.lv(20, 19, 18, 17, 16), color: k % 2 ? 'cyan' : 'blue', motion, pad: 50 });
+          for (let t = 0; t < hold; t++) {
+            if (zones[k]) { zones[k].x += motion.vx; zones[k].y += motion.vy; }
+            if (t % s.lv(36, 30, 26, 24, 22) === 12) s.spread(s.lv(1, 1, 1, 3, 3), s.aim(), 0.16, { spd: s.sp(1.8), shape: 'rice', color: 'white' });
+            yield 1;
+          }
           s.pop(list);
           yield move;
         }
