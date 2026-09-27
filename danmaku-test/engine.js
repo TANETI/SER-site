@@ -637,6 +637,7 @@ class Game {
     p.vx = p.x - ox; p.vy = p.y - oy;
     p.tilt = dx;
     if (p.inv > 0) p.inv--;
+    if (p.respawn > 0) p.respawn--;
     if (p.flash > 0) p.flash--;
 
     // 라티엘 옵션
@@ -704,7 +705,8 @@ class Game {
     this.fx.push({ kind: 'burst', x: p.x, y: p.y, t: 0, life: 40 });
     SFX.die(); this.shake(12);
     this.clearBullets(false);
-    p.x = W / 2; p.y = H - 48; p.inv = 150; p.bomb = null;
+    // respawn: 되살아난 직후 무적 동안 새로 깔린 레이저·사슬은 판정 없음(되살아난 자리를 노린 레이저가 무적이 끝나는 순간 맞혀 목숨이 연달아 줄지 않게)
+    p.x = W / 2; p.y = H - 48; p.inv = 150; p.respawn = 150; p.bomb = null;
     // 한 번 죽을 때마다 목숨 하나. 폭탄은 다시 3개로
     p.lives--; p.bombs = START_BOMBS;
     const lost = this.powerLock ? 0 : Math.min(p.power, DEATH_POWER_LOSS);
@@ -761,7 +763,7 @@ class Game {
       else if (l.t <= l.warn + 8) l.cw = l.w * (l.t - l.warn) / 8;
       else if (l.t <= total) l.cw = l.w;
       else l.cw = l.w * (1 - (l.t - total) / 12);
-      if (l.cw < l.w * 0.6) continue;
+      if (l.cw < l.w * 0.6 || l.ghost) continue;   // ghost: 되살아난 직후 깔린 레이저(판정 없음)
       const d = segDist(p.x, p.y, l.x, l.y, l.x + Math.cos(l.ang) * l.len, l.y + Math.sin(l.ang) * l.len);
       if (d < l.cw * 0.35 + HIT_R) this.hitPlayer();
       else if (d < l.cw * 0.5 + GRAZE_R && l.t % 6 === 0) { this.graze++; this.score += 200; }
@@ -778,7 +780,7 @@ class Game {
     else if (t <= shoot + hold) l.tip = l.len;
     else if (t <= shoot + hold + retract) { const k = (t - shoot - hold) / retract; l.tip = l.len * (1 - k * k); }
     else { l.dead = true; return; }
-    if (l.tip <= 0) return;
+    if (l.tip <= 0 || l.ghost) return;
     const d = segDist(p.x, p.y, l.x, l.y, l.x + Math.cos(l.ang) * l.tip, l.y + Math.sin(l.ang) * l.tip);
     if (d < l.w / 2 + HIT_R) this.hitPlayer();
     else if (d < l.w / 2 + GRAZE_R && l.t % 6 === 0) { this.graze++; this.score += 200; }
@@ -981,14 +983,14 @@ function makeAPI(G) {
     // 고정 레이저: {x,y,ang,len,w,warn,dur,color,fn}
     laser(o = {}) {
       const l = { x: o.x ?? G.boss.x, y: o.y ?? G.boss.y, ang: o.ang ?? Math.PI / 2, len: o.len ?? 700, w: o.w ?? 16,
-        warn: o.warn ?? 40, dur: o.dur ?? 60, color: o.color || 'cyan', fn: o.fn, t: 0, cw: 0 };
+        warn: o.warn ?? 40, dur: o.dur ?? 60, color: o.color || 'cyan', fn: o.fn, t: 0, cw: 0, ghost: G.player.respawn > 0 };
       G.lasers.push(l);
       return l;
     },
     // 사슬: {x,y,ang,len,w,warn,shoot,hold,retract}. 기본 발사 위치는 보스
     chain(o = {}) {
       const l = { kind: 'chain', x: o.x ?? G.boss.x, y: o.y ?? G.boss.y, ang: o.ang ?? Math.PI / 2, len: o.len ?? 700, w: o.w ?? 7,
-        warn: o.warn ?? 45, shoot: o.shoot ?? 12, hold: o.hold ?? 20, retract: o.retract ?? 120, fn: o.fn, t: 0, tip: 0 };
+        warn: o.warn ?? 45, shoot: o.shoot ?? 12, hold: o.hold ?? 20, retract: o.retract ?? 120, fn: o.fn, t: 0, tip: 0, ghost: G.player.respawn > 0 };
       G.lasers.push(l);
       return l;
     },
@@ -1396,10 +1398,11 @@ function drawLasers(G, g) {
     if (l.kind === 'chain') { drawChain(G, g, l); continue; }
     const c = COLORS[l.color] || l.color;
     g.save(); g.translate(l.x, l.y); g.rotate(l.ang);
+    if (l.ghost) g.globalAlpha = 0.3;   // 판정 없는 레이저는 흐리게
     if (l.t <= l.warn) {
       warnStroke(g, l.len, c, l.t, l.warn - l.t, l.w * 0.7);   // 띠 = 실제 판정 폭
     } else if (l.cw > 0) {
-      g.globalAlpha = 0.85; g.fillStyle = c; g.fillRect(0, -l.cw / 2, l.len, l.cw);
+      g.globalAlpha = l.ghost ? 0.25 : 0.85; g.fillStyle = c; g.fillRect(0, -l.cw / 2, l.len, l.cw);
       g.fillStyle = '#fff'; g.fillRect(0, -l.cw / 5, l.len, l.cw / 2.5);
     }
     g.restore();
@@ -1499,6 +1502,7 @@ function warnStroke(g, len, color, t, remain, band = 0) {
 
 function drawChain(G, g, l) {
   g.save(); g.translate(l.x, l.y); g.rotate(l.ang);
+  if (l.ghost) g.globalAlpha = 0.3;   // 판정 없는 사슬은 흐리게
   if (l.t <= l.warn) {
     warnStroke(g, l.len, '#ff2a3a', l.t, l.warn - l.t, l.w);
   } else if (l.tip > 0) {

@@ -749,18 +749,18 @@ const SPELLS = [
     *run(s) {
       // 촬영: 플레이어 자리에 뷰파인더(십자선)가 잡히고, 찰칵(경고음) 하는 순간의 자리로 부채꼴 연사가 날아감.
       // 두 장에 한 장은 찍히는 자리를 지나는 가로·세로 레이저도 함께 나가므로 찍힌 자리의 가로줄·세로줄을 모두 벗어나야 함.
-      // 세 장을 연달아 찍으므로 계속 비켜야 함
+      // 한 판에 두세 장을 찍으므로 계속 비켜야 함. 레이저는 판마다 첫 장에만. 김예나가 직접 쏘는 탄(찍힌 자리로 가는 부채꼴)은 가볍게
       yenaLive(s);
       if (s.diff >= 3) s.task(function* () {
-        for (let k = 0; ; k++) { s.ring(s.cnt(10), { offset: k * 0.21, spd: s.sp(1.4), shape: 'star', color: 'pink' }); yield s.wait(66); }
+        for (let k = 0; ; k++) { s.ring(s.cnt(8), { offset: k * 0.21, spd: s.sp(1.2), shape: 'star', color: 'pink' }); yield s.wait(110); }
       }());
       for (let w = 0; ; w++) {
-        for (let k = 0; k < yc(s, s.lv(3, 3, 4, 4, 5)); k++) {
-          const tx = s.player.x, ty = s.player.y, lead = s.lv(40, 34, 30, 28, 26);
+        for (let k = 0; k < s.lv(2, 3, 3, 3, 4); k++) {
+          const tx = s.player.x, ty = s.player.y, lead = s.lv(44, 40, 36, 34, 32);
           s.mark({ x: tx, y: ty, dur: lead });
-          // 사진 프레임: 두 장에 한 장은 찍히는 자리를 지나는 가로·세로 긴 레이저(예고선이 함께 깔렸다가 찰칵 순간 발사).
-          // 매 장 레이저를 깔면 지나온 가로줄에 계속 걸려 쉬지 않고 대각선으로만 움직여야 해서 두 장에 한 장
-          if (k % 2 === 0) {
+          // 사진 프레임: 판마다 첫 장은 찍히는 자리를 지나는 가로·세로 긴 레이저(예고선이 함께 깔렸다가 찰칵 순간 발사).
+          // 매 장 레이저를 깔면 지나온 가로줄에 계속 걸려 쉬지 않고 대각선으로만 움직여야 해서 첫 장에만
+          if (k === 0) {
             s.laser({ x: 0, y: ty, ang: 0, len: s.W, w: 12, warn: lead, dur: 18, color: 'pink' });
             s.laser({ x: tx, y: 0, ang: Math.PI / 2, len: s.H, w: 12, warn: lead, dur: 18, color: 'pink' });
           }
@@ -769,11 +769,11 @@ const SPELLS = [
             s.sound('beep', 1);
             s.shake(1);
             const a = Math.atan2(ty - s.boss.y, tx - s.boss.x);
-            for (let i = 0; i < 4; i++) { s.spread(yc(s, s.lv(3, 5, 5, 7, 7)), a, 0.13, { spd: s.sp(3.6 + i * 0.3), shape: 'rice', color: 'white' }); yield 3; }
+            for (let i = 0; i < 2; i++) { s.spread(s.lv(3, 3, 3, 3, 5), a, 0.16, { spd: s.sp(2.6 + i * 0.3), shape: 'rice', color: 'white', fixed: true }); yield 4; }
           }());
-          yield s.lv(22, 20, 18, 16, 15);   // 찍는 간격은 시청자 수로 빨라지지 않음(레이저 가로줄 사이가 너무 좁아지지 않게)
+          yield s.lv(32, 30, 28, 26, 24);   // 찍는 간격은 시청자 수로 빨라지지 않음(레이저 가로줄 사이가 너무 좁아지지 않게)
         }
-        yield s.wait(60);
+        yield s.wait(100);
         if (w % 2 === 1) yield* s.wander(50, 50);
       }
     },
