@@ -943,7 +943,7 @@ function makeAPI(G) {
     warnLine(o) { G.fx.push({ kind: 'warnline', x: o.x ?? G.boss.x, y: o.y ?? G.boss.y, x2: o.x2, y2: o.y2, t: 0, life: o.dur ?? 30, band: o.band ?? 0 }); },
     // 사각 구역 공격 {x,y,w,h,warn,dur,label,color}. warn 동안 예고, dur 동안 판정
     area(o) {
-      const a = { x: o.x, y: o.y, w: o.w, h: o.h, warn: o.warn ?? 60, dur: o.dur ?? 20, label: o.label ?? '', color: o.color || '#ff3b4a', t: 0, fog: !!o.fog };
+      const a = { x: o.x, y: o.y, w: o.w, h: o.h, warn: o.warn ?? 60, dur: o.dur ?? 20, label: o.label ?? '', color: o.color || '#ff3b4a', t: 0, fog: !!o.fog, edge: o.edge };
       G.areas.push(a);
       return a;
     },
@@ -1387,7 +1387,12 @@ function drawFog(G, g, a) {
   g.restore();
   // 가장자리 빛: 예고 동안은 깜빡이고, 발동 뒤에는 은은하게
   g.globalAlpha = live ? 0.55 * fade : (Math.sin(a.t * (a.t > a.warn - 20 ? 1.2 : 0.4)) > 0 ? 0.9 : 0.35);
-  g.strokeStyle = '#e8e8f4'; g.lineWidth = live ? 2 : 1.5; g.strokeRect(a.x + 1, a.y + 1, a.w - 2, a.h - 2);
+  g.strokeStyle = '#e8e8f4'; g.lineWidth = live ? 2 : 1.5;
+  if (a.edge) {
+    // 여러 띠로 이어 붙인 안개: 안쪽 가장자리(통로 쪽)만 빛나게
+    const ex = a.edge === 'right' ? a.x + a.w : a.x;
+    g.beginPath(); g.moveTo(ex, a.y); g.lineTo(ex, a.y + a.h); g.stroke();
+  } else g.strokeRect(a.x + 1, a.y + 1, a.w - 2, a.h - 2);
   g.globalAlpha = 1;
 }
 

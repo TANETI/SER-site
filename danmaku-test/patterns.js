@@ -85,6 +85,22 @@ function yenaLive(s) {
 const yc = (s, n) => Math.max(1, Math.round(n * s.boost.cnt)), yw = (s, f) => Math.max(1, Math.round(f * s.boost.wait));
 
 
+// 아즈라엘 공통: 비 내리듯 천천히 내려오는 귀찮은 탄막. 위에서 빗방울이 좌우로 살짝 흔들리며 느리게 떨어짐.
+// 바로 앞 방울 자리와 40px 안에는 떨어뜨리지 않아 같은 자리에 겹쳐 나오지 않음
+function* azRain(s, o = {}) {
+  let last = -999;
+  for (let k = 0; ; k++) {
+    let x, tries = 0;
+    do { x = s.rand(o.x0 ?? 8, o.x1 ?? s.W - 8); } while (Math.abs(x - last) < 40 && ++tries < 10);
+    last = x;
+    const ph = s.rand(0, s.TAU), sway = o.sway ?? 0.35;
+    const spd = typeof o.spd === 'function' ? o.spd() : (o.spd ?? 1.1);   // 함수면 그때그때 속도(점점 빨라지는 비)
+    s.fire({ x, y: -8, vx: 0, vy: s.sp(spd), shape: o.shape ?? (k % 3 ? 'rice' : 'orb'), color: o.color ?? (k % 3 ? 'white' : 'void'),
+      fn: b => { b.vx = Math.sin(b.t * 0.04 + ph) * sway; } });
+    yield s.wait(o.every ?? 10);
+  }
+}
+
 // ── 성당교회 공통 ──
 // 2스테이지 가운데 구간: 마르코가 합류해 마리와 함께 싸움. 마르코가 보스, 마리는 동료. 영창 색은 마르코=금빛, 마리=하늘빛
 function churchDuo(s, at = [80, 70]) {
@@ -948,40 +964,30 @@ const SPELLS = [
     },
   },
   {
-    name: '「점멸」(가칭)',
+    name: '「정의의 파도」(가칭)',
     type: 'spell', boss: '고태웅', bossColor: '#ffcf6b', hp: 3000, time: 52, start: [192, 80],
     *run(s) {
-      // 변신 벨트 불빛처럼 깜빡이는 격자. 엇갈린 세로 줄들이 고정 간격(가로 40px, 세로 dy, 이웃 줄은 반 칸 엇갈림)을 지키며
-      // 왼쪽에서 오른쪽으로 함께 진행하고, 격자 전체가 같은 박자로 켜졌다 꺼짐. 꺼진 동안은 자리만 아주 흐리게 보이고
-      // 판정이 없음. 처음엔 느리게 깜빡이다가 점점 빨라짐. 켜진 동안은 탄 사이 틈에 머무르며 격자와 함께 흘러가고,
-      // 꺼진 동안 자리를 옮김. 보스는 약 2.3초마다 양옆으로 부채꼴을 뿌림
-      const dx = 40, dy = s.lv(46, 42, 40, 38, 38), v = s.sp(0.9), top = 130, grid = { on: true };
-      // 깜빡임: 켜짐 약 1.6초·꺼짐 1초에서 시작해 14번에 걸쳐 켜짐 약 0.5초·꺼짐 0.35초까지 빨라짐. 켜질 때 높은 틱, 꺼질 때 낮은 틱
-      s.task(function* () {
-        for (let k = 0; ; k++) {
-          const p = Math.min(1, k / 14);
-          const on = Math.round(s.lv(100, 96, 92, 90, 88) * (1 - p) + s.lv(40, 34, 30, 28, 26) * p);
-          const off = Math.round(60 * (1 - p) + s.lv(28, 24, 22, 20, 20) * p);
-          grid.on = true; s.sound('beep', 0.9);
-          yield on;
-          grid.on = false; s.sound('beep', 0.2);
-          yield off;
-        }
-      }());
-      // 격자 줄: 왼쪽 밖에서 dx/v 프레임마다 한 줄씩 들어옴. 모두 같은 속도라 줄 사이 간격이 그대로 유지됨
-      s.task(function* () {
-        for (let c = 0; ; c++) {
-          const off = (c % 2) * dy / 2;
-          for (let y = top + off; y < s.H + 10; y += dy) s.fire({ x: -10, y, ang: 0, spd: v, shape: 'orb', color: 'yellow', margin: 20, fn: b => { b.off = !grid.on; } });
-          yield Math.round(dx / v);
-        }
-      }());
-      // 격자는 화면 위쪽(top 위)에 없으므로, 양옆으로 약간 아래를 향한 부채꼴을 뿌려 위쪽 빈 곳을 쓸어 줌
-      for (;;) {
-        yield s.wait(70);
-        if (s.diff >= 3) s.fire({ ang: s.aim(), spd: s.sp(1.8), shape: 'star', color: 'orange' });
-        yield s.wait(70);
-        for (const a of [0.3, Math.PI - 0.3]) s.spread(s.lv(5, 6, 7, 8, 9), a, 0.14, { spd: s.sp(2.2), shape: 'rice', color: 'orange' });
+      // 정의의 파도: 엇갈린 세로 줄들이 고정 간격(가로 48px, 세로 dy, 이웃 줄은 반 칸 엇갈림)을 지키며 왼쪽에서 오른쪽으로
+      // 계속 밀려옴(깜빡이지 않음). 엇갈린 이웃 줄 사이 dy/4 높이에 격자와 함께 흐르는 가로 안전 줄이 있고
+      // (탄 판정 가장자리까지 dy/4 - 8.4 = 약 4.6~7.6px), 줄과 줄 사이 틈(48 - 16.8 = 약 31px)이 지나는 동안 다음 안전 줄로 옮김.
+      // 고태웅 양쪽에서 계속 켜져 있는 레이저 두 줄이 약 5초 주기로 위아래로 쓸어, 격자가 없는 화면 위쪽에 숨을 수 없게 함
+      // 격자는 화면 맨 위부터 깔리고 가로 위치에 따라 위아래로 출렁이는 물결 모양(진폭 16px)으로 흘러감.
+      // 물결은 시간에 따라서도 흘러 제자리의 안전 줄이 오르내리므로 가만히 있을 수 없음(따라가는 속도는 최대 약 0.65px/프레임).
+      // 이 스펠 동안 보스 몸통에 닿아도 피격(몸에 붙어 숨지 못하게)
+      const dx = 48, dy = s.lv(64, 60, 56, 54, 52), v = s.sp(0.8), top = -dy, A = 16, k = 0.025;
+      s.boss.contact = true;
+      // 레이저: 1초 예고 뒤 스펠 끝까지. 보스를 따라 붙고, 각도가 위로 0.25 ~ 아래로 0.55 사이를 오감
+      const sweep = t => 0.15 + 0.4 * Math.sin(t * s.TAU / 300);
+      for (const side of [-1, 1]) {
+        s.laser({ x: s.boss.x, y: s.boss.y, ang: side < 0 ? Math.PI - sweep(0) : sweep(0), len: 460, w: 10, warn: 60, dur: 99999, color: 'yellow',
+          fn: l => { const a = sweep(l.t); l.ang = side < 0 ? Math.PI - a : a; l.x = s.boss.x; l.y = s.boss.y; } });
+      }
+      // 파도: 왼쪽 밖에서 dx/v 프레임마다 한 줄씩. 모두 같은 속도라 줄 사이 간격이 그대로 유지됨
+      for (let c = 0; ; c++) {
+        const off = (c % 2) * dy / 2;
+        for (let y = top + off; y < s.H + 10; y += dy) s.fire({ x: -10, y, ang: 0, spd: v, shape: 'orb', color: 'yellow', margin: 60, data: { y0: y },
+          fn: bb => { bb.y = bb.data.y0 + A * Math.sin(bb.x * k - s.frame * 0.02); } });
+        yield Math.round(dx / v);
       }
     },
   },
@@ -991,14 +997,13 @@ const SPELLS = [
     name: '논스펠 · 아즈라엘 1',
     type: 'nonspell', boss: '아즈라엘', bossColor: '#e8e8f4', hp: 2400, time: 38, start: [192, 90],
     *run(s) {
-      // 흑백 교차: 흰 쌀알탄 원형(조금씩 시계 방향으로 휨)과 검은 구슬 원형(반시계로 휨)이 박자를 엇갈려 나감. 두 번에 한 번 검은 조준탄
+      // 보슬비: 위에서 흰·검은 빗방울이 천천히 흔들리며 내려옴. 두 줄기의 비가 박자를 달리해 엇갈려 내림
+      s.task(azRain(s, { every: 9, spd: 1.1 }));
+      s.task(azRain(s, { every: 14, spd: 0.8, shape: 'orb', color: 'void', sway: 0.5 }));
       for (let w = 0; ; w++) {
-        s.ring(s.cnt(18), { offset: w * 0.19, spd: s.sp(1.8), angVel: 0.004, shape: 'rice', color: 'white' });
-        yield s.wait(22);
-        s.ring(s.cnt(12), { offset: -w * 0.23, spd: s.sp(1.3), angVel: -0.004, shape: 'orb', color: 'void' });
-        yield s.wait(22);
-        if (w % 2) s.spread(s.lv(1, 3, 3, 3, 5), s.aim(), 0.18, { spd: s.sp(2.8), shape: 'orb', color: 'void' });
-        if (w % 5 === 4) yield* s.wander(50, 50);
+        yield s.wait(90);
+        if (s.diff >= 3) s.fire({ ang: s.aim(), spd: s.sp(2.2), shape: 'rice', color: 'white' });
+        if (w % 3 === 2) yield* s.wander(50, 60);
       }
     },
   },
@@ -1006,20 +1011,14 @@ const SPELLS = [
     name: '「명암」(가칭)',
     type: 'spell', boss: '아즈라엘', bossColor: '#e8e8f4', hp: 3000, time: 48, start: [192, 70],
     *run(s) {
-      // 빛과 그림자: 위에서 흰 빛줄기(쌀알탄)가 성기게 내리고, 좌우 가장자리에서 검은 구슬 줄이 가로로 흘러 들어옴(줄마다 방향이 바뀜).
-      // 가로 줄은 들어올 높이를 옅은 띠로 먼저 보여 줌. 구슬 사이 44px라 줄을 비스듬히 지나갈 수 있음
-      s.task(function* () {
-        for (;;) { s.fire({ x: s.rand(8, s.W - 8), y: -8, ang: Math.PI / 2, spd: s.sp(2.2), shape: 'rice', color: 'white' }); yield s.wait(s.lv(9, 7, 6, 5, 5)); }
-      }());
+      // 명암: 검은 구슬 줄이 화면 위에 한 줄로 쭉 깔린 뒤, 천천히 옆으로 흐르며 내려옴(줄마다 흐르는 방향이 바뀜).
+      // 줄마다 구슬 자리가 반 칸 엇갈려 같은 자리에 다시 나오지 않고, 줄 사이 약 55px라 비스듬히 지나갈 수 있음. 흰 빗줄기가 함께 내림
+      s.task(azRain(s, { every: 14, spd: 1.2, shape: 'rice', color: 'white', sway: 0.2 }));
+      const gap = 44;
       for (let w = 0; ; w++) {
-        const dir = w % 2 ? -1 : 1, y = s.rand(160, s.H - 40), warn = s.lv(44, 40, 36, 34, 32);
-        s.warnLine({ x: 0, y, x2: s.W, y2: y, band: 16, dur: warn });
-        yield warn;
-        for (let i = 0; i < 9; i++) {
-          s.fire({ x: dir > 0 ? -10 - i * 44 : s.W + 10 + i * 44, y, ang: dir > 0 ? 0 : Math.PI, spd: s.sp(1.6), shape: 'orb', color: 'void', margin: 420 });
-        }
-        yield s.wait(s.lv(60, 52, 46, 42, 40));
-        if (w % 4 === 3) yield* s.wander(40, 50);
+        const dir = w % 2 ? -1 : 1, off = (w % 2 ? gap / 2 : 0) + gap / 4;
+        for (let x = off - gap; x < s.W + gap; x += gap) s.fire({ x, y: -8, vx: dir * 0.35, vy: s.sp(0.55), shape: 'orb', color: 'void', margin: 60 });
+        yield s.wait(100);
       }
     },
   },
@@ -1027,15 +1026,12 @@ const SPELLS = [
     name: '논스펠 · 아즈라엘 2',
     type: 'nonspell', boss: '아즈라엘', bossColor: '#e8e8f4', hp: 2500, time: 38, start: [192, 100],
     *run(s) {
-      // 홍채: 흰 탄 고리가 보스 둘레로 펼쳐져 잠깐 멈췄다가(눈동자가 조여들 듯) 한꺼번에 바깥으로 풀려 나감.
-      // 풀리는 순간 검은 조준탄. 고리마다 조금씩 돌아간 자리
+      // 빗방울 부채: 보스가 아래쪽으로 넓게 느린 흰 부채를 흩뿌리고(부채마다 조금씩 돌아간 자리), 위에서는 검은 빗방울이 내림
+      s.task(azRain(s, { every: 16, spd: 0.9, shape: 'orb', color: 'void', sway: 0.45 }));
       for (let w = 0; ; w++) {
-        const n = s.cnt(24), list = [];
-        for (let i = 0; i < n; i++) list.push(s.fire({ ang: i * s.TAU / n + w * 0.13, spd: s.sp(2.2), accel: -0.08, minSpd: 0, shape: 'small', color: w % 2 ? 'void' : 'white' }));
-        yield 40;
-        for (const b of list) { b.accel = 0.035; b.maxSpd = s.sp(2.2); }
-        s.spread(s.lv(1, 3, 3, 5, 5), s.aim(), 0.2, { spd: s.sp(2.8), shape: 'orb', color: 'void' });
-        yield s.wait(34);
+        const n = s.cnt(13), base = Math.PI / 2 + Math.sin(w * 0.7) * 0.3;
+        for (let i = 0; i < n; i++) s.fire({ ang: base + (i - (n - 1) / 2) * 0.2, spd: s.sp(0.9), accel: 0.004, maxSpd: s.sp(1.3), shape: 'rice', color: 'white' });
+        yield s.wait(46);
         if (w % 5 === 4) yield* s.wander(50, 50);
       }
     },
@@ -1044,18 +1040,30 @@ const SPELLS = [
     name: '「섬광」(가칭)',
     type: 'spell', boss: '아즈라엘', bossColor: '#e8e8f4', hp: 3100, time: 50, start: [192, 110],
     *run(s) {
-      // 섬광: 보스가 빛을 모으는 동안 방사형 예고선 → 흰 레이저가 사방으로. 레이저 사이 각도로 비킴.
-      // 다음 섬광은 반 칸 돌아간 자리라 같은 틈에 머물 수 없음. 레이저가 꺼진 뒤 그 사이로 검은 구슬 원형탄
+      // 섬광: 보스가 빛을 모으는 동안 방사형 예고선 → 흰 레이저가 사방으로 뻗은 채 켜져 있음.
+      // 레이저를 켠 채로 천천히 반 바퀴 돌리고, 잠깐 멈췄다가 270도 더 돌린 뒤 걷힘. 도는 방향은 매번 무작위.
+      // 도는 속도는 화면 끝(보스에서 약 350px)에서도 틈이 약 2.3px/프레임으로 움직일 만큼 느림. 보스에 가까울수록 더 느림.
+      // 그사이 위에서 검은 비가 천천히 내림
+      s.task(azRain(s, { every: 18, spd: 0.9, shape: 'orb', color: 'void', sway: 0.4 }));
+      const omega = 0.0065;
       for (let w = 0; ; w++) {
-        const n = s.lv(6, 8, 8, 10, 10), off = w * Math.PI / n + s.rand(-0.08, 0.08), warn = s.lv(56, 50, 46, 42, 40);
+        const n = s.lv(6, 6, 8, 8, 8), off = s.rand(0, s.TAU), warn = s.lv(60, 56, 50, 46, 44), st = { rot: 0 };
+        const turn1 = Math.PI, turn2 = Math.PI * 1.5, pause = 40;
+        const f1 = Math.round(turn1 / omega), f2 = Math.round(turn2 / omega), total = f1 + pause + f2;
         s.boss.glow = warn;
-        for (let i = 0; i < n; i++) s.laser({ x: s.boss.x, y: s.boss.y, ang: off + i * s.TAU / n, len: 700, w: 14, warn, dur: 30, color: 'white' });
-        yield warn + 30;
-        s.ring(s.cnt(16), { offset: off + Math.PI / n, spd: s.sp(1.4), shape: 'orb', color: 'void' });
-        yield s.wait(24);
+        for (let i = 0; i < n; i++) {
+          s.laser({ x: s.boss.x, y: s.boss.y, ang: off + i * s.TAU / n, len: 700, w: 14, warn, dur: total, color: 'white',
+            fn: l => { l.ang = off + i * s.TAU / n + st.rot; l.x = s.boss.x; l.y = s.boss.y; } });
+        }
+        yield warn;
+        const d1 = Math.random() < 0.5 ? -1 : 1;
+        for (let t = 0; t < f1; t++) { st.rot += d1 * omega; yield 1; }
+        yield pause;
+        const d2 = Math.random() < 0.5 ? -1 : 1;
+        for (let t = 0; t < f2; t++) { st.rot += d2 * omega; yield 1; }
+        yield 20;
         if (s.diff >= 3) s.spread(3, s.aim(), 0.2, { spd: s.sp(2.6), shape: 'rice', color: 'white' });
-        yield s.wait(36);
-        if (w % 2 === 1) yield* s.wander(50, 50);
+        yield s.wait(60);
       }
     },
   },
@@ -1068,7 +1076,7 @@ const SPELLS = [
         for (let k = 0; k < 3; k++) {
           s.fire({ ang: s.aim() + (k - 1) * 0.3, spd: s.sp(2.4), shape: 'orb', color: 'void',
             // 잔상은 날아가기 시작한 뒤 1초 동안만(기체 가까이에는 쌓이지 않게) 16프레임마다
-            fn: (b, s) => { if (b.t < 60 && b.t % 16 === 8) s.fire({ x: b.x, y: b.y, ang: Math.PI / 2, spd: 0.4, accel: 0.02, maxSpd: s.sp(1.6), shape: 'small', color: 'white' }); } });
+            fn: (b, s) => { if (b.t < 60 && b.t % 16 === 8) s.fire({ x: b.x, y: b.y, ang: Math.PI / 2, spd: 0.2, accel: 0.012, maxSpd: s.sp(1.0), shape: 'small', color: 'white' }); } });
         }
         yield s.wait(46);
         if (w % 2) s.ring(s.cnt(12), { offset: s.rand(0, s.TAU), spd: s.sp(1.4), shape: 'rice', color: 'white' });
@@ -1080,21 +1088,41 @@ const SPELLS = [
     name: '「검은 안개」(가칭)',
     type: 'spell', boss: '아즈라엘', bossColor: '#e8e8f4', hp: 3100, time: 52, start: [192, 80],
     *run(s) {
-      // 보스 양옆을 검은 안개로 막아 들어갈 수 없는 구역을 만듦(판정 있음). 남는 곳은 보스 밑 통로와 화면 아래 띠뿐이고,
-      // 그 좁은 곳으로 흰 원형탄이 옴. 안개는 1초 예고(깜빡이는 흰 테두리) 뒤 짙어지고, 보스가 옮기면 다시 깔림
+      // 보스 양옆을 검은 안개로 막아 들어갈 수 없는 구역을 만듦(판정 있음). 안개는 20px 가로 띠로 이어 붙여 안쪽 가장자리가
+      // 물결처럼 일렁임(띠마다 최대 14px, 통로는 가장 좁을 때도 헬 기준 약 88px). 남는 곳은 보스 밑 통로와 화면 아래 띠.
+      // 안개가 서 있는 동안 통로로 흰 비가 내리는데 점점 빨라짐(1.0 → 1.8, 거기서 멈춤). 안개 속에서는 검은 탄이 조금씩 튀어나와
+      // 통로 쪽으로 천천히 날아옴. 안개는 1초 예고(깜빡이는 가장자리) 뒤 짙어지고, 보스가 옮기면 다시 깔림
       for (let w = 0; ; w++) {
         yield* s.moveTo(s.rand(140, s.W - 140), s.rand(70, 100), 40);
         const cx = s.boss.x, gap = s.lv(84, 74, 66, 62, 58), bottom = s.lv(290, 300, 310, 316, 320);
-        const warn = 60, dur = s.lv(330, 360, 390, 400, 420);
-        s.area({ x: 0, y: 0, w: cx - gap, h: bottom, warn, dur, color: '#16141f', fog: true });
-        s.area({ x: cx + gap, y: 0, w: s.W - cx - gap, h: bottom, warn, dur, color: '#16141f', fog: true });
+        const warn = 60, dur = s.lv(330, 360, 390, 400, 420), sh = 20, strips = [];
+        for (let y = 0; y < bottom; y += sh) for (const side of [-1, 1]) {
+          const a = s.area({ x: 0, y, w: 1, h: Math.min(sh, bottom - y), warn, dur, color: '#16141f', fog: true, edge: side < 0 ? 'right' : 'left' });
+          strips.push({ a, side, y });
+        }
+        // 안개 가장자리 일렁임(스펠이 끝나면 작업도 함께 멈춤)
+        const wave = s.task(function* () {
+          for (let t = 0; ; t++) {
+            for (const st of strips) {
+              const wob = 14 * Math.sin(st.y * 0.045 + t * 0.035 + (st.side < 0 ? 0 : 1.7));
+              if (st.side < 0) { st.a.x = 0; st.a.w = Math.max(1, cx - gap + wob); }
+              else { st.a.x = cx + gap - wob; st.a.w = Math.max(1, s.W - st.a.x); }
+            }
+            yield 1;
+          }
+        }());
         s.sound('beep', 0.2);
         yield warn;
-        for (let t = 0, k = 0; t < dur; t += s.wait(30), k++) {
-          s.ring(s.cnt(14), { offset: k * 0.21, spd: s.sp(1.6), shape: 'rice', color: 'white' });
-          if (s.diff >= 3 && k % 2) s.fire({ ang: s.aim(), spd: s.sp(2.4), shape: 'orb', color: 'void' });
-          yield s.wait(30);
+        // 점점 빨라지는 비와 안개 속에서 튀어나오는 검은 탄
+        let t0 = 0;
+        const rain = s.task(azRain(s, { every: 7, spd: () => 1.0 + 0.8 * Math.min(1, t0 / dur), shape: 'rice', color: 'white', sway: 0.3, x0: cx - gap + 18, x1: cx + gap - 18 }));
+        for (; t0 < dur; t0 += s.wait(22)) {
+          const st = s.pick(strips), ex = st.side < 0 ? st.a.x + st.a.w - 10 : st.a.x + 10, ey = st.y + 10;
+          s.fire({ x: ex, y: ey, ang: st.side < 0 ? 0.35 : Math.PI - 0.35, spd: 0.5, accel: 0.012, maxSpd: s.sp(1.4), shape: 'orb', color: 'void' });
+          if (s.diff >= 3 && (t0 / 22 | 0) % 3 === 0) s.fire({ ang: s.aim(), spd: s.sp(2.4), shape: 'orb', color: 'void' });
+          yield s.wait(22);
         }
+        rain.return(); wave.return();
         yield 30;
       }
     },
@@ -2428,7 +2456,7 @@ const BOSS_RUNS = [
       spellOf('논스펠 · 고태웅 1'),
       spellOf('「히어로 킥」(가칭)'),
       spellOf('논스펠 · 고태웅 2'),
-      spellOf('「점멸」(가칭)'),
+      spellOf('「정의의 파도」(가칭)'),
     ],
   },
   {
