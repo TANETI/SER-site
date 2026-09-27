@@ -936,8 +936,120 @@ const SPELLS = [
   // ── 5스테이지 · 세라프: 아즈라엘(보스). 이즘의 시뮬레이션이 불러낸 사본이라 실루엣과 모티브 문자만, 대사 없음 ──
   // 모티브 문자 아인(ע): 눈·보다·빛. 탄은 빛나는 검은색(void)과 흰색 위주
   {
+    name: '논스펠 · 아즈라엘 1',
+    type: 'nonspell', boss: '아즈라엘', bossColor: '#e8e8f4', hp: 2400, time: 38, start: [192, 90],
+    *run(s) {
+      // 흑백 교차: 흰 쌀알탄 원형(조금씩 시계 방향으로 휨)과 검은 구슬 원형(반시계로 휨)이 박자를 엇갈려 나감. 두 번에 한 번 검은 조준탄
+      for (let w = 0; ; w++) {
+        s.ring(s.cnt(18), { offset: w * 0.19, spd: s.sp(1.8), angVel: 0.004, shape: 'rice', color: 'white' });
+        yield s.wait(22);
+        s.ring(s.cnt(12), { offset: -w * 0.23, spd: s.sp(1.3), angVel: -0.004, shape: 'orb', color: 'void' });
+        yield s.wait(22);
+        if (w % 2) s.spread(s.lv(1, 3, 3, 3, 5), s.aim(), 0.18, { spd: s.sp(2.8), shape: 'orb', color: 'void' });
+        if (w % 5 === 4) yield* s.wander(50, 50);
+      }
+    },
+  },
+  {
+    name: '「명암」(가칭)',
+    type: 'spell', boss: '아즈라엘', bossColor: '#e8e8f4', hp: 3000, time: 48, start: [192, 70],
+    *run(s) {
+      // 빛과 그림자: 위에서 흰 빛줄기(쌀알탄)가 성기게 내리고, 좌우 가장자리에서 검은 구슬 줄이 가로로 흘러 들어옴(줄마다 방향이 바뀜).
+      // 가로 줄은 들어올 높이를 옅은 띠로 먼저 보여 줌. 구슬 사이 44px라 줄을 비스듬히 지나갈 수 있음
+      s.task(function* () {
+        for (;;) { s.fire({ x: s.rand(8, s.W - 8), y: -8, ang: Math.PI / 2, spd: s.sp(2.2), shape: 'rice', color: 'white' }); yield s.wait(s.lv(9, 7, 6, 5, 5)); }
+      }());
+      for (let w = 0; ; w++) {
+        const dir = w % 2 ? -1 : 1, y = s.rand(160, s.H - 40), warn = s.lv(44, 40, 36, 34, 32);
+        s.warnLine({ x: 0, y, x2: s.W, y2: y, band: 16, dur: warn });
+        yield warn;
+        for (let i = 0; i < 9; i++) {
+          s.fire({ x: dir > 0 ? -10 - i * 44 : s.W + 10 + i * 44, y, ang: dir > 0 ? 0 : Math.PI, spd: s.sp(1.6), shape: 'orb', color: 'void', margin: 420 });
+        }
+        yield s.wait(s.lv(60, 52, 46, 42, 40));
+        if (w % 4 === 3) yield* s.wander(40, 50);
+      }
+    },
+  },
+  {
+    name: '논스펠 · 아즈라엘 2',
+    type: 'nonspell', boss: '아즈라엘', bossColor: '#e8e8f4', hp: 2500, time: 38, start: [192, 100],
+    *run(s) {
+      // 홍채: 흰 탄 고리가 보스 둘레로 펼쳐져 잠깐 멈췄다가(눈동자가 조여들 듯) 한꺼번에 바깥으로 풀려 나감.
+      // 풀리는 순간 검은 조준탄. 고리마다 조금씩 돌아간 자리
+      for (let w = 0; ; w++) {
+        const n = s.cnt(24), list = [];
+        for (let i = 0; i < n; i++) list.push(s.fire({ ang: i * s.TAU / n + w * 0.13, spd: s.sp(2.2), accel: -0.08, minSpd: 0, shape: 'small', color: w % 2 ? 'void' : 'white' }));
+        yield 40;
+        for (const b of list) { b.accel = 0.035; b.maxSpd = s.sp(2.2); }
+        s.spread(s.lv(1, 3, 3, 5, 5), s.aim(), 0.2, { spd: s.sp(2.8), shape: 'orb', color: 'void' });
+        yield s.wait(34);
+        if (w % 5 === 4) yield* s.wander(50, 50);
+      }
+    },
+  },
+  {
+    name: '「섬광」(가칭)',
+    type: 'spell', boss: '아즈라엘', bossColor: '#e8e8f4', hp: 3100, time: 50, start: [192, 110],
+    *run(s) {
+      // 섬광: 보스가 빛을 모으는 동안 방사형 예고선 → 흰 레이저가 사방으로. 레이저 사이 각도로 비킴.
+      // 다음 섬광은 반 칸 돌아간 자리라 같은 틈에 머물 수 없음. 레이저가 꺼진 뒤 그 사이로 검은 구슬 원형탄
+      for (let w = 0; ; w++) {
+        const n = s.lv(6, 8, 8, 10, 10), off = w * Math.PI / n + s.rand(-0.08, 0.08), warn = s.lv(56, 50, 46, 42, 40);
+        s.boss.glow = warn;
+        for (let i = 0; i < n; i++) s.laser({ x: s.boss.x, y: s.boss.y, ang: off + i * s.TAU / n, len: 700, w: 14, warn, dur: 30, color: 'white' });
+        yield warn + 30;
+        s.ring(s.cnt(16), { offset: off + Math.PI / n, spd: s.sp(1.4), shape: 'orb', color: 'void' });
+        yield s.wait(24);
+        s.spread(s.lv(1, 3, 3, 3, 5), s.aim(), 0.2, { spd: s.sp(2.6), shape: 'rice', color: 'white' });
+        yield s.wait(36);
+        if (w % 2 === 1) yield* s.wander(50, 50);
+      }
+    },
+  },
+  {
+    name: '논스펠 · 아즈라엘 3',
+    type: 'nonspell', boss: '아즈라엘', bossColor: '#e8e8f4', hp: 2100, time: 36, start: [192, 90],
+    *run(s) {
+      // 잔상: 검은 조준탄 셋이 지나간 자리에 흰 잔상이 남았다가 천천히 흘러내림. 잔상 사이로 다음 조준탄을 피함
+      for (let w = 0; ; w++) {
+        for (let k = 0; k < 3; k++) {
+          s.fire({ ang: s.aim() + (k - 1) * 0.3, spd: s.sp(2.4), shape: 'orb', color: 'void',
+            // 잔상은 날아가기 시작한 뒤 1초 동안만(기체 가까이에는 쌓이지 않게) 16프레임마다
+            fn: (b, s) => { if (b.t < 60 && b.t % 16 === 8) s.fire({ x: b.x, y: b.y, ang: Math.PI / 2, spd: 0.4, accel: 0.02, maxSpd: s.sp(1.6), shape: 'small', color: 'white' }); } });
+        }
+        yield s.wait(46);
+        if (w % 2) s.ring(s.cnt(12), { offset: s.rand(0, s.TAU), spd: s.sp(1.4), shape: 'rice', color: 'white' });
+        if (w % 4 === 3) yield* s.wander(50, 50);
+      }
+    },
+  },
+  {
+    name: '「검은 안개」(가칭)',
+    type: 'spell', boss: '아즈라엘', bossColor: '#e8e8f4', hp: 3100, time: 52, start: [192, 80],
+    *run(s) {
+      // 보스 양옆을 검은 안개로 막아 들어갈 수 없는 구역을 만듦(판정 있음). 남는 곳은 보스 밑 통로와 화면 아래 띠뿐이고,
+      // 그 좁은 곳으로 흰 원형탄과 검은 조준탄이 옴. 안개는 1초 예고(깜빡이는 흰 테두리) 뒤 짙어지고, 보스가 옮기면 다시 깔림
+      for (let w = 0; ; w++) {
+        yield* s.moveTo(s.rand(140, s.W - 140), s.rand(70, 100), 40);
+        const cx = s.boss.x, gap = s.lv(84, 74, 66, 62, 58), bottom = s.lv(290, 300, 310, 316, 320);
+        const warn = 60, dur = s.lv(330, 360, 390, 400, 420);
+        s.area({ x: 0, y: 0, w: cx - gap, h: bottom, warn, dur, color: '#16141f', fog: true });
+        s.area({ x: cx + gap, y: 0, w: s.W - cx - gap, h: bottom, warn, dur, color: '#16141f', fog: true });
+        s.sound('beep', 0.2);
+        yield warn;
+        for (let t = 0, k = 0; t < dur; t += s.wait(30), k++) {
+          s.ring(s.cnt(14), { offset: k * 0.21, spd: s.sp(1.6), shape: 'rice', color: 'white' });
+          if (k % 2) s.spread(s.lv(1, 3, 3, 3, 5), s.aim(), 0.2, { spd: s.sp(2.4), shape: 'orb', color: 'void' });
+          yield s.wait(30);
+        }
+        yield 30;
+      }
+    },
+  },
+  {
     name: '「아인」(가칭)',
-    type: 'spell', boss: '아즈라엘', bossColor: '#e8e8f4', hp: 3400, time: 60, start: [192, 70],
+    type: 'spell', boss: '아즈라엘', bossColor: '#e8e8f4', hp: 4200, time: 66, start: [192, 70],
     *run(s) {
       // 엇갈린 격자(0-0-0 / -0-0- / 0-0-0)가 세 줄씩 묶여 천천히 내려옴. 한 줄 안의 틈과 엇갈린 이웃 줄의 틈을 이어
       // 비스듬히 빠져나감. 동시에 표적(시선)이 약 4초 동안 기체를 천천히 따라오다가 멈춰 조여든 뒤 그 자리에서 좁게
@@ -2280,6 +2392,18 @@ const BOSS_RUNS = [
     ],
   },
   {
+    title: '5스테이지 · 아즈라엘', name: '아즈라엘', power: 2.75, hpScale: 2.5,
+    seq: [
+      spellOf('논스펠 · 아즈라엘 1'),
+      spellOf('「명암」(가칭)'),
+      spellOf('논스펠 · 아즈라엘 2'),
+      spellOf('「섬광」(가칭)'),
+      spellOf('논스펠 · 아즈라엘 3'),
+      spellOf('「검은 안개」(가칭)'),
+      spellOf('「아인」(가칭)'),
+    ],
+  },
+  {
     title: '6스테이지 · 예로니모', name: '예로니모', power: 3, hpScale: 1.95,
     seq: [
       spellOf('논스펠 · 예로니모 1'),
@@ -2335,7 +2459,7 @@ const BOSS_RUNS = [
 
 // 본게임 순서(보스전 이름). 만들어진 스테이지만 이음. 4·5스테이지는 만들면 끼워 넣음
 const STORY = {
-  main: ['대책반', '마리·마르코', '김예나', '차서린', '고태웅', '예로니모', '리크니스'],
+  main: ['대책반', '마리·마르코', '김예나', '차서린', '고태웅', '아즈라엘', '예로니모', '리크니스'],
   extra: ['진심 예로니모'],
   extra2: ['이즘'],
 };

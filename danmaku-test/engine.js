@@ -871,7 +871,7 @@ function makeAPI(G) {
     warnLine(o) { G.fx.push({ kind: 'warnline', x: o.x ?? G.boss.x, y: o.y ?? G.boss.y, x2: o.x2, y2: o.y2, t: 0, life: o.dur ?? 30, band: o.band ?? 0 }); },
     // 사각 구역 공격 {x,y,w,h,warn,dur,label,color}. warn 동안 예고, dur 동안 판정
     area(o) {
-      const a = { x: o.x, y: o.y, w: o.w, h: o.h, warn: o.warn ?? 60, dur: o.dur ?? 20, label: o.label ?? '', color: o.color || '#ff3b4a', t: 0 };
+      const a = { x: o.x, y: o.y, w: o.w, h: o.h, warn: o.warn ?? 60, dur: o.dur ?? 20, label: o.label ?? '', color: o.color || '#ff3b4a', t: 0, fog: !!o.fog };
       G.areas.push(a);
       return a;
     },
@@ -1252,6 +1252,7 @@ function drawAreas(G, g) {
   g.textAlign = 'center'; g.textBaseline = 'middle';
   for (const a of G.areas) {
     if (a.t > a.warn && a.dur === 0) continue;   // 예고 전용
+    if (a.fog) { drawFog(G, g, a); continue; }
     if (a.t <= a.warn) {
       // 예고: 테두리 깜빡임, 발동이 가까울수록 빠르게. 번호는 순서
       const fast = a.t > a.warn - 20;
@@ -1269,6 +1270,28 @@ function drawAreas(G, g) {
     }
   }
   g.globalAlpha = 1; g.textAlign = 'left'; g.textBaseline = 'top';
+}
+
+// 검은 안개 구역(아즈라엘): 예고 동안 옅은 안개와 깜빡이는 흰 테두리 → 발동하면 짙은 검은 안개가 일렁이고
+// 가장자리에 흰 빛이 번짐(배경과 구분되게). 들어가면 피격
+function drawFog(G, g, a) {
+  const live = a.t > a.warn, fade = !live ? Math.min(1, a.t / 20) * 0.35 : a.t <= a.warn + a.dur ? 1 : Math.max(0, 1 - (a.t - a.warn - a.dur) / 15);
+  g.save();
+  g.beginPath(); g.rect(a.x, a.y, a.w, a.h); g.clip();
+  g.globalAlpha = 0.85 * fade; g.fillStyle = '#06050b'; g.fillRect(a.x, a.y, a.w, a.h);
+  // 일렁이는 안개 덩어리
+  for (let i = 0; i < 7; i++) {
+    const px = a.x + ((i * 53 + G.bgT * (0.4 + i * 0.07)) % (a.w + 60)) - 30;
+    const py = a.y + ((i * 97 + Math.sin(G.bgT * 0.02 + i) * 30) % Math.max(1, a.h));
+    const r = 36 + (i % 3) * 14, gr = g.createRadialGradient(px, py, 0, px, py, r);
+    gr.addColorStop(0, 'rgba(60,56,80,0.55)'); gr.addColorStop(1, 'rgba(60,56,80,0)');
+    g.globalAlpha = fade; g.fillStyle = gr; g.fillRect(px - r, py - r, r * 2, r * 2);
+  }
+  g.restore();
+  // 가장자리 빛: 예고 동안은 깜빡이고, 발동 뒤에는 은은하게
+  g.globalAlpha = live ? 0.55 * fade : (Math.sin(a.t * (a.t > a.warn - 20 ? 1.2 : 0.4)) > 0 ? 0.9 : 0.35);
+  g.strokeStyle = '#e8e8f4'; g.lineWidth = live ? 2 : 1.5; g.strokeRect(a.x + 1, a.y + 1, a.w - 2, a.h - 2);
+  g.globalAlpha = 1;
 }
 
 // 예고선: 어두운 테두리 위에 굵은 색 점선. 점선은 공격이 나아갈 방향으로 흐르고,
