@@ -1807,19 +1807,35 @@ const SPELLS = [
     name: '「순차 격자 타격」(가칭)',
     type: 'spell', boss: '이즘', bossColor: '#8fe8ff', hp: 3200, time: 45, start: [192, 60],
     *run(s) {
-      // 화면 전체 칸(4×5=20)에 번호를 한꺼번에 띄우고 번호 순서대로 터뜨림. 이미 터진 칸은 곧바로 안전.
-      // 1번 칸이 터지기 전에 그 옆에서 기다렸다가 터진 뒤 들어가는 식으로 피함. 난이도가 오를수록 터지는 간격이 짧아짐
-      const cols = 4, rows = 5, cw = s.W / cols, ch = s.H / rows;
-      const first = s.lv(100, 85, 70, 62, 56), step = s.lv(24, 18, 14, 12, 10);
-      for (let w = 0; ; w++) {
-        const order = [...Array(cols * rows).keys()].sort(() => Math.random() - 0.5);
-        order.forEach((c, i) => s.area({ x: (c % cols) * cw, y: Math.floor(c / cols) * ch, w: cw, h: ch, warn: first + i * step, dur: 16, label: i + 1, color: w % 2 ? '#ffd23a' : '#35d6ff' }));
-        const total = first + order.length * step + 20;
-        for (let t = 0; t < total; t += s.wait(45)) {
-          if (s.diff >= 2) s.spread(3, s.aim(), 0.3, { spd: s.sp(2.4), shape: 'small', color: 'white' });
-          yield s.wait(45);
+      // 순서 기억: 화면을 큰 칸으로 나눔(이지·노말 3칸, 하드 9칸, 베리하드·헬 12칸). 칸이 하나씩 번호와 함께 빛나며
+      // 순서를 알려 주고(번호가 높을수록 높은 효과음), 곧바로 그 순서대로 한 칸씩 터짐. 터진 칸은 그 판 동안 안전하므로
+      // 다음에 터질 칸을 기억해 미리 비킴. 끝나면 바로 새 순서를 알려 주고, 이렇게 4판. 판마다 약 10%씩 빨라짐.
+      // 칸 하나를 벗어나는 데 고속 이동으로 약 20프레임이 드므로 터지는 간격은 22프레임 아래로 내리지 않음
+      const [cols, rows] = s.lv([3, 1], [3, 1], [3, 3], [3, 4], [3, 4]), n = cols * rows, cw = s.W / cols, ch = s.H / rows;
+      const cell = c => ({ x: (c % cols) * cw, y: Math.floor(c / cols) * ch, w: cw, h: ch });
+      for (;;) {
+        for (let round = 0; round < 4; round++) {
+          const f = Math.pow(0.9, round), order = [...Array(n).keys()].sort(() => Math.random() - 0.5);
+          // 순서 알려 주기: 판 첫 칸 앞에 잠깐 틈
+          const show = Math.max(14, Math.round(s.lv(34, 30, 24, 22, 20) * f));
+          yield 16;
+          for (let i = 0; i < n; i++) {
+            s.area({ ...cell(order[i]), warn: show, dur: 0, label: i + 1, color: '#35d6ff' });
+            s.sound('beep', n > 1 ? 0.2 + 0.8 * i / (n - 1) : 0.6);
+            yield show;
+          }
+          yield Math.round(24 * f);
+          // 순서대로 터짐(터지기 직전 10프레임 동안 노란 테두리가 번쩍임)
+          const step = Math.max(22, Math.round(s.lv(46, 40, 32, 30, 28) * f));
+          for (let i = 0; i < n; i++) {
+            s.area({ ...cell(order[i]), warn: 10, dur: 16, color: '#ffd23a' });
+            yield step;
+          }
+          yield 10;
         }
-        yield s.wait(60);
+        // 4판이 끝나면 잠깐 쉬며 조준탄
+        for (let k = 0; k < 3; k++) { s.spread(s.lv(1, 3, 3, 5, 5), s.aim(), 0.25, { spd: s.sp(2.4), shape: 'small', color: 'white' }); yield s.wait(40); }
+        yield s.wait(30);
       }
     },
   },
