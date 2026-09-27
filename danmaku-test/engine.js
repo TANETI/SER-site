@@ -38,7 +38,7 @@ const SHAPES = {
   small:  { r: 3,   size: 12, draw: (g, c) => orb(g, 6, 6, 5, c) },
   orb:    { r: 6,   size: 22, draw: (g, c) => orb(g, 11, 11, 10, c) },
   big:    { r: 13,  size: 40, draw: (g, c) => orb(g, 20, 20, 18, c) },
-  rice:   { r: 2.6, size: 16, oriented: true, draw: (g, c) => ellipse(g, 8, 8, 7, 3.6, c) },
+  rice:   { r: 2.6, size: 18, oriented: true, draw: (g, c) => needle(g, c) },   // 쌀알탄: 양끝이 뾰족한 바늘(판정은 그대로)
   knife:  { r: 2.6, size: 20, oriented: true, draw: (g, c) => knife(g, c) },
   star:   { r: 4,   size: 16, spin: true, draw: (g, c) => star(g, 8, 8, 7, c) },
   link:   { r: 3,   size: 14, oriented: true, draw: (g, c) => chainLink(g, c) },
@@ -59,6 +59,15 @@ function ellipse(g, x, y, rx, ry, c) {
   g.fillStyle = c; g.beginPath(); g.ellipse(x, y, rx, ry, 0, 0, TAU); g.fill();
   g.strokeStyle = EDGE; g.lineWidth = 1; g.stroke();
   g.fillStyle = '#fff'; g.beginPath(); g.ellipse(x, y, rx * 0.55, ry * 0.4, 0, 0, TAU); g.fill();
+}
+// 쌀알탄(바늘): 옅은 광채 → 양끝이 뾰족한 가는 몸통(앞이 더 길고 날카로움) → 가운데 흰 심줄
+function needle(g, c) {
+  const gr = g.createRadialGradient(9, 9, 1, 9, 9, 8);
+  gr.addColorStop(0, c + '66'); gr.addColorStop(1, c + '00');
+  g.fillStyle = gr; g.beginPath(); g.ellipse(9, 9, 8.5, 4.2, 0, 0, TAU); g.fill();
+  g.fillStyle = c; g.beginPath(); g.moveTo(17.5, 9); g.quadraticCurveTo(10, 5.6, 2, 9); g.quadraticCurveTo(10, 12.4, 17.5, 9); g.closePath(); g.fill();
+  g.strokeStyle = EDGE; g.lineWidth = 1; g.stroke();
+  g.strokeStyle = '#fff'; g.lineWidth = 1.2; g.beginPath(); g.moveTo(5, 9); g.lineTo(14.5, 9); g.stroke();
 }
 function knife(g, c) {
   g.fillStyle = c; g.beginPath(); g.moveTo(19, 10); g.lineTo(4, 6); g.lineTo(1, 10); g.lineTo(4, 14); g.closePath(); g.fill();
@@ -925,7 +934,8 @@ function makeAPI(G) {
     // 필드 하단 게이지 {v: 0~1, color, flash}. 패턴이 객체를 들고 v를 바꾸면 그대로 그려짐. null이면 숨김
     setGauge(o) { G.gauge = o; return o; },
     spin: v => v * (0.8 + 0.7 * G.heat()),   // 회전량(회전벽·도는 레이저). 격화되면 촘촘해지는 대신 더 빨리 돎(×0.8→1.5)
-    get surge() { return G.surgeLevel(); },   // 격화 단계 0·1·2(격화 I·II·III)
+    get surge() { return G.surgeLevel(); },
+    get bullets() { return G.bullets; },   // 지금 화면의 적 탄(탄을 바꾸는 기믹용)   // 격화 단계 0·1·2(격화 I·II·III)
     arms: n => n + G.surgeLevel(),             // 회전벽 등의 줄 수: 격화 II에서 한 줄, III에서 한 줄 더(3줄 → 4줄 → 5줄)   // 회전량(회전벽·도는 레이저). 격화되면 촘촘해지는 대신 더 빨리 돎(×0.85→1.25)
     sp: v => v * SPEED[G.effDiff()] * (0.92 + 0.2 * G.heat()),                  // 탄속(격화 ×0.92→1.12)
     // 머리 위 말풍선(대사 대신 짧은 절차 표시용): who=보스·동료
@@ -995,7 +1005,7 @@ function makeAPI(G) {
     // 고정 레이저: {x,y,ang,len,w,warn,dur,color,fn}
     laser(o = {}) {
       const l = { x: o.x ?? G.boss.x, y: o.y ?? G.boss.y, ang: o.ang ?? Math.PI / 2, len: o.len ?? 700, w: o.w ?? 16,
-        warn: o.warn ?? 40, dur: o.dur ?? 60, color: o.color || 'cyan', fn: o.fn, t: 0, cw: 0, ghost: G.player.respawn > 0 };
+        warn: o.warn ?? 40, dur: o.dur ?? 60, color: o.color || 'cyan', fn: o.fn, t: 0, cw: 0, ghost: G.player.respawn > 0 || !!o.light, light: !!o.light };   // light: 판정 없는 빛줄기(시선 등)
       G.lasers.push(l);
       return l;
     },
@@ -1022,7 +1032,7 @@ function makeAPI(G) {
     warnLine(o) { G.fx.push({ kind: 'warnline', x: o.x ?? G.boss.x, y: o.y ?? G.boss.y, x2: o.x2, y2: o.y2, t: 0, life: o.dur ?? 30, band: o.band ?? 0 }); },
     // 사각 구역 공격 {x,y,w,h,warn,dur,label,color}. warn 동안 예고, dur 동안 판정
     area(o) {
-      const a = { x: o.x, y: o.y, w: o.w, h: o.h, warn: o.warn ?? 60, dur: o.dur ?? 20, label: o.label ?? '', color: o.color || '#ff3b4a', t: 0, fog: !!o.fog, edge: o.edge };
+      const a = { x: o.x, y: o.y, w: o.w, h: o.h, warn: o.warn ?? 60, dur: o.dur ?? 20, label: o.label ?? '', color: o.color || '#ff3b4a', t: 0, fog: !!o.fog, edge: o.edge, group: o.group };   // group: 같은 객체를 준 안개 띠들은 한 덩어리로 그림
       G.areas.push(a);
       return a;
     },
@@ -1410,11 +1420,11 @@ function drawLasers(G, g) {
     if (l.kind === 'chain') { drawChain(G, g, l); continue; }
     const c = COLORS[l.color] || l.color;
     g.save(); g.translate(l.x, l.y); g.rotate(l.ang);
-    if (l.ghost) g.globalAlpha = 0.3;   // 판정 없는 레이저는 흐리게
+    if (l.ghost && !l.light) g.globalAlpha = 0.3;   // 판정 없는 레이저는 흐리게
     if (l.t <= l.warn) {
       warnStroke(g, l.len, c, l.t, l.warn - l.t, l.w * 0.7);   // 띠 = 실제 판정 폭
     } else if (l.cw > 0) {
-      g.globalAlpha = l.ghost ? 0.25 : 0.85; g.fillStyle = c; g.fillRect(0, -l.cw / 2, l.len, l.cw);
+      g.globalAlpha = l.light ? 0.35 : l.ghost ? 0.25 : 0.85; g.fillStyle = c; g.fillRect(0, -l.cw / 2, l.len, l.cw);
       g.fillStyle = '#fff'; g.fillRect(0, -l.cw / 5, l.len, l.cw / 2.5);
     }
     g.restore();
@@ -1443,8 +1453,10 @@ function drawSafes(G, g) {
 
 function drawAreas(G, g) {
   g.textAlign = 'center'; g.textBaseline = 'middle';
+  const groups = new Set();
   for (const a of G.areas) {
     if (a.t > a.warn && a.dur === 0) continue;   // 예고 전용
+    if (a.fog && a.group) { if (!groups.has(a.group)) { groups.add(a.group); drawFogGroup(G, g, G.areas.filter(b => b.group === a.group)); } continue; }
     if (a.fog) { drawFog(G, g, a); continue; }
     if (a.t <= a.warn) {
       // 예고: 테두리 깜빡임, 발동이 가까울수록 빠르게. 번호는 순서
@@ -1467,6 +1479,40 @@ function drawAreas(G, g) {
 
 // 검은 안개 구역(아즈라엘): 예고 동안 옅은 안개와 깜빡이는 흰 테두리 → 발동하면 짙은 검은 안개가 일렁이고
 // 가장자리에 흰 빛이 번짐(배경과 구분되게). 들어가면 피격
+// 띠 여러 개로 이어 붙인 안개를 한 덩어리로: 안쪽 가장자리를 띠 가운데 점들을 잇는 부드러운 곡선으로 그리고, 그 안을 채움
+function drawFogGroup(G, g, list) {
+  list = list.slice().sort((p, q) => p.y - q.y);
+  const a0 = list[0], left = a0.edge === 'right';   // edge right = 왼쪽 안개(안쪽 가장자리가 오른쪽)
+  const live = a0.t > a0.warn, fade = !live ? Math.min(1, a0.t / 20) * 0.35 : a0.t <= a0.warn + a0.dur ? 1 : Math.max(0, 1 - (a0.t - a0.warn - a0.dur) / 15);
+  const top = a0.y, bot = list[list.length - 1].y + list[list.length - 1].h, outer = left ? 0 : W;
+  const pts = list.map(a => ({ x: left ? a.x + a.w : a.x, y: a.y + a.h / 2 }));
+  const edgePath = () => {
+    g.moveTo(pts[0].x, top);
+    for (let i = 0; i < pts.length - 1; i++) g.quadraticCurveTo(pts[i].x, pts[i].y, (pts[i].x + pts[i + 1].x) / 2, (pts[i].y + pts[i + 1].y) / 2);
+    g.lineTo(pts[pts.length - 1].x, bot);
+  };
+  g.save();
+  g.beginPath(); g.moveTo(outer, top); edgePath(); g.lineTo(outer, bot); g.closePath();
+  g.globalAlpha = 0.85 * fade; g.fillStyle = '#06050b'; g.fill();
+  g.clip();
+  // 일렁이는 안개 덩어리(덩어리 전체에 고르게)
+  const x0 = Math.min(outer, ...pts.map(p => p.x)), x1 = Math.max(outer, ...pts.map(p => p.x)), w = Math.max(1, x1 - x0), h = Math.max(1, bot - top);
+  for (let i = 0; i < 14; i++) {
+    const px = x0 + ((i * 53 + G.bgT * (0.4 + (i % 7) * 0.07)) % (w + 60)) - 30;
+    const py = top + ((i * 97 + Math.sin(G.bgT * 0.02 + i) * 30) % h + h) % h;
+    const r = 40 + (i % 3) * 16, gr = g.createRadialGradient(px, py, 0, px, py, r);
+    gr.addColorStop(0, 'rgba(60,56,80,0.55)'); gr.addColorStop(1, 'rgba(60,56,80,0)');
+    g.globalAlpha = fade; g.fillStyle = gr; g.fillRect(px - r, py - r, r * 2, r * 2);
+  }
+  g.restore();
+  // 안쪽 가장자리 빛: 예고 동안은 깜빡이고, 발동 뒤에는 은은하게
+  g.save();
+  g.globalAlpha = live ? 0.55 * fade : (Math.sin(a0.t * (a0.t > a0.warn - 20 ? 1.2 : 0.4)) > 0 ? 0.9 : 0.35);
+  g.strokeStyle = '#e8e8f4'; g.lineWidth = live ? 2 : 1.5;
+  g.beginPath(); edgePath(); g.stroke();
+  g.restore();
+}
+
 function drawFog(G, g, a) {
   const live = a.t > a.warn, fade = !live ? Math.min(1, a.t / 20) * 0.35 : a.t <= a.warn + a.dur ? 1 : Math.max(0, 1 - (a.t - a.warn - a.dur) / 15);
   g.save();
