@@ -223,6 +223,19 @@ const SHOT_TYPES = Object.fromEntries(['AR', 'UR', 'LM', 'RH'].map(code => [code
   homingShots(p, out, focus, L, HOMING[code]);
 }]));
 
+// ── 본게임 해금 기록(이 브라우저에만 저장) ──
+// 본편 클리어 → 엑스트라, 엑스트라 클리어 → 엑스트라 2
+const UNLOCK_NEXT = { main: 'extra', extra: 'extra2' };
+function unlocked(key) {
+  if (key === 'main') return true;
+  try { return !!JSON.parse(localStorage.getItem('danmaku.unlock') || '{}')[key]; } catch (e) { return false; }
+}
+function unlockStory(cleared) {
+  const key = UNLOCK_NEXT[cleared];
+  if (!key) return;
+  try { const u = JSON.parse(localStorage.getItem('danmaku.unlock') || '{}'); u[key] = true; localStorage.setItem('danmaku.unlock', JSON.stringify(u)); } catch (e) { /* 저장 못 해도 진행 */ }
+}
+
 // ── 게임 본체 ─────────────────────────────────────────────
 class Game {
   constructor(canvas) {
@@ -256,20 +269,56 @@ class Game {
   }
 
   // 실제로 쓰는 난이도. 엑스트라 패턴은 한 단계 위(최대 3)
-  effDiff() { return Math.min(DENSITY.length - 1, this.difficulty + (this.spell && this.spell.extra ? 1 : 0)); }
+  effDiff(sp = this.spell) { return Math.min(DENSITY.length - 1, this.difficulty + (sp && sp.extra ? 1 : 0)); }
+
+  // 패턴의 실제 체력(난이도·보스전 배율 반영). 체력바를 그릴 때 다음 패턴 몫도 이걸로 셈
+  hpFor(sp) {
+    const scaled = sp.hp < 99999 && !sp.survival && sp.type !== 'stage';
+    const k = scaled ? (this.run?.hpScale ?? HP_SCALE) : 1;
+    return sp.hp >= 99999 ? sp.hp : Math.max(1, Math.round((sp.hp || 1000) * HP_MUL[this.effDiff(sp)] * k * (scaled ? BOSS_HP : 1)));
+  }
+
+  // 홍마향식 체력바: 논스펠과 바로 뒤의 스펠(같은 보스)이 체력바 하나. 그 밖의 패턴은 혼자 체력바 하나.
+  // 돌려주는 값: 패턴 번호마다 체력바 번호
+  barsOf(seq) {
+    const bar = [];
+    let n = -1;
+    seq.forEach((sp, i) => {
+      const pairWithPrev = i > 0 && sp.type === 'spell' && seq[i - 1].type === 'nonspell' && seq[i - 1].boss === sp.boss && bar[i - 1] !== bar[i - 2];
+      bar.push(pairWithPrev ? n : ++n);
+    });
+    return bar;
+  }
 
   fail(e) { console.error(e); this.error = String(e && e.message || e); }
 
   // ── 패턴 수명주기 ──
   // 단일 패턴 연습: 목숨·폭탄을 채우고 시작
-  startSingle(i = this.spellIndex) { this.run = null; this.resetLives(this.practicePower); this.start(i); }
+  startSingle(i = this.spellIndex) { this.run = null; this.story = null; this.resetLives(this.practicePower); this.start(i); }
   // 보스전: 여러 패턴을 이어서, 목숨·폭탄을 이어 가며 진행
-  startRun(run) {
-    this.run = { ...run, idx: 0 };
-    this.resetLives(run.power ?? 0);
+  // carry=true면 본게임에서 앞 스테이지의 목숨·파워를 이어받음(파워는 그 스테이지 기준값보다 1 넘게 낮지 않게, 폭탄은 다시 채움)
+  startRun(run, carry = false) {
+    this.run = { ...run, idx: 0, bars: this.barsOf(run.seq) };
+    if (carry && this.player) {
+      const p = this.player;
+      if (!this.powerLock) p.power = Math.max(p.power, (run.power ?? 0) - 1);
+      p.bombs = Math.max(p.bombs, START_BOMBS); this.items = [];
+    } else this.resetLives(run.power ?? 0);
     this.start(this.spells.indexOf(run.seq[0]));
   }
-  restart() { this.run ? this.startRun(this.run) : this.startSingle(); }
+  // 본게임: 스테이지(보스전)를 차례로. 게임 오버면 그 스테이지부터 다시(컨티뉴, 점수는 0부터)
+  startStory(key) {
+    const list = (STORY[key] || []).map(name => BOSS_RUNS.find(r => r.name === name)).filter(Boolean);
+    if (!list.length) return;
+    this.story = { key, list, idx: 0 };
+    this.score = 0; this.graze = 0;
+    this.startRun(list[0]);
+  }
+  restart() {
+    if (this.story && this.story.idx >= this.story.list.length) return this.startStory(this.story.key);   // 클리어 뒤 R: 처음부터
+    if (this.story) { this.score = 0; this.graze = 0; this.startRun(this.story.list[this.story.idx]); }
+    else if (this.run) this.startRun(this.run); else this.startSingle();
+  }
   resetLives(power = 0) {
     this.player = this.player || {};
     // 파워 고정이면 보스전에서도 연습 파워를 씀
@@ -291,7 +340,7 @@ class Game {
     this.stats = { miss: 0, hits: 0, bombs: 0, dmgLog: new Array(60).fill(0), dmgNow: 0 };
     const scaled = sp.hp < 99999 && !sp.survival && sp.type !== 'stage';
     const k = scaled ? (this.run?.hpScale ?? HP_SCALE) : 1;
-    const hp = sp.hp >= 99999 ? sp.hp : Math.max(1, Math.round((sp.hp || 1000) * HP_MUL[this.effDiff()] * k * (scaled ? BOSS_HP : 1)));
+    const hp = this.hpFor(sp);
     const b = this.boss = { x: W / 2, y: -40, hp, maxHp: hp, move: null, hidden: sp.type === 'stage', t: 0,
       name: sp.boss || '', color: sp.bossColor || '#d8d0ff', shield: 0, glow: 0, contact: false };
     if (cont && prev && !prev.hidden) { b.x = prev.x; b.y = prev.y; }
@@ -302,7 +351,9 @@ class Game {
       this.fx.push({ kind: 'intro', top: cont ? '' : this.run.title, text: sp.boss, t: 0, life: 130 });
     }
     this.moveBoss(sp.start?.[0] ?? W / 2, sp.start?.[1] ?? 110, 45);
-    this.frame = 0; this.phase = 'intro'; this.phaseT = cont ? 100 : 70;
+    // 같은 체력바의 논스펠 → 스펠은 짧게 이어짐
+    const sameBar = cont && this.run.bars && this.run.bars[this.run.idx] === this.run.bars[this.run.idx - 1];
+    this.frame = 0; this.phase = 'intro'; this.phaseT = sameBar ? 45 : cont ? 100 : 70;
     // 제한시간도 난이도별 체력 배율을 따라가 난이도와 상관없이 '필요 시간/제한시간' 비율이 같게 함
     this.timer = this.timerMax = Math.round((sp.time || 30) * 60 * k * (scaled ? HP_MUL[this.effDiff()] : 1));
     this.banner = sp.type === 'spell' ? { text: sp.name, t: 0 } : null;
@@ -317,6 +368,12 @@ class Game {
     if (r) {
       r.idx++;
       if (r.idx < r.seq.length) this.start(this.spells.indexOf(r.seq[r.idx]));
+      else if (this.story) {
+        // 본게임: 다음 스테이지로. 마지막이면 클리어 기록(엑스트라 해금)을 남기고 클리어 화면
+        const st = this.story;
+        if (++st.idx < st.list.length) this.startRun(st.list[st.idx], true);
+        else { unlockStory(st.key); this.phase = 'storyclear'; this.phaseT = 99999; this.onUnlock?.(); }
+      }
       else if (this.loop) this.startRun(r);
       else this.startSingle(this.spellIndex);
     } else if (this.loop) this.startSingle(this.spellIndex);
@@ -358,6 +415,8 @@ class Game {
     this.enemies.forEach(e => this.killEnemy(e, false));
     this.result = { captured: captured && sp.type === 'spell', reason, t: 0, stats: { ...this.stats } };
     this.phase = 'result'; this.phaseT = 170;
+    const bars = this.run && this.run.bars;
+    if (bars && bars[this.run.idx + 1] === bars[this.run.idx]) { this.result.quiet = true; this.phaseT = 30; }
     // 보스전 마지막 패턴을 격파(내구 스펠은 버팀)하면 배경음악이 자연스럽게 줄어들며 끝남
     if (this.run && this.run.idx >= this.run.seq.length - 1 && (reason === 'defeat' || sp.survival)) BGM.fadeOut(3);
   }
@@ -1390,13 +1449,23 @@ function drawFieldUI(G, g) {
     if (G.slow.dur < 9999) { g.globalAlpha = 0.8; g.fillRect(100, H - 17, (W - 110) * (1 - G.slow.t / G.slow.dur), 4); g.globalAlpha = 1; }
   }
   g.font = '12px system-ui, "Malgun Gothic", sans-serif'; g.textBaseline = 'top';
-  if (!b.hidden && !sp.survival) {
-    g.fillStyle = 'rgba(0,0,0,0.4)'; g.fillRect(8, 6, W - 60, 4);
-    g.fillStyle = '#fff'; g.fillRect(8, 6, (W - 60) * b.hp / b.maxHp, 4);
+  // 홍마향식 체력바: 논스펠과 스펠이 한 막대. 왼쪽 표시선까지가 스펠 몫, 그 오른쪽이 논스펠 몫
+  const run = G.run, bars = run && run.bars, bw = W - 60;
+  let split = 0;   // 막대에서 스펠 몫의 비율(0이면 나누지 않음)
+  if (bars && sp.type === 'nonspell' && bars[run.idx + 1] === bars[run.idx]) {
+    const nx = G.hpFor(run.seq[run.idx + 1]); split = nx / (nx + b.maxHp);
+  } else if (bars && sp.type === 'spell' && run.idx > 0 && bars[run.idx - 1] === bars[run.idx]) {
+    const pv = G.hpFor(run.seq[run.idx - 1]); split = b.maxHp / (b.maxHp + pv);
   }
-  if (G.run) {
-    // 보스전에서 이번 패턴 뒤로 남은 패턴 수
-    const left = G.run.seq.length - 1 - G.run.idx;
+  if (!b.hidden && !sp.survival) {
+    const fill = !split ? b.hp / b.maxHp : sp.type === 'nonspell' ? split + (1 - split) * b.hp / b.maxHp : split * b.hp / b.maxHp;
+    g.fillStyle = 'rgba(0,0,0,0.4)'; g.fillRect(8, 6, bw, 4);
+    g.fillStyle = sp.type === 'spell' ? '#ffd0dc' : '#fff'; g.fillRect(8, 6, bw * fill, 4);
+    if (split) { g.fillStyle = '#ff5e7a'; g.fillRect(8 + bw * split - 1, 4, 2, 8); }
+  }
+  if (run) {
+    // 이번 체력바 뒤로 남은 체력바 수(별)
+    const left = bars ? bars[bars.length - 1] - bars[run.idx] : run.seq.length - 1 - run.idx;
     g.fillStyle = '#f5c542'; g.font = '10px system-ui, sans-serif'; g.textBaseline = 'top'; g.textAlign = 'left';
     for (let i = 0; i < left; i++) g.fillText('★', 8 + i * 10, 12);
   }
@@ -1420,7 +1489,7 @@ function drawFieldUI(G, g) {
     g.fillStyle = '#fff'; g.fillText(G.banner.text, x, y);
   }
   g.textAlign = 'left';
-  if (G.result) {
+  if (G.result && !G.result.quiet) {
     const r = G.result;
     g.textAlign = 'center'; g.font = 'bold 18px system-ui, "Malgun Gothic", sans-serif';
     g.fillStyle = r.captured ? '#f5c542' : '#c8c8d8';
@@ -1430,6 +1499,17 @@ function drawFieldUI(G, g) {
     g.fillText(txt, W / 2, 150);
     g.font = '12px system-ui, "Malgun Gothic", sans-serif'; g.fillStyle = '#fff';
     g.fillText(`피탄 ${r.stats.miss + r.stats.hits} · 봄 ${r.stats.bombs}`, W / 2, 178);
+    g.textAlign = 'left';
+  }
+  if (G.phase === 'storyclear') {
+    const key = G.story && G.story.key, nextKey = UNLOCK_NEXT[key];
+    g.fillStyle = 'rgba(0,0,0,0.6)'; g.fillRect(0, 0, W, H);
+    g.fillStyle = '#f5c542'; g.textAlign = 'center'; g.font = 'bold 24px system-ui, "Malgun Gothic", sans-serif';
+    g.fillText(key === 'main' ? '본편 클리어!' : key === 'extra' ? '엑스트라 클리어!' : '엑스트라 2 클리어!', W / 2, H / 2 - 30);
+    g.fillStyle = '#fff'; g.font = '13px system-ui, "Malgun Gothic", sans-serif';
+    g.fillText(`점수 ${G.score.toLocaleString()}`, W / 2, H / 2 + 2);
+    if (nextKey) g.fillText(nextKey === 'extra' ? '엑스트라가 열렸습니다' : '엑스트라 2가 열렸습니다', W / 2, H / 2 + 24);
+    g.fillText('R 처음부터 다시', W / 2, H / 2 + 46);
     g.textAlign = 'left';
   }
   if (G.phase === 'gameover') {

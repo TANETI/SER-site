@@ -1,17 +1,18 @@
 'use strict';
 // 배경음악. 보스마다 bgm/<보스 이름>/ 폴더에 mp3·wav·ogg를 넣으면 그 보스 패턴에서 나온다(폴더에 여럿이면 이름순 첫 곡).
-// 파일을 Web Audio 버퍼로 디코드해 샘플 단위로 이음매 없이 반복한다
-// (HTML audio의 loop는 반복 지점에서 끊김이 생김. mp3는 파일 앞뒤에 인코더 무음이 붙어 있어 wav·ogg가 더 매끄러움).
+// 곡이 끝나면 끝 2초를 페이드아웃하고 처음부터 1초 페이드인으로 다시 시작한다(반복용으로 만들지 않은 곡도 자연스럽게).
+// 이음매 없는 반복 구간이 있는 곡은 BGM_LOOPS에 loopStart를 주면 샘플 단위로 이어 붙인다.
 // 효과음과 같은 AudioContext를 쓰며 첫 키 입력·클릭으로 소리가 켜진 뒤에 재생된다. 음소거(M)를 함께 따르고 음량은 따로.
 //
 // 폴더 안 곡 찾기: 배포판은 빌드가 만든 bgm/manifest.json을, 로컬 개발 서버(python http.server)는 폴더 목록 페이지를 읽음.
 // 그래서 로컬에서는 파일을 넣고 새로고침만 하면 반영된다. 곡이 없거나 불러오지 못하면 조용히 넘어간다.
 //
-// 반복 구간을 곡마다 정하려면 BGM_LOOPS에 '보스/파일명': { loopStart, loopEnd } (초). loopStart 앞(인트로)은 처음에 한 번만 나옴
+// 이음매 없이 반복할 곡은 BGM_LOOPS에 '보스/파일명': { loopStart, loopEnd } (초). loopStart 앞(인트로)은 처음에 한 번만 나옴
 const BGM_LOOPS = {
   // '김예나/theme.wav': { loopStart: 4.2 },
 };
 const BGM_EXT = /\.(mp3|wav|ogg|m4a|opus)$/i;
+const BGM_FADE_IN = 1, BGM_FADE_OUT = 2;   // 곡 끝에서 반복할 때의 페이드(초)
 
 const BGM = {
   volume: 0.5, want: null, cur: null, src: null, gain: null, out: null,
@@ -74,9 +75,23 @@ const BGM = {
     if (!name) return;
     const buf = this.buffers[name];
     if (!buf) { this.load(name); return; }
-    const t = BGM_LOOPS[name] || {}, src = c.createBufferSource(), g = c.createGain();
-    src.buffer = buf; src.loop = true;
-    src.loopStart = t.loopStart || 0; src.loopEnd = t.loopEnd || buf.duration;
+    this.startTrack(name, buf, false);
+  },
+
+  // 한 번 재생. 반복 구간이 없으면 끝 BGM_FADE_OUT초를 줄이고, 끝나면 페이드인으로 처음부터 다시
+  startTrack(name, buf, fadeIn) {
+    const c = SFX.ctx, t = BGM_LOOPS[name], src = c.createBufferSource(), g = c.createGain(), now = c.currentTime;
+    src.buffer = buf;
+    if (t && t.loopStart !== undefined) {
+      src.loop = true; src.loopStart = t.loopStart; src.loopEnd = t.loopEnd || buf.duration;
+    } else {
+      const end = now + buf.duration;
+      g.gain.setValueAtTime(fadeIn ? 0.0001 : 1, now);
+      if (fadeIn) g.gain.linearRampToValueAtTime(1, now + BGM_FADE_IN);
+      g.gain.setValueAtTime(1, Math.max(now + BGM_FADE_IN, end - BGM_FADE_OUT));
+      g.gain.linearRampToValueAtTime(0.0001, end);
+      src.onended = () => { if (this.src === src) this.startTrack(name, buf, true); };
+    }
     src.connect(g).connect(this.out);
     src.start();
     this.src = src; this.gain = g; this.cur = name;
