@@ -385,7 +385,7 @@ class Game {
   start(i = this.spellIndex) {
     this.spellIndex = (i + this.spells.length) % this.spells.length;
     const sp = this.spell = this.spells[this.spellIndex];
-    this.bullets = []; this.lasers = []; this.enemies = []; this.shots = []; this.fx = []; this.boost = null;
+    this.bullets = []; this.lasers = []; this.enemies = []; this.shots = []; this.fx = []; this.boost = null; this.gauge = null;
     this.partners = []; this.chants = []; this.zones = []; this.areas = []; this.slow = null; this.safes = [];
     this.items = this.items || [];
     this.tasks.clear(); this.error = '';
@@ -859,6 +859,8 @@ function makeAPI(G) {
     bgmRate(r) { BGM.wantRate = r; BGM.setRate(r); },
     get heat() { return G.heat(); },
     get slow() { return G.slowFactor(); },   // 지금 적 탄 속도 배율(불렛타임·오버클럭)
+    // 필드 하단 게이지 {v: 0~1, color, flash}. 패턴이 객체를 들고 v를 바꾸면 그대로 그려짐. null이면 숨김
+    setGauge(o) { G.gauge = o; return o; },
     sp: v => v * SPEED[G.effDiff()],                                             // 탄속
     // 머리 위 말풍선(대사 대신 짧은 절차 표시용): who=보스·동료
     // 화면 흔들림(세기 2~12 정도)과 충격음
@@ -960,7 +962,7 @@ function makeAPI(G) {
     bulletTime(k, frames) {
       const from = G.slowFactor();
       G.slow = { k, dur: frames, t: 0, from };
-      if (k < from) SFX.slowIn(); else if (k > from && k !== 1) SFX.overclock();   // 원래 속도로 돌아갈 때는 소리 없음
+      if (k < from) SFX.slowIn(); else if (k > from && k !== 1 && (k > 1 || k >= 0.5)) SFX.overclock();   // 원래 속도나 평소 불렛타임으로 돌아갈 때는 소리 없음
     },
     // 보호막: 통상탄을 막음(봄은 통과)
     shield(who, frames) { who.shield = frames; who.shieldMax = frames; },
@@ -1639,12 +1641,21 @@ function drawFieldUI(G, g) {
   const b = G.boss, sp = G.spell;
   if (G.slow) {
     // 불렛타임은 화면이 푸르게, 오버클럭(직전보다 빨라짐)은 붉게. 끝이 정해진 경우만 남은 시간 막대
-    const over = G.slow.k > (G.slow.from ?? 1) || G.slow.k > 1, k = Math.min(1, Math.abs(1 - G.slowFactor()) / 0.5);
+    // 오버클럭: 1배보다 빠르거나, 직전보다 빨라지면서 0.5배 이상(아주 느린 구간에서 평소로 돌아오는 것은 제외)
+    const over = G.slow.k > 1 || (G.slow.k > (G.slow.from ?? 1) && G.slow.k >= 0.5), k = Math.min(1, Math.abs(1 - G.slowFactor()) / 0.5);
     const tint = over ? '#ff4a5a' : '#4fa8ff', ink = over ? '#ffc2c8' : '#bfe4ff';
     g.globalAlpha = 0.16 * k; g.fillStyle = tint; g.fillRect(0, 0, W, H);
     g.globalAlpha = 1; g.fillStyle = ink; g.font = 'bold 13px Consolas, monospace'; g.textAlign = 'left'; g.textBaseline = 'top';
     g.fillText(over ? 'OVERCLOCK' : 'BULLET TIME', 8, H - 22);
-    if (G.slow.dur < 9999) { g.globalAlpha = 0.8; g.fillRect(100, H - 17, (W - 110) * (1 - G.slow.t / G.slow.dur), 4); g.globalAlpha = 1; }
+    if (G.slow.dur < 9999 && !G.gauge) { g.globalAlpha = 0.8; g.fillRect(100, H - 17, (W - 110) * (1 - G.slow.t / G.slow.dur), 4); g.globalAlpha = 1; }
+  }
+  if (G.gauge) {
+    // 패턴 게이지(오버클럭 쿨타임 등): 필드 하단. 가득 차 있으면(flash) 깜빡임
+    const gg = G.gauge, gx = 100, gy = H - 18, gw = W - 110;
+    g.globalAlpha = 0.7; g.fillStyle = '#000'; g.fillRect(gx - 1, gy - 1, gw + 2, 8);
+    g.globalAlpha = gg.flash && Math.floor(G.bgT / 4) % 2 ? 0.5 : 1; g.fillStyle = gg.color || '#ff4a5a';
+    g.fillRect(gx, gy, gw * Math.max(0, Math.min(1, gg.v)), 6);
+    g.globalAlpha = 1; g.strokeStyle = 'rgba(255,255,255,0.5)'; g.lineWidth = 1; g.strokeRect(gx - 0.5, gy - 0.5, gw + 1, 7);
   }
   g.font = '12px system-ui, "Malgun Gothic", sans-serif'; g.textBaseline = 'top';
   // 홍마향식 체력바: 논스펠과 스펠이 한 막대. 왼쪽 표시선까지가 스펠 몫, 그 오른쪽이 논스펠 몫

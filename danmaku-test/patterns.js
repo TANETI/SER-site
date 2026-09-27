@@ -104,6 +104,30 @@ function* azRain(s, o = {}) {
   }
 }
 
+// 이즘 공통: 예측 저격 한 발. 가는 방향을 읽어 도착할 자리에 십자선과 조준선을 띄우고, 점점 빨라지는 경고음(삐비비빅) 뒤
+// 그 줄을 따라 칼날을 한 줄로 주르륵 쏨. 멈추거나 방향을 틀면 빗나감.
+// 하드 이상: 가는 쪽과 지금 자리가 30px 넘게 떨어지면 지금 자리에도 한 줄(그대로 가도 멈춰도 맞으므로 방향을 틀어야 함).
+// 가만히 서 있으면 옆으로 한 칸 크게 비껴 한 줄 더 → 서 있던 자리 좌우 한쪽이 막힘
+function* predictShot(s) {
+  const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+  const p = s.player, delay = s.lv(48, 42, 36, 32, 28), travel = s.lv(20, 18, 16, 14, 13), lead = delay + travel;
+  const tx = clamp(p.x + (p.vx || 0) * lead, 10, s.W - 10), ty = clamp(p.y + (p.vy || 0) * lead, 10, s.H - 10);
+  const a = Math.atan2(ty - s.boss.y, tx - s.boss.x), dist = Math.hypot(tx - s.boss.x, ty - s.boss.y);
+  s.mark({ x: tx, y: ty, dur: lead });
+  s.warnLine({ x: s.boss.x, y: s.boss.y, x2: s.boss.x + Math.cos(a) * 700, y2: s.boss.y + Math.sin(a) * 700, dur: delay, band: 10 });
+  const moving = Math.hypot(tx - p.x, ty - p.y) > 30;
+  const a2 = moving ? Math.atan2(p.y - s.boss.y, p.x - s.boss.x) : a + (Math.random() < 0.5 ? -1 : 1) * 0.16;
+  const two = s.diff >= 2;
+  if (two) s.warnLine({ x: s.boss.x, y: s.boss.y, x2: s.boss.x + Math.cos(a2) * 700, y2: s.boss.y + Math.sin(a2) * 700, dur: delay, band: 10 });
+  for (let t = 0, gap = 12; t < delay;) {
+    s.sound('beep', t / delay);
+    const g = Math.max(2, Math.min(delay - t, Math.round(gap)));
+    yield g; t += g; gap *= 0.78;
+  }
+  const spd = Math.max(5, dist / travel), n = s.lv(6, 8, 10, 12, 14);
+  for (let i = 0; i < n; i++) { s.fire({ ang: a, spd, shape: 'knife', color: 'red' }); if (two) s.fire({ ang: a2, spd, shape: 'knife', color: 'red' }); yield 2; }
+}
+
 // ── 성당교회 공통 ──
 // 2스테이지 가운데 구간: 마르코가 합류해 마리와 함께 싸움. 마르코가 보스, 마리는 동료. 영창 색은 마르코=금빛, 마리=하늘빛
 function churchDuo(s, at = [80, 70]) {
@@ -2102,30 +2126,10 @@ const SPELLS = [
     name: '「예측 사격」(가칭)',
     type: 'spell', boss: '이즘', bossColor: '#8fe8ff', hp: 3000, time: 45, start: [192, 70],
     *run(s) {
-      // 저격: 가는 방향을 읽어 도착할 자리에 십자선과 조준선을 띄우고, 점점 빨라지는 경고음(삐비비빅) 뒤
-      // 그 줄을 따라 칼날을 한 줄로 주르륵 쏨. 멈추거나 방향을 틀면 빗나감. 한 줄이니 옆으로 비키면 됨
-      const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+      // 저격(predictShot)을 연달아. 보스전에서는 빠졌고 세이브 포인트에서 저격 시스템을 씀
       for (let w = 0; ; w++) {
         for (let k = 0; k < s.lv(3, 4, 5, 6, 6); k++) {
-          const p = s.player, delay = s.lv(48, 42, 36, 32, 28), travel = s.lv(20, 18, 16, 14, 13), lead = delay + travel;
-          const tx = clamp(p.x + (p.vx || 0) * lead, 10, s.W - 10), ty = clamp(p.y + (p.vy || 0) * lead, 10, s.H - 10);
-          const a = Math.atan2(ty - s.boss.y, tx - s.boss.x), dist = Math.hypot(tx - s.boss.x, ty - s.boss.y);
-          s.mark({ x: tx, y: ty, dur: lead });
-          s.warnLine({ x: s.boss.x, y: s.boss.y, x2: s.boss.x + Math.cos(a) * 700, y2: s.boss.y + Math.sin(a) * 700, dur: delay, band: 10 });
-          // 하드 이상: 가는 쪽과 지금 자리가 30px 넘게 떨어지면 지금 자리에도 한 줄(그대로 가도, 멈춰도 맞으므로 방향을 틀어야 함).
-          // 가만히 서 있으면 조금 벌어진 두 줄 사이 틈이 아니라 옆으로 한 칸 크게 비껴 쏨 → 서 있던 자리 좌우 한쪽이 막힘
-          const moving = Math.hypot(tx - p.x, ty - p.y) > 30;
-          const a2 = moving ? Math.atan2(p.y - s.boss.y, p.x - s.boss.x) : a + (Math.random() < 0.5 ? -1 : 1) * 0.16;
-          const two = s.diff >= 2;
-          if (two) s.warnLine({ x: s.boss.x, y: s.boss.y, x2: s.boss.x + Math.cos(a2) * 700, y2: s.boss.y + Math.sin(a2) * 700, dur: delay, band: 10 });
-          // 삐… 삐… 삐비비빅: 간격이 점점 짧아지는 경고음
-          for (let t = 0, gap = 12; t < delay;) {
-            s.sound('beep', t / delay);
-            const g = Math.max(2, Math.min(delay - t, Math.round(gap)));
-            yield g; t += g; gap *= 0.78;
-          }
-          const spd = Math.max(5, dist / travel), n = s.lv(6, 8, 10, 12, 14);
-          for (let i = 0; i < n; i++) { s.fire({ ang: a, spd, shape: 'knife', color: 'red' }); if (two) s.fire({ ang: a2, spd, shape: 'knife', color: 'red' }); yield 2; }
+          yield* predictShot(s);
           if (s.diff >= 3) s.ring(s.cnt(10), { offset: s.rand(0, s.TAU), spd: s.sp(1.6), shape: 'small', color: 'cyan' });
           yield s.lv(24, 20, 16, 14, 12);
         }
@@ -2239,41 +2243,32 @@ const SPELLS = [
     name: '「세이브 포인트」(가칭)',
     type: 'spell', boss: '이즘', bossColor: '#8fe8ff', hp: 3000, time: 50, start: [192, 60],
     *run(s) {
-      // 안전지대 셋에 1·2·3 번호를 차례로 미리 보여 준 뒤, 빰! 1번만 남기고 화면이 탄막으로 찼다가 터져 사라지고,
-      // 빰! 2번만 남기고 … 번호 순서대로 옮겨 다니면 됨. 안전지대는 한 번에 옮길 수 있는 거리로만 이어짐.
-      // 채워진 동안 탄막이 안전지대째 다음 번호 쪽으로 천천히 흘러가므로 안전지대를 따라 움직여야 함
-      const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
-      const R = s.lv(50, 44, 40, 36, 34), hold = s.lv(72, 66, 60, 56, 52), move = s.lv(52, 46, 40, 36, 34);
-      for (let w = 0; ; w++) {
-        const pts = [];
-        let px = clamp(s.player.x, 60, s.W - 60), py = clamp(s.player.y, 190, s.H - 60);
-        for (let k = 0; k < 3; k++) {
-          const a = s.rand(0, s.TAU), d = s.rand(90, 140);
-          px = clamp(px + Math.cos(a) * d, 60, s.W - 60); py = clamp(py + Math.sin(a) * d, 190, s.H - 60);
-          pts.push({ x: px, y: py, r: R });
+      // 안전지대 하나를 기체 근처에 먼저 보여 준 뒤 빰! 나머지 화면을 탄으로 채움. 이후 안전지대가 탄막째 느린 곡선을 그리며
+      // 끊기지 않고 계속 움직이고(최대 약 1.35px/프레임, 반복되는 곡선이라 채운 탄막이 비는 곳 없이 유지), 이즘이 예측 저격(predictShot)을
+      // 계속 쏨. 안전지대를 따라가기만 하면 저격에 걸리므로 안전지대 안에서 옆으로 비켜야 함
+      const R = s.lv(52, 48, 44, 40, 38), pad = 150, ph = s.rand(0, s.TAU), c0x = 192, c0y = 250;
+      const path = t => ({ x: c0x + 110 * Math.sin(t * 0.009 + ph), y: c0y + 70 * Math.sin(t * 0.013 + ph * 1.7) });
+      // 시작 자리를 기체에 가깝게: 경로에서 기체와 가장 가까운 점부터
+      let t0 = 0, best = 1e9;
+      for (let t = 0; t < 1400; t += 10) { const q = path(t), d = Math.hypot(q.x - s.player.x, q.y - s.player.y); if (d < best) { best = d; t0 = t; } }
+      const start = path(t0), zone = s.safeZone({ x: start.x, y: start.y, r: R, label: '', dur: 1e9 });
+      s.sound('beep', 0.5);
+      yield 80;
+      const motion = { vx: 0, vy: 0 };
+      fillField(s, { holes: [{ x: start.x, y: start.y, r: R }], spacing: s.lv(22, 21, 20, 19, 18), color: 'blue', motion, pad });
+      let prev = start;
+      s.task(function* () {
+        for (let t = 1; ; t++) {
+          const q = path(t0 + t);
+          motion.vx = q.x - prev.x; motion.vy = q.y - prev.y; prev = q;
+          zone.x = q.x; zone.y = q.y;
+          yield 1;
         }
-        const preview = s.lv(110, 96, 86, 78, 72), stagger = 22, gap = hold + move;
-        const zones = [];
-        pts.forEach((p, k) => s.task(function* () {
-          yield k * stagger;
-          zones[k] = s.safeZone({ x: p.x, y: p.y, r: R, label: k + 1, dur: preview - k * stagger + k * gap + hold + 6 });
-          s.sound('beep', k / 3);
-        }()));
-        yield preview;
-        for (let k = 0; k < 3; k++) {
-          // 흐를 방향: 다음 번호 쪽(마지막은 화면 가운데 쪽). 흐르는 거리는 다음 번호까지 거리의 절반 이하, 45px 이하
-          const to = pts[k + 1] || { x: s.W / 2, y: s.H - 120 }, dx = to.x - pts[k].x, dy = to.y - pts[k].y, d = Math.hypot(dx, dy) || 1;
-          const spd = Math.min(45, d * 0.5) / hold, motion = { vx: dx / d * spd, vy: dy / d * spd };
-          const list = fillField(s, { holes: [pts[k]], spacing: s.lv(20, 19, 18, 17, 16), color: k % 2 ? 'cyan' : 'blue', motion, pad: 50 });
-          for (let t = 0; t < hold; t++) {
-            if (zones[k]) { zones[k].x += motion.vx; zones[k].y += motion.vy; }
-            if (s.diff >= 3 && t % 30 === 15) s.fire({ ang: s.aim(), spd: s.sp(1.8), shape: 'rice', color: 'white' });
-            yield 1;
-          }
-          s.pop(list);
-          yield move;
-        }
-        yield s.wait(90);
+      }());
+      yield 50;
+      for (;;) {
+        yield* predictShot(s);
+        yield s.lv(40, 34, 30, 28, 26);
       }
     },
   },
@@ -2332,61 +2327,52 @@ const SPELLS = [
     name: '「백일몽」(가칭)',
     type: 'spell', strong: true, boss: '이즘', bossColor: '#8fe8ff', hp: 3200, time: 70, start: [192, 70],
     *run(s) {
-      // 「열흘 같은 하루」의 강화판: 느려진 시간 속 미로 도중에 OVERCLOCK 경고가 뜨고 약 1.2초 동안 시간이 두 배로 빨라짐
-      // (미로가 두 배 빠르게 흘러옴). 빨라져도 따라갈 수 있게 통로가 줄마다 옮겨 가는 폭(shift)을 6px 이하로 둠:
-      // 빨라진 동안 한 줄이 기체를 지나는 시간 약 4.3프레임 × 저속 1.6px ≈ 6.9px > 6px.
-      // 통로 폭은 열흘 같은 하루보다 조금 넓게(기체가 설 수 있는 폭 gapW - 10.8, 이웃 줄과 헬에서도 11px 이상 겹침)
-      const cell = 12, fall = 5, slowK = 0.25, fastK = 0.5, top = -10;
+      // 「열흘 같은 하루」의 강화판: 느려진 시간(0.25배) 속 미로가 끊기지 않고 계속 이어짐. 필드 하단 오버클럭 게이지가 약 4초에 걸쳐
+      // 차고, 가득 차면 경고 뒤 약 1.2초 동안 0.75배(평소의 3배)로 빨라지고, 직후 3초 동안은 0.1배로 엄청 느려졌다가 평소로 돌아옴.
+      // 빨라져도 따라갈 수 있게 통로가 줄마다 옮겨 가는 폭(shift)을 4px 이하로 둠: 빨라진 동안 한 줄이 기체를 지나는 시간
+      // 약 2.9프레임 × 저속 1.6px ≈ 4.6px > 4px.
+      // 통로 폭은 열흘 같은 하루보다 조금 넓게(기체가 설 수 있는 폭 gapW - 10, 이웃 줄과 헬에서도 11px 이상 겹침)
+      const cell = 12, fall = 5, slowK = 0.25, fastK = 0.75, calmK = 0.1, top = -10;
+      const gapW = s.lv(50, 42, 36, 32, 28), shift = 4;
+      s.bulletTime(slowK, 1e9);
+      yield 20;
+      let cx = Math.max(gapW, Math.min(s.W - gapW, s.player.x)), dir = cx < s.W / 2 ? 1 : -1, r = 0;
+      const row = y => {
+        let first = null;
+        for (const side of [-1, 1]) for (let x = cx + side * gapW / 2; x > -cell && x < s.W + cell; x += side * cell) {
+          const b = s.fire({ x, y, ang: Math.PI / 2, spd: fall, shape: 'small', color: r % 2 ? 'purple' : 'cyan', marginTop: 200 });
+          first = first || b;
+        }
+        r++;
+        if (Math.random() < 0.2) dir = -dir;
+        if (cx + dir * shift < gapW || cx + dir * shift > s.W - gapW) dir = -dir;
+        cx += dir * shift * s.rand(0.6, 1);
+        return first;
+      };
+      // 오버클럭 쿨타임: 하단 게이지가 약 4초에 걸쳐 차오름 → 가득 차면 0.75초 경고(말풍선·빨라지는 경고음) → 1.2초 동안 오버클럭
+      // → 3초 동안 아주 느려짐 → 평소 속도로 돌아오고 게이지가 다시 참
+      const gauge = s.setGauge({ v: 0, color: '#ff4a5a' });
+      s.task(function* () {
+        for (;;) {
+          for (let t = 0; t < 240; t++) { gauge.v = t / 240; yield 1; }
+          gauge.v = 1; gauge.flash = true;
+          s.say(s.boss, 'OVERCLOCK', 45);
+          for (let t = 0; t < 45; t += 9) { s.sound('beep', t / 45); yield 9; }
+          s.bulletTime(fastK, 1e9);
+          for (let t = 0; t < 72; t++) { gauge.v = 1 - t / 72; yield 1; }
+          gauge.flash = false; gauge.v = 0;
+          s.bulletTime(calmK, 1e9);
+          yield 180;
+          s.bulletTime(slowK, 1e9);
+        }
+      }());
+      // 기준 탄의 y를 따라 다음 줄을 정확히 cell 위에 붙임(폭탄 등으로 지워지면 지금 속도로 어림)
+      let last = null, refY = 0;
+      for (let i = 0; i < 10; i++) last = row(110 - i * cell);
+      refY = last.y;
       for (;;) {
-        const gapW = s.lv(50, 42, 36, 32, 28), shift = s.lv(5, 6, 6, 6, 6);
-        const rows = s.lv(64, 72, 80, 84, 88);
-        s.bulletTime(slowK, 99999);
-        yield 20;
-        const path = [];
-        let cx = Math.max(gapW, Math.min(s.W - gapW, s.player.x)), dir = cx < s.W / 2 ? 1 : -1;
-        for (let r = 0; r < rows; r++) {
-          path.push(cx);
-          if (Math.random() < 0.2) dir = -dir;
-          if (cx + dir * shift < gapW || cx + dir * shift > s.W - gapW) dir = -dir;
-          cx += dir * shift * s.rand(0.6, 1);
-        }
-        const row = (r, y) => {
-          let first = null;
-          for (const side of [-1, 1]) for (let x = path[r] + side * gapW / 2; x > -cell && x < s.W + cell; x += side * cell) {
-            const b = s.fire({ x, y, ang: Math.PI / 2, spd: fall, shape: 'small', color: r % 2 ? 'purple' : 'cyan', marginTop: 200 });
-            first = first || b;
-          }
-          return first;
-        };
-        // 오버클럭: 미로가 기체에 닿은 뒤부터 약 3.5초마다. 0.75초 동안 경고(말풍선·빨라지는 경고음) → 1.2초 동안 두 배
-        let alive = true;
-        s.task(function* () {
-          yield 200;
-          while (alive) {
-            s.say(s.boss, 'OVERCLOCK', 45);
-            for (let t = 0; t < 45; t += 9) { s.sound('beep', t / 45); yield 9; }
-            if (!alive) break;
-            s.bulletTime(fastK, 99999);
-            yield 72;
-            s.bulletTime(slowK, 99999);
-            yield 210;
-          }
-        }());
-        let last = null, refY = 0;
-        const v = () => fall * s.slow;
-        const tick = () => { refY = last.dead ? refY + v() : last.y; };
-        for (let r = 0; r < 10; r++) last = row(r, 110 - r * cell);
-        refY = last.y;
-        for (let r = 10; r < rows; r++) {
-          while (refY - cell < top) { yield 1; tick(); }
-          last = row(r, refY - cell); refY = last.y;
-        }
-        while (refY < s.H + 20) { yield 1; tick(); }
-        alive = false;
-        s.clear();
-        s.bulletTime(1, 40);
-        yield 60;
-
+        while (refY - cell < top) { yield 1; refY = last.dead ? refY + fall * s.slow : last.y; }
+        last = row(refY - cell); refY = last.y;
       }
     },
   },
