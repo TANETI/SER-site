@@ -671,6 +671,20 @@ class Game {
     }
   }
 
+  // 보호막 깎기: 보호막 체력(shieldHp, 구역은 hp)이 있으면 막은 탄의 대미지만큼 줄고, 0이 되면 깨짐. 체력이 없으면(Infinity) 완전 무적
+  chipShield(o, d) {
+    const zone = o.dur !== undefined && o.r !== undefined && !('shield' in o);
+    const key = zone ? 'hp' : 'shieldHp';
+    if (!(o[key] < Infinity)) return;
+    o[key] -= d; o.chip = 6;
+    if (o[key] > 0) return;
+    if (zone) o.dur = o.t; else o.shield = 0;
+    o.broken = true;
+    this.fx.push({ kind: 'burst', x: o.x, y: o.y, t: 0, life: 40, color: '#bfe4ff' });
+    this.fx.push({ kind: 'text', text: '보호막 파괴!', x: o.x, y: o.y - 30, t: 0, life: 60 });
+    this.shake(5); SFX.boom();
+  }
+
   damageBoss(d) {
     const b = this.boss;
     if (b.hidden || this.phase !== 'active' || this.spell.survival) return;
@@ -814,18 +828,19 @@ class Game {
         e.hp -= shotDamage(s); e.hurt = 4; SFX.hit();
         if (!s.pierce) { s.dead = true; break; }
       }
-      if (!s.dead && this.zones.some(z => dist2(s.x, s.y, z.x, z.y) < z.r * z.r)) { s.dead = true; this.fx.push({ kind: 'block', x: s.x, y: s.y, t: 0, life: 10 }); SFX.block(); continue; }
+      const zHit = s.dead ? null : this.zones.find(z => z.t < z.dur && dist2(s.x, s.y, z.x, z.y) < z.r * z.r);
+      if (zHit) { s.dead = true; this.fx.push({ kind: 'block', x: s.x, y: s.y, t: 0, life: 10 }); SFX.block(); this.chipShield(zHit, shotDamage(s)); continue; }
       if (!s.dead && !b.hidden && this.phase === 'active' && dist2(s.x, s.y, b.x, b.y) < 30 * 30) {
         s.dead = true;
         // 필리우스 제1식은 약한 공격을 막음: 통상탄은 막히고 봄은 통함
-        if (b.shield > 0) { this.fx.push({ kind: 'block', x: s.x, y: s.y, t: 0, life: 10 }); SFX.block(); continue; }
+        if (b.shield > 0) { this.fx.push({ kind: 'block', x: s.x, y: s.y, t: 0, life: 10 }); SFX.block(); this.chipShield(b, shotDamage(s)); continue; }
         this.damageBoss(shotDamage(s)); b.hurt = 3;
       }
       // 함께 싸우는 동료(마리 등)도 맞으면 보스 체력바를 깎음
       if (!s.dead && this.phase === 'active') for (const a of this.partners) {
         if (!a.hittable || dist2(s.x, s.y, a.x, a.y) >= 30 * 30) continue;
         s.dead = true;
-        if (a.shield > 0) { this.fx.push({ kind: 'block', x: s.x, y: s.y, t: 0, life: 10 }); SFX.block(); break; }
+        if (a.shield > 0) { this.fx.push({ kind: 'block', x: s.x, y: s.y, t: 0, life: 10 }); SFX.block(); this.chipShield(a, shotDamage(s)); break; }
         this.damageBoss(shotDamage(s)); a.hurt = 3;
         break;
       }
@@ -1005,9 +1020,10 @@ function makeAPI(G) {
       if (k < from) SFX.slowIn(); else if (k > from && k !== 1 && (k > 1 || k >= 0.5)) SFX.overclock();   // 원래 속도나 평소 불렛타임으로 돌아갈 때는 소리 없음
     },
     // 보호막: 통상탄을 막음(봄은 통과)
-    shield(who, frames) { who.shield = frames; who.shieldMax = frames; },
+    // hp를 주면 때려서 부술 수 있는 보호막(막은 탄의 대미지만큼 깎임). 없으면 완전 무적
+    shield(who, frames, hp = Infinity) { who.shield = frames; who.shieldMax = frames; who.shieldHp = who.shieldHpMax = hp; who.broken = false; },
     // 고정 구역 보호막: 안으로 들어온 자기 탄을 지움 {x,y,r,dur}
-    zone(o = {}) { const z = { x: o.x ?? G.boss.x, y: o.y ?? G.boss.y, r: o.r ?? 56, dur: o.dur ?? 300, t: 0 }; G.zones.push(z); return z; },
+    zone(o = {}) { const z = { x: o.x ?? G.boss.x, y: o.y ?? G.boss.y, r: o.r ?? 56, dur: o.dur ?? 300, t: 0, hp: o.hp ?? Infinity, hpMax: o.hp ?? Infinity }; G.zones.push(z); return z; },
     // 영창: 화면 상단에 한 줄씩 떠오른 뒤 사라짐. 마지막 줄이 호명.
     // yield* 하면 호명 줄이 뜰 때까지 기다림(= 전조 시간). {by, color, step, hold, corner:'left'|'right'}
     // 본문은 두 줄씩 묶어 나타났다가 함께 사라지고, 마지막 호명 줄은 따로 크게 뜸. 한 줄 간격은 step의 1.15배.
@@ -1178,6 +1194,12 @@ function drawActor(G, g, a, isBoss) {
     g.beginPath(); g.arc(a.x, a.y, 30, 0, TAU); g.fill();
     g.globalAlpha = k; g.strokeStyle = '#ffffff'; g.lineWidth = 2;
     g.beginPath(); g.arc(a.x, a.y, 30 + Math.sin(a.t * 0.2) * 1.5, 0, TAU); g.stroke();
+    // 부술 수 있는 보호막: 남은 체력만큼 굵은 호
+    if (a.shieldHp < Infinity) {
+      g.strokeStyle = a.chip > 0 ? '#ffffff' : '#9fd8ff'; g.lineWidth = 3;
+      g.beginPath(); g.arc(a.x, a.y, 34, -Math.PI / 2, -Math.PI / 2 + TAU * Math.max(0, a.shieldHp / a.shieldHpMax)); g.stroke();
+      if (a.chip > 0) a.chip--;
+    }
     g.globalAlpha = 1;
   }
   if (a.name) {
@@ -1193,7 +1215,15 @@ function drawZone(g, z) {
   g.globalAlpha = 0.7 * k; g.strokeStyle = '#e8f6ff'; g.lineWidth = 1.5;
   g.setLineDash([6, 4]); g.lineDashOffset = -z.t * 0.5;
   g.beginPath(); g.arc(z.x, z.y, z.r, 0, TAU); g.stroke();
-  g.setLineDash([]); g.globalAlpha = 1;
+  g.setLineDash([]);
+  // 부술 수 있는 보호막: 남은 체력만큼 굵은 호. 맞으면 잠깐 밝아짐
+  if (z.hp < Infinity) {
+    const f = Math.max(0, z.hp / z.hpMax);
+    g.globalAlpha = k; g.strokeStyle = z.chip > 0 ? '#ffffff' : '#9fd8ff'; g.lineWidth = 3;
+    g.beginPath(); g.arc(z.x, z.y, z.r + 3, -Math.PI / 2, -Math.PI / 2 + TAU * f); g.stroke();
+    if (z.chip > 0) z.chip--;
+  }
+  g.globalAlpha = 1;
 }
 
 // 영창: 화면 상단 구석에 한 줄씩 페이드인 → 페이드아웃. 마지막 호명 줄은 조금 더 크게, 조금 더 오래.

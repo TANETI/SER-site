@@ -39,8 +39,8 @@
 //   s.enemy({x, y, vx, vy, hp, run: function* (e, s) {...}})
 //   s.partner({name, x, y, to:[x,y], color})  함께 나오는 동료(체력 없음). s.move(x, y, 프레임, 동료)로 이동
 //   yield* s.chant('PATER1', {by, step})     화면 상단 구석에 영창을 한 줄씩 띄움. 호명 줄이 뜰 때까지 기다림(전조)
-//   s.shield(대상, 프레임)                    보호막. 통상탄은 막고 봄은 통과
-//   s.zone({x, y, r, dur})                    고정 구역 보호막. 들어온 자기 탄을 지움
+//   s.shield(대상, 프레임, hp)                보호막. 통상탄은 막고 봄은 통과. hp를 주면 막은 탄 대미지만큼 깎여 부서짐
+//   s.zone({x, y, r, dur, hp})                고정 구역 보호막. 들어온 자기 탄을 지움. hp를 주면 때려서 부술 수 있음
 //   s.sound('beep', 0~1)                       효과음 직접 재생(beep=조준 경고음, 인자는 높낮이)
 //   s.safeZone({x, y, r, dur, label})          초록 안전지대 표시(판정 없음). 돌려받은 객체의 x·y를 바꾸면 따라 움직임
 //   fillField(s, {holes, motion, pad, spacing, color})   안전지대만 빼고 화면을 탄으로 채움. motion.vx·vy로 통째로 이동
@@ -491,14 +491,14 @@ const SPELLS = [
     type: 'spell', boss: '마리', bossColor: '#cfe8ff', hp: 1150, time: 36, start: [192, 100],
     *run(s) {
       // 마리의 딱밤. 오른손이 빛나지만 필리우스 전문이라 파테르의 위력이 나오지 않음 → 느리고 둥근 노란 딱밤 탄(맞으면 목숨이 줄어드는
-      // 보통 탄)을 "딱!" 하고 튕김. 옆으로 섞여 오는 하늘색 탄을 함께 피함. 두 번에 한 번은 필리우스 제1식으로 자기에게 보호막
+      // 보통 탄)을 "딱!" 하고 튕김. 옆으로 섞여 오는 하늘색 탄을 함께 피함. 세 번에 한 번은 필리우스 제1식으로 자기에게 보호막(때려서 부술 수 있음)
       s.boss.chantColor = '#cfe8ff';
       for (let cycle = 0; ; cycle++) {
         yield* castGap(s);
         const light = s.task(function* () {
           for (let k = 0; ; k++) { s.ring(s.cnt(14), { offset: k * 0.3, spd: s.sp(1.5), shape: 'orb', color: 'cyan' }); yield s.wait(34); }
         }());
-        if (cycle % 2 === 1) { yield* s.chant('FILIUS1', { by: s.boss }); s.shield(s.boss, s.lv(150, 180, 200, 210, 220)); }
+        if (cycle % 3 === 2) { yield* s.chant('FILIUS1', { by: s.boss }); s.shield(s.boss, s.lv(150, 180, 200, 210, 220), s.lv(300, 350, 400, 450, 500)); }
         yield* s.chant('PATER1', { by: s.boss });
         light.return();
         s.boss.glow = 170;
@@ -527,11 +527,12 @@ const SPELLS = [
       }());
       s.task(function* () {
         for (;;) {
-          yield 420;
+          yield 600;   // 약 10초에 한 번
           yield* s.chant('FILIUS2', { by: mari });
           holding = true;
-          s.zone({ x: s.boss.x, y: s.boss.y, r: 52, dur: 300 });
-          yield 300;
+          // 구역 보호막: 때려서 부술 수 있음. 부서지면 바로 풀림
+          const z = s.zone({ x: s.boss.x, y: s.boss.y, r: 52, dur: 270, hp: s.lv(350, 400, 450, 500, 550) });
+          for (let t = 0; t < 270 && !z.broken; t++) yield 1;
           holding = false;
         }
       }());
@@ -547,8 +548,8 @@ const SPELLS = [
     name: '필리우스 제2식 — 그의 백성을 두르시리로다',
     type: 'spell', boss: '마르코', bossColor: '#e0c89a', hp: 1400, time: 74, start: [232, 95],
     *run(s) {
-      // 마리가 둘을 감싸는 구역 보호막을 세움. 보호막이 서 있는 동안은 자기 탄이 들어가지 않음
-      // → 마리가 다시 영창하는 동안(보호막이 없는 동안)이 공격할 때
+      // 마리가 둘을 감싸는 구역 보호막을 세움. 보호막이 서 있는 동안은 자기 탄이 들어가지 않지만, 보호막을 계속 때리면 부서짐.
+      // → 부수거나, 마리가 다시 영창하는 동안(보호막이 없는 동안)이 공격할 때. 부수면 마리가 다시 세우기까지 더 오래 걸림
       const mari = churchDuo(s, [152, 95]);
       for (;;) {
         const light = s.task(function* () {   // 마리가 영창하는 동안 마르코가 조준탄과 느린 원형탄으로 견제
@@ -562,16 +563,16 @@ const SPELLS = [
         yield* s.chant('FILIUS2', { by: mari });
         light.return();
         const dur = s.lv(240, 300, 360);
-        s.zone({ x: 192, y: 95, r: 82, dur });
+        const z = s.zone({ x: 192, y: 95, r: 82, dur, hp: s.lv(500, 600, 700, 800, 900) });
         // 보호막 안의 마르코: 황금 탄을 던지고, 한 번은 시계방향·한 번은 반시계방향으로 휘는 원형탄을 번갈아 깖.
         // 마리는 유지하느라 쏘지 않음
-        for (let t = 0, k = 0; t < dur; t += s.wait(40), k++) {
+        for (let t = 0, k = 0; t < dur && !z.broken; t += s.wait(40), k++) {
           s.fire({ ang: s.aim(), spd: s.sp(3.6), shape: 'big', color: 'gold' });
           s.ring(s.cnt(20), { offset: s.rand(0, s.TAU), spd: s.sp(1.8), angVel: (k % 2 ? 1 : -1) * 0.006, shape: 'rice', color: 'gold' });
           if (k % 2) s.spread(s.lv(1, 3, 3, 5, 5), s.aim(), 0.2, { spd: s.sp(2.8), shape: 'rice', color: 'orange' });
           yield s.wait(40);
         }
-        yield 30;
+        yield z.broken ? 150 : 60;   // 보호막 사이 쉬는 틈(부수면 더 김)
       }
     },
   },
@@ -610,7 +611,7 @@ const SPELLS = [
   },
   {
     name: '논스펠 · 마르코 (폭주)',
-    type: 'nonspell', boss: '마르코', bossColor: '#e0c89a', bgmRate: 1.2, hp: 1800, time: 36, start: [192, 100],
+    type: 'nonspell', boss: '마르코', bossColor: '#e0c89a', bgmRate: 1.2, hp: 1530, time: 36, start: [192, 100],
     *run(s) {
       // 마리가 쓰러지자 마르코 폭주. 성큼성큼 다가서며 묵직한 조준탄을 연달아 쏘고 발을 구름
       marcoRage(s);
@@ -625,7 +626,7 @@ const SPELLS = [
   },
   {
     name: '파테르 제1식 — 나의 의로운 오른손으로 너를 붙들리라',
-    type: 'spell', boss: '마르코', bossColor: '#e0c89a', bgmRate: 1.2, hp: 2100, time: 50, start: [192, 100],
+    type: 'spell', boss: '마르코', bossColor: '#e0c89a', bgmRate: 1.2, hp: 1790, time: 50, start: [192, 100],
     *run(s) {
       marcoRage(s);
       for (;;) {
@@ -677,7 +678,7 @@ const SPELLS = [
   },
   {
     name: '파테르 제2식 — 능히 일어나지 못하게 하리니',
-    type: 'spell', strong: true, boss: '마르코', bossColor: '#e0c89a', bgmRate: 1.2, hp: 2500, time: 58, start: [192, 100],
+    type: 'spell', strong: true, boss: '마르코', bossColor: '#e0c89a', bgmRate: 1.2, hp: 2130, time: 58, start: [192, 100],
     *run(s) {
       // 폭주한 마르코의 마지막 스펠: 달려드는 제압. 플레이어가 1초 전에 있던 자리로 끝까지 돌진하고, 착지한 자리에서 충격파
       marcoRage(s);
