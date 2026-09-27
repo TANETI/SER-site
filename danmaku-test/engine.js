@@ -315,12 +315,17 @@ class Game {
 
   // 압박 곡선(홍마향처럼 스펠이 진행될수록 거세짐): 스펠카드는 보스 체력이 줄수록, 내구 스펠은 시간이 지날수록 0→1.
   // cnt는 최대 +20%, wait는 최대 약 13% 짧아짐. 논스펠은 0
+  // 격화: 패턴 진행도 0→1(보스 체력이 깎인 비율, 내구 스펠은 지난 시간 비율). 논스펠·스펠 모두.
+  // 진행도에 따라 탄 수 ×0.8→1.2, 발사 간격 ×1.18→0.82, 탄속 ×0.95→1.05로 연속해서 바뀜(절반에서 원래 값).
+  // 진행도 1/3·2/3를 넘으면 격화 단계가 오름(격화 II·III). 잡몹 구간은 0.5로 고정
   heat() {
     const sp = this.spell;
-    if (!sp || sp.type !== 'spell' || this.phase !== 'active') return 0;
-    if (sp.survival) return 1 - this.timer / this.timerMax;
-    return 1 - this.boss.hp / this.boss.maxHp;
+    if (!sp) return 0.5;
+    if (sp.type === 'stage') return 0.5;
+    const p = sp.survival ? 1 - this.timer / this.timerMax : 1 - this.boss.hp / this.boss.maxHp;
+    return Math.max(0, Math.min(1, p));
   }
+  surgeLevel() { return Math.min(2, Math.floor(this.heat() * 3)); }
 
   // 엑스트라는 본편을 깬 뒤 열리는 스테이지일 뿐 난이도 체계가 아니므로 고른 난이도 그대로 씀
   effDiff(sp = this.spell) { return this.difficulty; }
@@ -387,7 +392,7 @@ class Game {
   start(i = this.spellIndex) {
     this.spellIndex = (i + this.spells.length) % this.spells.length;
     const sp = this.spell = this.spells[this.spellIndex];
-    this.bullets = []; this.lasers = []; this.enemies = []; this.shots = []; this.fx = []; this.boost = null; this.gauge = null;
+    this.bullets = []; this.lasers = []; this.enemies = []; this.shots = []; this.fx = []; this.boost = null; this.gauge = null; this.surgeLv = 0;
     this.partners = []; this.chants = []; this.zones = []; this.areas = []; this.slow = null; this.safes = [];
     this.items = this.items || [];
     this.tasks.clear(); this.error = '';
@@ -568,6 +573,13 @@ class Game {
       }
     } else if (this.phase === 'active') {
       this.frame++;
+      // 격화 단계가 오르면 보스 옆에 알림
+      const sl = this.surgeLevel();
+      if (sl > (this.surgeLv ?? 0) && !this.boss.hidden) {
+        this.fx.push({ kind: 'text', text: sl === 1 ? '격화 II' : '격화 III', x: this.boss.x, y: this.boss.y - 40, t: 0, life: 70 });
+        this.shake(3); SFX.spell();
+      }
+      this.surgeLv = sl;
       this.tasks.step();
       // 제한시간 10초 전부터 초읽기
       if (this.timer <= 600 && this.timer % 60 === 0 && this.timer > 0) SFX.tick(this.timer <= 180);
@@ -856,8 +868,8 @@ function makeAPI(G) {
     get hpRate() { return G.boss.hp / G.boss.maxHp; },
     get diff() { return G.effDiff(); },
     lv: (...v) => v[Math.min(G.effDiff(), v.length - 1)],                        // 난이도별 값 고르기 (이지, 노말, 하드, 베리하드, 헬)
-    cnt: n => Math.max(1, Math.round(n * DENSITY[G.effDiff()] * (1 + 0.2 * G.heat()) * (G.boost?.cnt ?? 1))),     // 탄 개수
-    wait: f => Math.max(1, Math.round(f * INTERVAL[G.effDiff()] / (1 + 0.15 * G.heat()) * (G.boost?.wait ?? 1))),  // 발사 간격(프레임)
+    cnt: n => Math.max(1, Math.round(n * DENSITY[G.effDiff()] * (0.8 + 0.4 * G.heat()) * (G.boost?.cnt ?? 1))),     // 탄 개수(격화 ×0.8→1.2)
+    wait: f => Math.max(1, Math.round(f * INTERVAL[G.effDiff()] * (1.18 - 0.36 * G.heat()) * (G.boost?.wait ?? 1))),  // 발사 간격(프레임, 격화 ×1.18→0.82)
     // 패턴이 거는 추가 배율 {cnt, wait}(김예나 시청자 수 등). 패턴이 바뀌면 풀림
     setBoost(o) { G.boost = o; },
     get boost() { return G.boost || { cnt: 1, wait: 1 }; },
@@ -868,7 +880,7 @@ function makeAPI(G) {
     get slow() { return G.slowFactor(); },   // 지금 적 탄 속도 배율(불렛타임·오버클럭)
     // 필드 하단 게이지 {v: 0~1, color, flash}. 패턴이 객체를 들고 v를 바꾸면 그대로 그려짐. null이면 숨김
     setGauge(o) { G.gauge = o; return o; },
-    sp: v => v * SPEED[G.effDiff()],                                             // 탄속
+    sp: v => v * SPEED[G.effDiff()] * (0.95 + 0.1 * G.heat()),                  // 탄속(격화 ×0.95→1.05)                                             // 탄속
     // 머리 위 말풍선(대사 대신 짧은 절차 표시용): who=보스·동료
     // 화면 흔들림(세기 2~12 정도)과 충격음
     shake(mag = 4) { G.shake(mag); },
@@ -1682,12 +1694,16 @@ function drawFieldUI(G, g) {
     g.fillStyle = sp.type === 'spell' ? '#ffd0dc' : '#fff'; g.fillRect(8, 6, bw * fill, 4);
     g.fillStyle = '#ff5e7a'; for (const m of marks) g.fillRect(8 + bw * m - 1, 4, 2, 8);
   }
+  if (!(run && bars) && !b.hidden) {
+    g.fillStyle = '#f5c542'; g.font = 'bold 10px system-ui, "Malgun Gothic", sans-serif'; g.textBaseline = 'top'; g.textAlign = 'left';
+    g.fillText(`격화 ${['I', 'II', 'III'][G.surgeLevel()]}`, 8, 12);
+  }
   if (run && bars) {
     // 이 보스의 몇 번째 페이지인지(페이지의 보스 = 그 페이지 마지막 패턴의 보스)
     const pageBoss = pg => { let last = -1; bars.forEach((v, i) => { if (v === pg) last = i; }); return run.seq[last].boss; };
     const cur = bars[run.idx], boss = pageBoss(cur), all = [...new Set(bars)].filter(pg => pageBoss(pg) === boss);
-    g.fillStyle = '#f5c542'; g.font = 'bold 9px Consolas, monospace'; g.textBaseline = 'top'; g.textAlign = 'left';
-    g.fillText(`PAGE ${all.indexOf(cur) + 1}/${all.length}`, 8, 12);
+    g.fillStyle = '#f5c542'; g.font = 'bold 10px system-ui, "Malgun Gothic", sans-serif'; g.textBaseline = 'top'; g.textAlign = 'left';
+    g.fillText(`PAGE ${all.indexOf(cur) + 1}/${all.length} · 격화 ${['I', 'II', 'III'][G.surgeLevel()]}`, 8, 12);
   }
   // 시간
   const sec = Math.max(0, G.timer) / 60;
