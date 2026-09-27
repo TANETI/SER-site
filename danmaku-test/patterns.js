@@ -84,10 +84,6 @@ function yenaLive(s) {
 // s.lv로 직접 정한 발 수·간격에 시청자 수 배율을 걸 때
 const yc = (s, n) => Math.max(1, Math.round(n * s.boost.cnt)), yw = (s, f) => Math.max(1, Math.round(f * s.boost.wait));
 
-// 3-3: 구석에서 시연이 구경만 함(공격하지 않음, 엑스트라 2 복선)
-function siyeonWatch(s) {
-  s.partner({ name: '시연', x: s.W - 36, y: 40, color: '#c9b8f0' });
-}
 
 // ── 성당교회 공통 ──
 // 2스테이지 가운데 구간: 마르코가 합류해 마리와 함께 싸움. 마르코가 보스, 마리는 동료. 영창 색은 마르코=금빛, 마리=하늘빛
@@ -876,8 +872,7 @@ const SPELLS = [
     type: 'nonspell', boss: '고태웅', bossColor: '#ffcf6b', hp: 2200, time: 38, start: [192, 100],
     *run(s) {
       // 변신 포즈: 포즈를 잡는 동안(약 1초) 멈춰서 아무것도 쏘지 않음 = 공격 기회. 포즈가 끝나면 번쩍이며
-      // 별 원형탄 두 겹과 조준 연사. 구석에서 시연이 구경함
-      siyeonWatch(s);
+      // 별 원형탄 두 겹과 조준 연사.
       for (let w = 0; ; w++) {
         s.say(s.boss, 'POSE', 50);
         s.boss.glow = 60;
@@ -898,7 +893,6 @@ const SPELLS = [
     *run(s) {
       // 뛰어올라(화면 위로 사라짐) 비스듬히 내리꽂는 발차기. 예고선 끝(플레이어 70px 앞)에서 멈추고 착지 충격파 두 겹.
       // 돌진 중에는 몸에 닿아도 피격
-      siyeonWatch(s);
       for (let w = 0; ; w++) {
         s.boss.glow = 40;
         yield* s.moveTo(s.boss.x, -40, 24);
@@ -927,7 +921,6 @@ const SPELLS = [
     *run(s) {
       // 형 따라 하기: 1스테이지 형(고현성)의 관통탄 칼날 줄기를 흉내 냄. 흉내라 줄기가 조금씩 삐뚤빼뚤 흔들림.
       // 줄기 사이로 별 원형탄
-      siyeonWatch(s);
       for (let w = 0; ; w++) {
         const base = s.aim();
         for (let k = 0; k < s.lv(2, 3, 3, 4, 4); k++) {
@@ -951,7 +944,6 @@ const SPELLS = [
       // 왼쪽에서 오른쪽으로 함께 진행하고, 격자 전체가 같은 박자로 켜졌다 꺼짐. 꺼진 동안은 자리만 아주 흐리게 보이고
       // 판정이 없음. 처음엔 느리게 깜빡이다가 점점 빨라짐. 켜진 동안은 탄 사이 틈에 머무르며 격자와 함께 흘러가고,
       // 꺼진 동안 자리를 옮김. 보스는 약 2.3초마다 양옆으로 부채꼴을 뿌림
-      siyeonWatch(s);
       const dx = 40, dy = s.lv(46, 42, 40, 38, 38), v = s.sp(0.9), top = 130, grid = { on: true };
       // 깜빡임: 켜짐 약 1.6초·꺼짐 1초에서 시작해 14번에 걸쳐 켜짐 약 0.5초·꺼짐 0.35초까지 빨라짐. 켜질 때 높은 틱, 꺼질 때 낮은 틱
       s.task(function* () {
