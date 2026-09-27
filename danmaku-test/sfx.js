@@ -29,8 +29,9 @@ const SFX = {
       for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
     }
     if (this.ctx.state === 'suspended') this.ctx.resume();
+    if (typeof BGM !== 'undefined') BGM.sync();   // 소리가 켜지기 전에 정해 둔 배경음악을 시작
   },
-  setMuted(m) { this.muted = m; if (this.master) this.master.gain.value = m ? 0 : this.volume; },
+  setMuted(m) { this.muted = m; if (this.master) this.master.gain.value = m ? 0 : this.volume; if (typeof BGM !== 'undefined') BGM.apply(); },
   setVolume(v) { this.volume = v; if (this.master && !this.muted) this.master.gain.value = v; },
 
   // 같은 소리는 gap초 안에 한 번만

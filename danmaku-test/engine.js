@@ -261,13 +261,16 @@ class Game {
 
   // ── 패턴 수명주기 ──
   // 단일 패턴 연습: 목숨·폭탄을 채우고 시작
-  startSingle(i = this.spellIndex) { this.run = null; this.resetLives(this.practicePower); this.start(i); }
+  startSingle(i = this.spellIndex) { this.run = null; this.resetLives(this.practicePower); this.start(i); BGM.play(this.runOf(this.spell)?.bgm); }
   // 보스전: 여러 패턴을 이어서, 목숨·폭탄을 이어 가며 진행
   startRun(run) {
     this.run = { ...run, idx: 0 };
     this.resetLives(run.power ?? 0);
     this.start(this.spells.indexOf(run.seq[0]));
+    BGM.play(run.bgm);   // 같은 곡이 이미 나오고 있으면 이어 감
   }
+  // 이 패턴이 들어 있는 보스전(단일 패턴 연습의 배경음악을 고를 때)
+  runOf(sp) { return typeof BOSS_RUNS === 'undefined' ? null : BOSS_RUNS.find(r => r.seq.includes(sp)); }
   restart() { this.run ? this.startRun(this.run) : this.startSingle(); }
   resetLives(power = 0) {
     this.player = this.player || {};
@@ -355,6 +358,8 @@ class Game {
     this.enemies.forEach(e => this.killEnemy(e, false));
     this.result = { captured: captured && sp.type === 'spell', reason, t: 0, stats: { ...this.stats } };
     this.phase = 'result'; this.phaseT = 170;
+    // 보스전 마지막 패턴을 격파(내구 스펠은 버팀)하면 배경음악이 자연스럽게 줄어들며 끝남
+    if (this.run && this.run.idx >= this.run.seq.length - 1 && (reason === 'defeat' || sp.survival)) BGM.fadeOut(3);
   }
 
   clearBullets(points) {

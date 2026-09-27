@@ -102,6 +102,8 @@ $('restartBtn').onclick = e => { G.restart(); settle(e.target); };
 $('sndChk').onchange = e => { SFX.setMuted(!e.target.checked); settle(e.target); };
 $('volRange').oninput = e => { SFX.unlock(); SFX.setVolume(+e.target.value); SFX.item(); };
 $('volRange').onchange = e => settle(e.target);
+$('bgmRange').oninput = e => { SFX.unlock(); BGM.setVolume(+e.target.value); };
+$('bgmRange').onchange = e => settle(e.target);
 $('shakeChk').onchange = e => { G.shakeOn = e.target.checked; if (!G.shakeOn) G.shakeMag = 0; settle(e.target); };
 $('editor').addEventListener('toggle', () => { if ($('editor').open) $('code').value = spellSource(G.spell); });
 $('prevBtn').onclick = e => { G.startSingle(G.spellIndex - 1); syncPanel(); settle(e.target); };
@@ -141,8 +143,15 @@ $('code').addEventListener('keydown', e => {
 
 // ── 루프 ──
 G.startSingle(0); syncPanel();
-let last = performance.now();
+let last = performance.now(), audioBusy = false;
 requestAnimationFrame(function tick(now) {
   G.frameTick(now - last); last = now;
+  // 일시정지 동안은 소리(배경음악 포함)를 멈췄다가 풀면 그 자리부터 이어 감.
+  // 일시정지 중 다른 키로 소리가 다시 켜져도 여기서 다시 멈춤
+  const ctx = SFX.ctx;
+  if (ctx && !audioBusy && ctx.state !== 'closed' && (ctx.state === 'running') === G.paused) {
+    audioBusy = true;
+    (G.paused ? ctx.suspend() : ctx.resume()).finally(() => { audioBusy = false; });
+  }
   requestAnimationFrame(tick);
 });
