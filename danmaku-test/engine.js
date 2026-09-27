@@ -335,7 +335,8 @@ class Game {
     const bar = [];
     let n = -1;
     seq.forEach((sp, i) => {
-      const pairWithPrev = i > 0 && sp.type === 'spell' && seq[i - 1].type === 'nonspell' && seq[i - 1].boss === sp.boss && bar[i - 1] !== bar[i - 2];
+      // follow: 앞 패턴에 이어지는 뒤 단계(한 스펠을 둘로 나눈 것)는 앞 패턴과 같은 체력바
+      const pairWithPrev = i > 0 && (sp.follow || (sp.type === 'spell' && seq[i - 1].type === 'nonspell' && seq[i - 1].boss === sp.boss && bar[i - 1] !== bar[i - 2]));
       bar.push(pairWithPrev ? n : ++n);
     });
     return bar;
@@ -409,10 +410,11 @@ class Game {
     this.frame = 0; this.phase = 'intro'; this.phaseT = sameBar ? 45 : cont ? 100 : 70;
     // 제한시간도 난이도별 체력 배율을 따라가 난이도와 상관없이 '필요 시간/제한시간' 비율이 같게 함
     this.timer = this.timerMax = Math.round((sp.time || 30) * 60 * k * (scaled ? HP_MUL[this.effDiff()] : 1));
-    this.banner = sp.type === 'spell' ? { text: sp.name, t: 0 } : null;
+    // 앞 패턴에 이어지는 뒤 단계(follow)는 다시 선언하지 않음
+    this.banner = sp.type === 'spell' && !sp.follow ? { text: sp.name, t: 0 } : null;
     // 전투 이미지가 있는 인물의 스펠: 왼쪽에서 짧게 지나가는 컷인
     const code = codeOf(sp.boss);
-    this.cutin = sp.type === 'spell' && code && CUTIN_CODES.has(code) ? { code, t: 0 } : null;
+    this.cutin = sp.type === 'spell' && !sp.follow && code && CUTIN_CODES.has(code) ? { code, t: 0 } : null;
     if (this.banner) SFX.spell();
     this.result = null; this.timeFlash = null;
     if (b.hidden) { b.x = W / 2; b.y = -200; b.move = null; }

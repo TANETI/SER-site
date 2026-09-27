@@ -8,6 +8,7 @@
 //   hp: 3000, time: 40,                      // 보스 체력, 제한시간(초)
 //   survival: false,                         // true면 보스 무적, 시간까지 버티면 획득
 //   start: [192, 110],                       // 보스 시작 위치
+//   follow: true,                            // 선택. 앞 패턴에 이어지는 뒤 단계(같은 체력바, 다시 선언하지 않음)
 //   bgmRate: 1.2,                            // 선택. 배경음악 재생 속도(폭주 마르코처럼 같은 곡을 빠르게)
 //   *run(s) { ... }                          // 제너레이터. yield n = n프레임 대기
 // }
@@ -164,7 +165,7 @@ function ivyLeaf(s, x, y, ang, stay, group) {
       const ft = s.frame - fallAt;
       if (ft === 0) b.ang = Math.PI / 2;
       b.spd = Math.min(s.sp(1.6), ft * 0.02);
-      b.x += Math.sin(ft * 0.08 + (group ? group.phase : 0)) * 0.5;
+      b.x += Math.sin(ft * 0.04 + (group ? group.phase : 0)) * 0.35;   // 떨어지며 좌우로 천천히 흔들림
     },
   });
 }
@@ -1314,20 +1315,42 @@ const SPELLS = [
     },
   },
   {
-    name: '논스펠 · 예로니모 4',
-    type: 'nonspell', boss: '예로니모', bossColor: '#e8e0c8', hp: 2900, time: 42, start: [192, 110],
+    name: 'Clavis Collata — NUNC DIMITTIS · 후반',
+    type: 'spell', follow: true, boss: '예로니모', bossColor: '#e8e0c8', hp: 2600, time: 48, start: [192, 90],
     *run(s) {
-      // 빛의 십자 두 개: 빠른 황금 십자는 천천히 돌다 방향을 바꾸고, 느린 흰 십자는 반대로 돎.
-      // 두 십자가 엇갈리며 마름모 틈이 계속 옮겨 가므로 틈을 따라 움직여야 함. 가끔 조준 칼날
-      let a = 0, b = Math.PI / 4;
-      for (let f = 0; ; f++) {
-        a += 0.016 * (Math.floor(f / 90) % 2 ? -1 : 1);
-        b -= 0.011;
-        for (let i = 0; i < 4; i++) s.fire({ ang: a + i * Math.PI / 2, spd: s.sp(2.8), shape: 'rice', color: 'yellow' });
-        if (f % 2 === 0) for (let i = 0; i < 4; i++) s.fire({ ang: b + i * Math.PI / 2, spd: s.sp(1.6), shape: 'small', color: 'white' });
-        if (f % 18 === 9) s.spread(s.lv(1, 3, 3, 3, 5), s.aim(), 0.12, { spd: s.sp(3.6), shape: 'knife', color: 'white' });
-        if (f % 300 === 299) yield* s.wander(40, 50);
-        yield s.lv(8, 6, 5, 4);
+      // NUNC DIMITTIS 뒤 단계(앞 단계와 한 체력바, 다시 선언하지 않음). 쇄도하는 쇠사슬: 화면 가장자리(위·왼쪽·오른쪽) 여기저기서 황금 사슬이 기체의 0.5초 전 자리를 향해 짧은 예고선 뒤 연달아 뻗음.
+      // 계속 움직이지 않으면 걸림(으아악! 도망쳐!). 가끔 사슬 머리 한두 개가 뱀처럼 기체를 쫓아오며 고리를 흘림(기체보다 느려 떼어 놓을 수 있음).
+      // 사슬 사이 간격은 스펠이 진행될수록 짧아지다가 한계에서 멈춤(s.wait의 압박 곡선)
+      const hist = [];
+      s.task(function* () { for (;;) { hist.push({ x: s.player.x, y: s.player.y }); if (hist.length > 60) hist.shift(); yield 1; } }());
+      const past = () => hist[Math.max(0, hist.length - 31)] || s.player;
+      const edge = () => {
+        const side = s.randInt(0, 2);
+        return side === 0 ? { x: -8, y: s.rand(20, s.H * 0.7) } : side === 1 ? { x: s.W + 8, y: s.rand(20, s.H * 0.7) } : { x: s.rand(20, s.W - 20), y: -8 };
+      };
+      // 추적 사슬: 머리가 기체를 향해 조금씩 꺾으며 달려오고, 지나간 자리에 잠깐 남는 고리를 흘림
+      const snake = () => {
+        const o = edge(), head = s.fire({ x: o.x, y: o.y, ang: Math.atan2(s.player.y - o.y, s.player.x - o.x), spd: s.sp(2.1), shape: 'big', color: 'gold', margin: 40,
+          fn: (b, s) => {
+            const want = Math.atan2(s.player.y - b.y, s.player.x - b.x), da = ((want - b.ang + Math.PI * 3) % s.TAU) - Math.PI;
+            b.ang += Math.max(-0.035, Math.min(0.035, da));
+            if (b.t % 5 === 0) s.fire({ x: b.x, y: b.y, ang: b.ang, spd: 0, shape: 'link', color: 'gold', fn: c => { if (c.t > 45) c.dead = true; } });
+            if (b.t > 170) b.dead = true;
+          } });
+        return head;
+      };
+      s.task(function* () {
+        yield 180;
+        for (;;) { snake(); if (s.diff >= 2 && Math.random() < 0.5) { yield 20; snake(); } yield s.wait(240); }
+      }());
+      yield 30;
+      for (let k = 0; ; k++) {
+        const n = k % 4 === 3 ? 2 : 1;
+        for (let j = 0; j < n; j++) {
+          const o = edge(), t = past(), warn = s.lv(36, 32, 28, 26, 25);
+          s.chain({ x: o.x, y: o.y, ang: Math.atan2(t.y - o.y, t.x - o.x), len: 760, warn, shoot: 8, hold: 8, retract: 28 });
+        }
+        yield Math.max(20, s.wait(s.lv(36, 32, 28, 26, 24)));
       }
     },
   },
@@ -1369,7 +1392,7 @@ const SPELLS = [
   },
   {
     name: 'Clavis Collata — NUNC DIMITTIS',
-    type: 'spell', boss: '예로니모', bossColor: '#e8e0c8', hp: 3600, time: 60, start: [192, 100],
+    type: 'spell', boss: '예로니모', bossColor: '#e8e0c8', hp: 3000, time: 52, start: [192, 100],
     *run(s) {
       // 전조: 고유 클라비스 영창. 읊는 동안은 느린 원형탄만
       const light = s.task(function* () {
@@ -1698,29 +1721,30 @@ const SPELLS = [
   },
   {
     name: '「벽을 타는 덩굴」(가칭)',
-    type: 'spell', boss: '리크니스', bossColor: '#e8b4c8', hp: 3400, time: 52, start: [192, 90],
+    type: 'spell', boss: '리크니스', bossColor: '#e8b4c8', hp: 3700, time: 60, start: [192, 90],
     *run(s) {
       for (;;) {
-        // 양쪽 벽을 아래에서 위로 타고 오르며 안쪽으로 가지를 뻗음. 좌우 가지 높이를 엇갈려 지그재그 통로를 남김
+        // 양쪽 벽을 아래에서 위로 천천히 타고 오르며 안쪽으로 길게 가지를 뻗음. 가지는 크게 S자로 굽이침.
+        // 좌우 가지 높이를 약 68px 엇갈려 지그재그 통로를 남김(가지 끝을 말면 통로를 막으므로 말지 않음)
         for (const side of [-1, 1]) {
           const x0 = side < 0 ? 6 : s.W - 6;
           s.task(function* () {
             let y = s.H + 10;
-            const head = s.fire({ x: x0, y, spd: 0, shape: 'orb', color: 'green' });
+            const climb = s.sp(1.5), head = s.fire({ x: x0, y, spd: 0, shape: 'orb', color: 'green' });
             for (let t = 0; y > -10 && !head.dead; t++) {
-              y -= s.sp(2.4); head.y = y;
-              if (t % 5 === 0 && !s.near(x0, y, 12, 'leaf')) ivyLeaf(s, x0 + s.rand(-3, 3), y, -Math.PI / 2 + s.rand(-0.8, 0.8), s.lv(150, 190, 220));
-              if (t % 50 === (side < 0 ? 0 : 25) && y < s.H - 40 && y > 60) {
-                const reach = s.W * s.lv(0.35, 0.45, 0.55);
-                s.task(ivyVine(s, { x: x0, y, ang: side < 0 ? 0 : Math.PI, spd: s.sp(2.6), len: Math.round(reach / s.sp(2.6)), turn: 0.02, wave: 0.12, stay: s.lv(110, 140, 170) }));
+              y -= climb; head.y = y;
+              if (t % 7 === 0 && !s.near(x0, y, 12, 'leaf')) ivyLeaf(s, x0 + s.rand(-3, 3), y, -Math.PI / 2 + s.rand(-0.8, 0.8), s.lv(200, 240, 270));
+              if (t % 90 === (side < 0 ? 0 : 45) && y < s.H - 40 && y > 60) {
+                const reach = s.W * s.lv(0.42, 0.5, 0.56, 0.58, 0.6), spd = s.sp(1.6);
+                s.task(ivyVine(s, { x: x0, y, ang: side < 0 ? 0 : Math.PI, spd, len: Math.round(reach / spd), turn: 0.05, wave: 0.06, phase: s.rand(0, s.TAU), stay: s.lv(170, 200, 230) }));
               }
               yield 1;
             }
             head.dead = true;
           }());
         }
-        yield s.wait(35) * 6;   // 큰 패턴이라 본체는 쏘지 않음(덩굴에 집중)
-        yield s.wait(120);
+        yield Math.round((s.H + 20) / s.sp(1.5));   // 벽을 다 오를 때까지. 큰 패턴이라 본체는 쏘지 않음(덩굴에 집중)
+        yield s.wait(90);
       }
     },
   },
@@ -2480,8 +2504,8 @@ const BOSS_RUNS = [
       spellOf('파테르 제1식 — 나의 의로운 오른손으로 너를 붙들리라', '예로니모'),
       spellOf('논스펠 · 예로니모 3'),
       spellOf('파테르 제2식 — 능히 일어나지 못하게 하리니', '예로니모'),
-      spellOf('논스펠 · 예로니모 4'),
       spellOf('Clavis Collata — NUNC DIMITTIS'),
+      spellOf('Clavis Collata — NUNC DIMITTIS · 후반'),
     ],
   },
   {
