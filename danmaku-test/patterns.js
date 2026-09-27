@@ -71,7 +71,7 @@ function siyeonWatch(s) {
 // 2스테이지 가운데 구간: 마르코가 합류해 마리와 함께 싸움. 마르코가 보스, 마리는 동료. 영창 색은 마르코=금빛, 마리=하늘빛
 function churchDuo(s, at = [80, 70]) {
   s.boss.chantColor = '#ffe6a0';
-  const mari = s.partner({ name: '마리', x: -30, y: 40, to: at, color: '#cfe8ff' });
+  const mari = s.partner({ name: '마리', x: -30, y: 40, to: at, color: '#cfe8ff', hittable: true });   // 마리도 맞음(보스 체력바를 함께 깎음)
   mari.chantColor = '#cfe8ff';
   return mari;
 }
@@ -335,7 +335,7 @@ const SPELLS = [
       // 강선 그물: 플레이어 둘레에 격자로 예고선이 깔리고, 강선이 한꺼번에 팽팽해짐. 칸 한가운데로 옮기면 안전.
       // 45도 마름모 격자와 가로세로 격자를 번갈아 침
       for (let w = 0; ; w++) {
-        const gap = s.lv(110, 96, 86, 80, 76), warn = s.lv(62, 54, 48, 44, 40);
+        const gap = s.lv(110, 96, 86, 80, 76), warn = s.lv(52, 45, 40, 37, 34);
         const cx = s.player.x, cy = s.player.y, off = s.rand(-gap / 2, gap / 2);
         if (s.diff >= 3) s.ring(s.cnt(12), { offset: s.rand(0, s.TAU), spd: s.sp(1.5), shape: 'small', color: 'white' });
         const tilt = w % 2 ? 0 : Math.PI / 4;
@@ -348,7 +348,7 @@ const SPELLS = [
         }
         yield warn;
         for (let k = 0; k < 3; k++) { s.spread(s.lv(1, 3, 3, 5, 5), s.aim(), 0.25, { spd: s.sp(2.6), shape: 'rice', color: 'cyan' }); yield 18; }
-        yield s.wait(70);
+        yield s.wait(40);
       }
     },
   },
@@ -450,7 +450,7 @@ const SPELLS = [
   },
   {
     name: '논스펠 · 마리와 마르코',
-    type: 'nonspell', boss: '마르코', bossColor: '#e0c89a', hp: 1100, time: 35, start: [240, 100],
+    type: 'nonspell', boss: '마르코', bossColor: '#e0c89a', hp: 1300, time: 38, start: [240, 100],
     *run(s) {
       const mari = churchDuo(s, [120, 80]);
       let holding = false;
@@ -481,7 +481,7 @@ const SPELLS = [
   },
   {
     name: '필리우스 제2식 — 그의 백성을 두르시리로다',
-    type: 'spell', boss: '마르코', bossColor: '#e0c89a', hp: 1200, time: 70, start: [232, 95],
+    type: 'spell', boss: '마르코', bossColor: '#e0c89a', hp: 1400, time: 74, start: [232, 95],
     *run(s) {
       // 마리가 둘을 감싸는 구역 보호막을 세움. 보호막이 서 있는 동안은 자기 탄이 들어가지 않음
       // → 마리가 다시 영창하는 동안(보호막이 없는 동안)이 공격할 때

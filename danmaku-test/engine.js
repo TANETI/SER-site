@@ -779,6 +779,14 @@ class Game {
         if (b.shield > 0) { this.fx.push({ kind: 'block', x: s.x, y: s.y, t: 0, life: 10 }); SFX.block(); continue; }
         this.damageBoss(shotDamage(s)); b.hurt = 3;
       }
+      // 함께 싸우는 동료(마리 등)도 맞으면 보스 체력바를 깎음
+      if (!s.dead && this.phase === 'active') for (const a of this.partners) {
+        if (!a.hittable || dist2(s.x, s.y, a.x, a.y) >= 30 * 30) continue;
+        s.dead = true;
+        if (a.shield > 0) { this.fx.push({ kind: 'block', x: s.x, y: s.y, t: 0, life: 10 }); SFX.block(); break; }
+        this.damageBoss(shotDamage(s)); a.hurt = 3;
+        break;
+      }
       if (s.dead && Math.random() < 0.2) this.fx.push({ kind: 'hit', x: s.x, y: s.y, t: 0, life: 8, color: s.color });
     }
     this.shots = this.shots.filter(s => !s.dead);
@@ -917,7 +925,8 @@ function makeAPI(G) {
     move(x, y, dur = 60, who) { G.moveBoss(x, y, dur, who); },
     // 함께 싸우는 동료(체력 없음, 공격받지 않음): {name,x,y,color}
     partner(o = {}) {
-      const a = { name: o.name || '', x: o.x ?? W / 2, y: o.y ?? -40, color: o.color || '#cfe8ff', t: 0, shield: 0, glow: 0, contact: false, move: null };
+      // hittable: 내 탄에 맞음(피해는 보스 체력바를 함께 깎음)
+      const a = { name: o.name || '', x: o.x ?? W / 2, y: o.y ?? -40, color: o.color || '#cfe8ff', t: 0, shield: 0, glow: 0, contact: false, move: null, hittable: !!o.hittable };
       if (o.to) G.moveBoss(o.to[0], o.to[1], o.dur ?? 45, a);
       G.partners.push(a);
       return a;
@@ -1093,7 +1102,7 @@ function drawActor(G, g, a, isBoss) {
     g.beginPath(); g.roundRect(a.x - w / 2, a.y - h / 2, w, h, 8); g.stroke();
     if (a.hurt > 0) { g.globalAlpha = 0.45; g.fillStyle = '#fff'; g.beginPath(); g.roundRect(a.x - w / 2, a.y - h / 2, w, h, 8); g.fill(); }
     g.restore();
-    if (isBoss) {
+    if (isBoss || a.hittable) {
       // 피격 지점(몸통 판정 16px)
       g.strokeStyle = '#ff3b4a'; g.lineWidth = 1.5; g.beginPath(); g.arc(a.x, a.y, 16, 0, TAU); g.stroke();
       g.fillStyle = '#ff3b4a'; g.beginPath(); g.arc(a.x, a.y, 2, 0, TAU); g.fill();
