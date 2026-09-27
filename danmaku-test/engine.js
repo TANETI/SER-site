@@ -361,13 +361,15 @@ class Game {
   // carry=true면 본게임에서 앞 스테이지의 목숨·파워를 이어받음(파워는 그 스테이지 기준값보다 1 넘게 낮지 않게, 폭탄은 다시 채움)
   startRun(run, carry = false) {
     // 보스전 동안 쌓는 상태(김예나 시청자 수 등)는 다시 시작하면 초기화
-    this.run = { ...run, idx: 0, bars: this.barsOf(run.seq, run.pages), yena: undefined };
+    // 본게임에서 도중(잡몹 구간)이 있으면 그것부터(idx -1). 패턴 테스트 룸의 보스전은 보스부터
+    const staged = !!(run.stage && this.story);
+    this.run = { ...run, idx: staged ? -1 : 0, bars: this.barsOf(run.seq, run.pages), yena: undefined, afterStage: false };
     if (carry && this.player) {
       const p = this.player;
       if (!this.powerLock) p.power = Math.max(p.power, (run.power ?? 0) - 1);
       p.bombs = Math.max(p.bombs, START_BOMBS); this.items = [];
     } else this.resetLives(run.power ?? 0);
-    this.start(this.spells.indexOf(run.seq[0]));
+    this.start(this.spells.indexOf(staged ? run.stage : run.seq[0]));
   }
   // 본게임: 스테이지(보스전)를 차례로. 게임 오버면 그 스테이지부터 다시(컨티뉴, 점수는 0부터)
   startStory(key) {
@@ -397,7 +399,8 @@ class Game {
     this.items = this.items || [];
     this.tasks.clear(); this.error = '';
     this.player = this.player || {};
-    const cont = this.run && this.run.idx > 0, prev = this.boss;
+    // cont: 보스전 안에서 이어지는 패턴(도중 뒤 첫 보스 포함). 기체 자리·곡을 이어 감
+    const cont = this.run && (this.run.idx > 0 || (this.run.idx === 0 && this.run.afterStage)), prev = this.boss;
     if (!cont) Object.assign(this.player, { x: W / 2, y: H - 48, options: [] });
     Object.assign(this.player, { inv: 60, fireT: 0, bomb: null, flash: 0, stun: 0 });
     this.stats = { miss: 0, hits: 0, bombs: 0, dmgLog: new Array(60).fill(0), dmgNow: 0 };
@@ -409,14 +412,20 @@ class Game {
     if (cont && prev && !prev.hidden) { b.x = prev.x; b.y = prev.y; }
     // 배경음악: 이 보스의 폴더 곡. 보스전 도중 곡이 없는 보스면 앞 곡을 이어 감. 같은 곡이면 처음으로 돌리지 않음
     // bgmRate: 곡 재생 속도(폭주 마르코 1.2). 함수면 게임 상태로 정함(김예나 시청자 수 단계)
-    BGM.playBoss(sp.boss, cont, (typeof sp.bgmRate === 'function' ? sp.bgmRate(this) : sp.bgmRate) || 1);
+    // 도중은 bgm(스테이지 폴더 이름)으로 곡을 찾음
+    BGM.playBoss(sp.bgm || sp.boss, cont, (typeof sp.bgmRate === 'function' ? sp.bgmRate(this) : sp.bgmRate) || 1);
     // 보스전 시작이나 보스가 바뀔 때(중간 보스 → 보스) 가운데에 소개
     if (this.run && sp.boss && (!cont || !prev || prev.name !== sp.boss)) {
       this.fx.push({ kind: 'intro', top: cont ? '' : this.run.title, text: sp.boss, t: 0, life: 130 });
     }
+    // 도중 시작: 스테이지 이름
+    if (this.run && sp.type === 'stage' && this.run.idx < 0) {
+      const [top, ...rest] = this.run.title.split(' · ');
+      this.fx.push({ kind: 'intro', top, text: rest.join(' · ') || top, t: 0, life: 150 });
+    }
     this.moveBoss(sp.start?.[0] ?? W / 2, sp.start?.[1] ?? 110, 45);
     // 같은 체력바의 논스펠 → 스펠은 짧게 이어짐
-    const sameBar = cont && this.run.bars && this.run.bars[this.run.idx] === this.run.bars[this.run.idx - 1];
+    const sameBar = cont && this.run.idx > 0 && this.run.bars && this.run.bars[this.run.idx] === this.run.bars[this.run.idx - 1];
     this.frame = 0; this.phase = 'intro'; this.phaseT = sameBar ? 45 : cont ? 100 : 70;
     // 제한시간도 난이도별 체력 배율을 따라가 난이도와 상관없이 '필요 시간/제한시간' 비율이 같게 함
     this.timer = this.timerMax = Math.round((sp.time || 30) * 60 * k * (scaled ? HP_MUL[this.effDiff()] : 1));
@@ -437,6 +446,7 @@ class Game {
   next() {
     const r = this.run;
     if (r) {
+      if (r.idx < 0) r.afterStage = true;
       r.idx++;
       if (r.idx < r.seq.length) this.start(this.spells.indexOf(r.seq[r.idx]));
       else if (this.story) {
@@ -493,6 +503,7 @@ class Game {
     this.phase = 'result'; this.phaseT = 170;
     const bars = this.run && this.run.bars;
     if (bars && bars[this.run.idx + 1] === bars[this.run.idx]) { this.result.quiet = true; this.phaseT = 30; }
+    if (this.run && this.run.idx < 0) { this.result.quiet = true; this.phaseT = 50; }   // 도중이 끝나면 결과 화면 없이 보스 등장
     // 보스전 마지막 패턴을 격파(내구 스펠은 버팀)하면 배경음악이 자연스럽게 줄어들며 끝남
     if (this.run && this.run.idx >= this.run.seq.length - 1 && (reason === 'defeat' || sp.survival)) BGM.fadeOut(3);
   }
@@ -577,7 +588,9 @@ class Game {
       const sl = this.surgeLevel();
       if (sl > (this.surgeLv ?? 0) && !this.boss.hidden) {
         this.fx.push({ kind: 'text', text: sl === 1 ? '격화 II' : '격화 III', x: this.boss.x, y: this.boss.y - 40, t: 0, life: 70 });
-        this.shake(3); SFX.spell();
+        this.fx.push({ kind: 'burst', x: this.boss.x, y: this.boss.y, t: 0, life: 40, color: sl === 1 ? '#f5c542' : '#ff5e7a' });
+        this.boss.glow = 40;
+        this.shake(sl === 1 ? 4 : 6); SFX.spell();
       }
       this.surgeLv = sl;
       this.tasks.step();
@@ -882,6 +895,9 @@ function makeAPI(G) {
     get slow() { return G.slowFactor(); },   // 지금 적 탄 속도 배율(불렛타임·오버클럭)
     // 필드 하단 게이지 {v: 0~1, color, flash}. 패턴이 객체를 들고 v를 바꾸면 그대로 그려짐. null이면 숨김
     setGauge(o) { G.gauge = o; return o; },
+    spin: v => v * (0.85 + 0.4 * G.heat()),
+    get surge() { return G.surgeLevel(); },   // 격화 단계 0·1·2(격화 I·II·III)
+    arms: n => n + G.surgeLevel(),             // 회전벽 등의 줄 수: 격화 II에서 한 줄, III에서 한 줄 더(3줄 → 4줄 → 5줄)   // 회전량(회전벽·도는 레이저). 격화되면 촘촘해지는 대신 더 빨리 돎(×0.85→1.25)
     sp: v => v * SPEED[G.effDiff()] * (0.95 + 0.1 * G.heat()),                  // 탄속(격화 ×0.95→1.05)                                             // 탄속
     // 머리 위 말풍선(대사 대신 짧은 절차 표시용): who=보스·동료
     // 화면 흔들림(세기 2~12 정도)과 충격음
@@ -940,6 +956,8 @@ function makeAPI(G) {
     },
     // 중심 각도 center에서 gap 간격으로 n발
     spread(n, center, gap, o = {}) {
+      // 격화 III: 세 발 이상 부채꼴은 바깥에 한 발씩 더(3way → 5way). fixed: true면 그대로
+      if (n >= 3 && !o.fixed && G.surgeLevel() >= 2) n += 2;
       const out = [];
       for (let i = 0; i < n; i++) out.push(s.fire({ ...o, ang: center + (i - (n - 1) / 2) * gap }));
       return out;
@@ -1259,8 +1277,9 @@ function drawEnemies(G, g) {
     // 날개 오르트로스 자리표시
     const flap = Math.sin(e.t * 0.3) * 0.4;
     g.fillStyle = 'rgba(200,200,215,0.85)';
+    const k = e.r / 14;   // 중형은 날개도 크게
     for (const s of [-1, 1]) {
-      g.save(); g.translate(e.x + s * 6, e.y - 2); g.scale(s, 1); g.rotate(-0.4 + flap);
+      g.save(); g.translate(e.x + s * 6 * k, e.y - 2); g.scale(s * k, k); g.rotate(-0.4 + flap);
       g.beginPath(); g.ellipse(12, 0, 13, 5, 0, 0, TAU); g.fill(); g.restore();
     }
     g.fillStyle = e.hurt > 0 ? '#fff' : '#2a1030';
@@ -1733,7 +1752,7 @@ function drawFieldUI(G, g) {
     g.fillStyle = '#f5c542'; g.font = 'bold 10px system-ui, "Malgun Gothic", sans-serif'; g.textBaseline = 'top'; g.textAlign = 'left';
     g.fillText(`격화 ${['I', 'II', 'III'][G.surgeLevel()]}`, 8, 12);
   }
-  if (run && bars) {
+  if (run && bars && run.idx >= 0) {
     // 이 보스의 몇 번째 페이지인지(페이지의 보스 = 그 페이지 마지막 패턴의 보스)
     const pageBoss = pg => { let last = -1; bars.forEach((v, i) => { if (v === pg) last = i; }); return run.seq[last].boss; };
     const cur = bars[run.idx], boss = pageBoss(cur), all = [...new Set(bars)].filter(pg => pageBoss(pg) === boss);
@@ -1851,7 +1870,7 @@ function drawHUD(G, g) {
   if (G.story) {
     // 본게임: 개발 정보 대신 이번 판 스펠카드 획득 수와 남은 체력바
     const sc = G.story.cards || { got: 0, tried: 0 }, bars = G.run && G.run.bars;
-    const left = bars ? bars[bars.length - 1] - bars[G.run.idx] + 1 : 0;
+    const left = bars ? bars[bars.length - 1] - (G.run.idx < 0 ? 0 : bars[G.run.idx]) + 1 : 0;
     g.font = font(12); g.fillStyle = '#8e8ea6'; g.fillText('스펠카드', x, y); g.fillText('남은 체력바', x, y + 20);
     g.fillStyle = '#fff'; g.font = font(13, true); g.textAlign = 'right';
     g.fillText(`${sc.got} / ${sc.tried}`, x + w, y); g.fillText(String(left), x + w, y + 20); g.textAlign = 'left';

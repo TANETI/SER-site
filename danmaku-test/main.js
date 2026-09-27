@@ -56,14 +56,14 @@ function fillSpells() {
   const STAGE_OF = { '윤도연': '1스테이지', '고현성': '1스테이지', '마리': '2스테이지', '마르코': '2스테이지', '김예나': '3스테이지-1', '차서린': '3스테이지-2', '고태웅': '3스테이지-3', '아즈라엘': '5스테이지', '예로니모': '6스테이지',
     '리크니스': '7스테이지', '예로니모(진심)': '엑스트라', '이즘': '엑스트라 2' };
   const order = ['윤도연', '고현성', '마리', '마르코', '김예나', '차서린', '고태웅', '아즈라엘', '예로니모', '리크니스', '예로니모(진심)', '이즘', ''];
-  const groups = new Map(order.map(k => [k, []]));
+  const groups = new Map([['도중', []], ...order.map(k => [k, []])]);
   SPELLS.forEach((sp, i) => {
-    const key = sp.boss && groups.has(sp.boss) ? sp.boss : '';
+    const key = sp.type === 'stage' && sp.bgm ? '도중' : sp.boss && groups.has(sp.boss) ? sp.boss : '';
     groups.get(key).push(new Option(`${i + 1}. ${sp.name}`, i));
   });
   for (const [key, opts] of groups) {
     if (!opts.length) continue;
-    group(key ? `${STAGE_OF[key]} · ${key}${key === '윤도연' || key === '마리' ? ' (중간 보스)' : key === '마르코' ? ' (합류 · 폭주)' : ''}` : '시험 패턴 (보스전에 쓰지 않음)').append(...opts);
+    group(key === '도중' ? '도중 · 잡몹 구간 (본게임에서 보스 앞)' : key ? `${STAGE_OF[key]} · ${key}${key === '윤도연' || key === '마리' ? ' (중간 보스)' : key === '마르코' ? ' (합류 · 폭주)' : ''}` : '시험 패턴 (보스전에 쓰지 않음)').append(...opts);
   }
 }
 fillSpells();
