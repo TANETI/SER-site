@@ -549,8 +549,10 @@ class Game {
   slowFactor() {
     const sl = this.slow;
     if (!sl) return 1;
-    const ramp = Math.min(1, sl.t / 20, (sl.dur - sl.t) / 20);
-    return 1 + (sl.k - 1) * Math.max(0, ramp);
+    // 시작: from→k로 20프레임, 끝: 1로 20프레임
+    const a = Math.min(1, sl.t / 20), e = Math.max(0, Math.min(1, (sl.dur - sl.t) / 20));
+    const v = (sl.from ?? 1) + (sl.k - (sl.from ?? 1)) * a;
+    return 1 + (v - 1) * e;
   }
 
   updateBullets() {
@@ -718,6 +720,7 @@ function makeAPI(G) {
     cnt: n => Math.max(1, Math.round(n * DENSITY[G.effDiff()] * (1 + 0.2 * G.heat()))),     // 탄 개수
     wait: f => Math.max(1, Math.round(f * INTERVAL[G.effDiff()] / (1 + 0.15 * G.heat()))),  // 발사 간격(프레임)
     get heat() { return G.heat(); },
+    get slow() { return G.slowFactor(); },   // 지금 적 탄 속도 배율(불렛타임·오버클럭)
     sp: v => v * SPEED[G.effDiff()],                                             // 탄속
     // 머리 위 말풍선(대사 대신 짧은 절차 표시용): who=보스·동료
     // 화면 흔들림(세기 2~12 정도)과 충격음
@@ -814,7 +817,12 @@ function makeAPI(G) {
       return a;
     },
     // 불렛타임: frames 동안 적 탄이 k배 속도로 움직임. 플레이어는 그대로
-    bulletTime(k, frames) { G.slow = { k, dur: frames, t: 0 }; k < 1 ? SFX.slowIn() : SFX.overclock(); },
+    // 이미 배율이 걸려 있으면 지금 배율에서 새 배율로 20프레임에 걸쳐 넘어감(불렛타임 도중 오버클럭 등)
+    bulletTime(k, frames) {
+      const from = G.slowFactor();
+      G.slow = { k, dur: frames, t: 0, from };
+      if (k < from) SFX.slowIn(); else if (k > from && k !== 1) SFX.overclock();   // 원래 속도로 돌아갈 때는 소리 없음
+    },
     // 보호막: 통상탄을 막음(봄은 통과)
     shield(who, frames) { who.shield = frames; who.shieldMax = frames; },
     // 고정 구역 보호막: 안으로 들어온 자기 탄을 지움 {x,y,r,dur}
@@ -1373,13 +1381,13 @@ function drawHitbox(G, g) {
 function drawFieldUI(G, g) {
   const b = G.boss, sp = G.spell;
   if (G.slow) {
-    // 불렛타임은 화면이 푸르게, 오버클럭은 붉게. 남은 시간 막대
-    const over = G.slow.k > 1, k = (1 - G.slowFactor()) / (1 - G.slow.k);
+    // 불렛타임은 화면이 푸르게, 오버클럭(직전보다 빨라짐)은 붉게. 끝이 정해진 경우만 남은 시간 막대
+    const over = G.slow.k > (G.slow.from ?? 1) || G.slow.k > 1, k = Math.min(1, Math.abs(1 - G.slowFactor()) / 0.5);
     const tint = over ? '#ff4a5a' : '#4fa8ff', ink = over ? '#ffc2c8' : '#bfe4ff';
     g.globalAlpha = 0.16 * k; g.fillStyle = tint; g.fillRect(0, 0, W, H);
     g.globalAlpha = 1; g.fillStyle = ink; g.font = 'bold 13px Consolas, monospace'; g.textAlign = 'left'; g.textBaseline = 'top';
     g.fillText(over ? 'OVERCLOCK' : 'BULLET TIME', 8, H - 22);
-    g.globalAlpha = 0.8; g.fillRect(100, H - 17, (W - 110) * (1 - G.slow.t / G.slow.dur), 4); g.globalAlpha = 1;
+    if (G.slow.dur < 9999) { g.globalAlpha = 0.8; g.fillRect(100, H - 17, (W - 110) * (1 - G.slow.t / G.slow.dur), 4); g.globalAlpha = 1; }
   }
   g.font = '12px system-ui, "Malgun Gothic", sans-serif'; g.textBaseline = 'top';
   if (!b.hidden && !sp.survival) {

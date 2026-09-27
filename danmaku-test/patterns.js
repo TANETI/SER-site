@@ -1014,13 +1014,11 @@ const SPELLS = [
         for (let i = 0; i < n; i++) lamps.push(s.fire({ ang: Math.PI / 2 + (i - (n - 1) / 2) * 0.4, spd: 2.2, accel: -0.04, minSpd: 0.25, shape: 'big', color: 'orange' }));
         for (let t = 0; t < 8; t++) {
           for (const L of lamps) if (!L.dead) s.ring(s.lv(4, 6, 7, 8, 8), { x: L.x, y: L.y, offset: t * 0.4, spd: s.sp(1.3), shape: 'small', color: 'orange' });
-          if (t % 2) s.spread(s.lv(1, 3, 3, 5, 5), s.aim(), 0.2, { spd: s.sp(2.6), shape: 'rice', color: 'white' });
           yield 20;
         }
         // 꺼져 감: 흐려지며 멈춤. 판정은 남으므로 완전히 사라지지 않게 35%까지만. 그동안 보스의 느린 원형탄
         for (let t = 0; t < 60; t++) {
           for (const L of lamps) { L.alpha = 1 - 0.65 * t / 60; L.spd *= 0.95; }
-          if (t % 30 === 0) s.ring(s.cnt(18), { offset: s.rand(0, s.TAU), spd: s.sp(1.4), shape: 'small', color: 'yellow' });
           yield 1;
         }
         yield 20;
@@ -1048,7 +1046,6 @@ const SPELLS = [
         for (let i = 0; i < arms; i++) s.fire({ ang: a + i * s.TAU / arms, spd: s.sp(2.4), shape: 'link', color: 'gold' });
         if (s.diff >= 1 && f % 2 === 0) for (let i = 0; i < 3; i++) s.fire({ ang: -f * 0.06 + i * s.TAU / 3 + Math.PI / 3, spd: s.sp(1.8), shape: 'small', color: 'yellow' });
         if (f % 5 === 0) s.spread(s.lv(1, 3, 3, 3, 5), s.aim(), 0.15, { spd: s.sp(4), shape: 'knife', color: 'white' });
-        if (f % 16 === 8) s.ring(s.cnt(16), { offset: s.rand(0, s.TAU), spd: s.sp(1.4), shape: 'small', color: 'white' });
         if (f % 40 === 39) yield* s.wander(40, 50);
         yield s.lv(9, 8, 7, 7, 6);
       }
@@ -1072,7 +1069,6 @@ const SPELLS = [
           for (let k = 0; ; k++) {
             yield s.wait(14);
             s.spread(s.lv(1, 3, 3, 3, 5), s.aim(), 0.2, { spd: s.sp(2.6), shape: 'rice', color: 'gold' });
-            if (k % 3 === 0) s.ring(s.cnt(16), { offset: s.rand(0, s.TAU), spd: s.sp(1.5), shape: 'small', color: 'white' });
           }
         }());
         for (let k = 0; k < s.lv(3, 4, 5, 5, 6); k++) {
@@ -1118,7 +1114,7 @@ const SPELLS = [
           }
           yield s.wait(14);
         }
-        for (let k = 0; k < 3; k++) { s.spread(s.lv(1, 3, 3, 5, 5), s.aim(), 0.18, { spd: s.sp(3.4), shape: 'knife', color: 'white' }); yield s.wait(10); }
+        for (let k = 0; k < 2; k++) { s.spread(s.lv(1, 3, 3, 3, 5), s.aim(), 0.18, { spd: s.sp(3.4), shape: 'knife', color: 'white' }); yield s.wait(12); }
         yield s.wait(14);
         if (w % 4 === 0) yield* s.wander();
       }
@@ -1167,13 +1163,13 @@ const SPELLS = [
           s.impact(7);
           const n = s.lv(4, 6, 8, 8, 10), off = s.rand(0, s.TAU), warn = s.lv(45, 40, 34);
           for (let i = 0; i < n; i++) s.chain({ x: tx, y: ty, ang: off + i * s.TAU / n, len: 520, warn, shoot: 10, hold: 14, retract: 70 });
-          yield* aimWhile(s, warn + 30, 'gold');
+          yield warn + 30;   // 사슬이 뻗은 동안은 본체가 쏘지 않음(사슬에 집중)
           s.ring(s.cnt(20), { offset: off + Math.PI / n, spd: 0.5, accel: 0.03, maxSpd: s.sp(2.2), shape: 'orb', color: 'gold' });
           yield 10;
           s.ring(s.cnt(20), { offset: off, spd: 0.4, accel: 0.025, maxSpd: s.sp(1.5), shape: 'small', color: 'yellow' });
           yield 30;
           s.move(s.rand(140, 244), s.rand(80, 110), 40);
-          for (let t = 0; t < 40; t += 10) { s.spread(s.lv(3, 3, 5, 5, 7), s.aim(), 0.2, { spd: s.sp(2.4), shape: 'rice', color: 'gold' }); yield 10; }
+          yield 40;
         }
         yield 30;
       }
@@ -1206,8 +1202,7 @@ const SPELLS = [
         yield s.lv(70, 60, 50) - 5;
         // 사슬이 뻗어 있는 동안 탄막: 원형탄이 한 방향으로 조금씩 돌며 이어지고, 조준탄을 섞음
         for (let k = 0; k < 10; k++) {
-          if (k % s.lv(2, 1, 1) === 0) s.ring(s.cnt(14), { offset: k * 0.13, spd: s.sp(1.7), shape: 'orb', color: 'yellow' });
-          if (k % 2 === 1) s.spread(s.lv(1, 3, 3, 5, 5), s.aim(), 0.14, { spd: s.sp(3.2), shape: 'rice', color: 'gold' });
+          if (k % 3 === 0) s.ring(s.cnt(12), { offset: k * 0.13, spd: s.sp(1.7), shape: 'orb', color: 'yellow' });   // 큰 패턴이라 본체 탄은 가볍게
           yield 14;
         }
         yield 10;
@@ -1245,7 +1240,7 @@ const SPELLS = [
       // 등불마다 도는 방향이 달라 불씨 줄이 엇갈림
       for (let cycle = 0; ; cycle++) {
         const light = s.task(function* () {
-          for (;;) { s.spread(3, s.aim(), 0.3, { spd: s.sp(2.2), shape: 'small', color: 'white' }); yield s.wait(34); }
+          for (;;) { s.spread(1, s.aim(), 0.3, { spd: s.sp(2.2), shape: 'small', color: 'white' }); yield s.wait(40); }
         }());
         yield* castGap(s);
         yield* s.chant('SPIRITUS1', { by: s.boss });
@@ -1333,7 +1328,7 @@ const SPELLS = [
                   } });
               }
             } });
-          for (let t = 0; t < 40; t += 10) { s.spread(s.lv(1, 3, 3, 3, 5), s.aim(), 0.22, { spd: s.sp(2.4), shape: 'rice', color: 'gold' }); yield 10; }
+          yield 40;   // 울타리가 주인 큰 패턴이라 본체는 쏘지 않음
         }
         yield 70;
         yield* s.wander(50, 50);
@@ -1347,7 +1342,7 @@ const SPELLS = [
       // 교차 사슬: 위쪽 두 모서리에서 플레이어 자리를 지나는 사슬이 X자로 뻗음(예고선 뒤). 옆으로 비키고,
       // 그사이 보스가 고리 원형탄을 천천히 깖
       s.task(function* () {
-        for (let k = 0; ; k++) { s.ring(s.cnt(18), { offset: k * 0.17, spd: s.sp(1.5), shape: 'link', color: 'yellow' }); yield s.wait(36); }
+        for (let k = 0; ; k++) { s.ring(s.cnt(14), { offset: k * 0.17, spd: s.sp(1.5), shape: 'link', color: 'yellow' }); yield s.wait(54); }
       }());
       for (let w = 0; ; w++) {
         const tx = s.player.x, ty = s.player.y, warn = s.lv(50, 46, 42, 40, 40);
@@ -1389,7 +1384,7 @@ const SPELLS = [
           const n = s.lv(4, 5, 6, 6, 7), off = s.rand(0, s.TAU), cw = s.lv(45, 40, 36);
           for (let i = 0; i < n; i++) s.chain({ x: tx, y: ty, ang: off + i * s.TAU / n, len: 520, warn: cw, shoot: 10, hold: 10, retract: 50 });
           if (k === dashes - 1) for (let i = 0; i < n; i++) s.chain({ x: tx, y: ty, ang: off + (i + 0.5) * s.TAU / n, len: 520, warn: cw + 50, shoot: 10, hold: 10, retract: 50 });
-          yield* aimWhile(s, cw + 20, 'gold');
+          yield cw + 20;   // 사슬이 뻗은 동안은 본체가 쏘지 않음
           s.ring(s.cnt(20), { offset: off + Math.PI / n, spd: 0.5, accel: 0.03, maxSpd: s.sp(2.2), shape: 'orb', color: 'gold' });
           yield 16;
         }
@@ -1430,8 +1425,7 @@ const SPELLS = [
         for (let i = 0; i < n; i++) { edgeChain(i === 0 ? { x: s.player.x, y: s.player.y } : null); yield 6; }
         yield s.lv(64, 56, 48, 46, 44);
         for (let k = 0; k < 8; k++) {
-          if (k % 2 === 0) s.ring(s.cnt(14), { offset: k * 0.19, spd: s.sp(1.7), shape: 'orb', color: 'yellow' });
-          if (k % 3 === 2) s.spread(s.lv(3, 3, 5), s.aim(), 0.14, { spd: s.sp(3.2), shape: 'rice', color: 'gold' });
+          if (k % 4 === 0) s.ring(s.cnt(12), { offset: k * 0.19, spd: s.sp(1.7), shape: 'orb', color: 'yellow' });   // 남는 고리가 주인 큰 패턴이라 본체 탄은 가볍게
           yield 16;
         }
         yield 30;
@@ -1504,7 +1498,7 @@ const SPELLS = [
       for (let w = 1; ; w++) {
         const n = s.lv(3, 4, 5), base = s.rand(0, s.TAU);
         for (let i = 0; i < n; i++) s.task(ivyVine(s, { x: s.boss.x, y: s.boss.y, ang: base + i * s.TAU / n, spd: s.sp(2.2), len: 160, turn: 0.035, phase: i, stay: s.lv(70, 90, 110) }));
-        for (let k = 0; k < 3; k++) { yield s.wait(30); s.spread(s.lv(1, 3, 3), s.aim(), 0.2, { spd: s.sp(3), shape: 'leaf', color: 'ivy' }); }
+        for (let k = 0; k < 3; k++) { yield s.wait(30); if (k !== 1) s.spread(s.lv(1, 3, 3), s.aim(), 0.2, { spd: s.sp(3), shape: 'leaf', color: 'ivy' }); }
         yield s.wait(60);
         if (w % 3 === 0) yield* s.wander();
       }
@@ -1533,7 +1527,7 @@ const SPELLS = [
             head.dead = true;
           }());
         }
-        for (let k = 0; k < 6; k++) { s.spread(s.lv(3, 4, 5), s.aim(), 0.25, { spd: s.sp(2.6), shape: 'leaf', color: 'ivy' }); yield s.wait(35); }
+        yield s.wait(35) * 6;   // 큰 패턴이라 본체는 쏘지 않음(덩굴에 집중)
         yield s.wait(120);
       }
     },
@@ -1548,7 +1542,7 @@ const SPELLS = [
         a += 0.11;
         const arms = s.lv(2, 3, 4);
         for (let i = 0; i < arms; i++) s.fire({ ang: a + i * s.TAU / arms, spd: s.sp(2.2), angVel: 0.006, shape: 'leaf', color: 'ivy' });
-        if (f % 20 === 0 && s.diff > 0) s.ring(s.cnt(16), { offset: -a, spd: s.sp(1.4), shape: 'small', color: 'pink' });
+        if (f % 40 === 0 && s.diff > 0) s.ring(s.cnt(16), { offset: -a, spd: s.sp(1.4), shape: 'small', color: 'pink' });
         if (f % 300 === 299) yield* s.wander(40, 50);
         yield s.lv(6, 5, 4);
       }
@@ -1595,7 +1589,7 @@ const SPELLS = [
           x: s.boss.x + side * 20, y: s.boss.y, ang: Math.PI / 2 - side * 1.2, spd: s.sp(3), len: 140,
           curl: side * s.lv(0.018, 0.02, 0.022, 0.024, 0.026), turn: 0.01, stay: s.lv(60, 80, 100),
         }));
-        for (let k = 0; k < 3; k++) { yield s.wait(25); s.spread(s.lv(3, 5, 5, 7), s.aim(), 0.16, { spd: s.sp(3), shape: 'small', color: 'pink' }); }
+        for (let k = 0; k < 3; k++) { yield s.wait(25); if (k !== 1) s.spread(s.lv(1, 3, 3, 5), s.aim(), 0.16, { spd: s.sp(3), shape: 'small', color: 'pink' }); }
         yield s.wait(50);
         if (w % 3 === 0) yield* s.wander();
       }
@@ -1621,7 +1615,7 @@ const SPELLS = [
             step: (x, y, t) => { if (t % budEvery === 20) s.fire({ x, y, spd: 0, shape: 'big', color: 'pink', fn: bloom }); },
           }));
         }
-        for (let k = 0; k < 3; k++) { yield s.wait(60); if (s.diff > 0) s.spread(3, s.aim(), 0.3, { spd: s.sp(2.6), shape: 'leaf', color: 'ivy' }); }
+        yield s.wait(60) * 3;   // 큰 패턴이라 본체는 쏘지 않음(꽃에 집중)
         yield s.wait(40);
       }
     },
@@ -1651,7 +1645,7 @@ const SPELLS = [
           const a = gapAt + gap / 2 + (s.TAU - gap) * (i + 0.5) / n;
           s.fire({ x: cx + Math.cos(a) * R, y: cy + Math.sin(a) * R, ang: a + Math.PI, spd: 0.3, accel: 0.03, maxSpd: s.sp(2.2), shape: 'rice', color: 'pink' });
         }
-        for (let k = 0; k < 3; k++) { yield s.wait(40); s.spread(s.lv(1, 3, 3, 5, 5), s.aim(), 0.25, { spd: s.sp(2.4), shape: 'leaf', color: 'ivy' }); }
+        for (let k = 0; k < 3; k++) { yield s.wait(40); if (k === 1) s.spread(s.lv(1, 1, 3, 3, 3), s.aim(), 0.25, { spd: s.sp(2.4), shape: 'leaf', color: 'ivy' }); }
         yield s.wait(60);
       }
     },
@@ -1675,7 +1669,7 @@ const SPELLS = [
         }
         yield warn;
         for (const [x0, ang] of lines) s.task(ivyVine(s, { x: x0, y: -5, ang, spd: 6, len: 150, turn: 0, gapPx: s.lv(26, 22, 20, 19, 18), skip: 0, stay: s.lv(80, 90, 100), margin: 400 }));
-        for (let k = 0; k < 4; k++) { yield s.wait(36); s.spread(s.lv(1, 3, 3, 5, 5), s.aim(), 0.3, { spd: s.sp(3), shape: 'small', color: 'pink' }); }
+        yield s.wait(36) * 4;   // 큰 패턴이라 본체는 쏘지 않음
         yield s.wait(110);
       }
     },
@@ -1983,15 +1977,15 @@ const SPELLS = [
     name: '「열흘 같은 하루」(가칭)',
     type: 'spell', boss: '이즘', bossColor: '#8fe8ff', hp: 3000, time: 60, start: [192, 70],
     *run(s) {
-      // 불렛타임 동안 위에서 미로 띠가 약 10초 동안 이어져 내려옴. 좁은 통로를 따라 빠져나가야 함.
+      // 불렛타임 동안 위에서 미로 띠가 약 14초 동안 이어져 내려옴. 좁은 통로를 따라 빠져나가야 함.
       // 줄(12px 간격) 사이에는 기체가 설 자리가 없으므로 이웃한 두 줄의 통로가 겹쳐야 지나갈 수 있음.
       // 통로 폭 gapW는 통로 양쪽 탄 중심 사이 거리. 기체가 설 수 있는 폭은 gapW - 2×(탄 반지름 3 + 판정 2.4) = gapW - 10.8.
       // 줄마다 옮겨 가는 폭(shift)을 그보다 7px 이상 작게 둬서 어느 난이도에서도 두 줄의 통로가 겹침(막힌 미로 금지).
-      // 한 줄이 지나가는 동안(약 9.6프레임) 옮겨야 하는 거리는 shift 이하라 저속 이동(2px/프레임)으로도 따라갈 수 있음
+      // 한 줄이 기체를 지나가는 동안(약 8.6프레임) 다음 줄 통로로 옮겨야 하는 거리는 shift 이하라 저속 이동(1.6px/프레임)으로도 따라갈 수 있음
       const cell = 12, fall = 5, k = 0.25, v = fall * k, top = -10;
       for (;;) {
         const gapW = s.lv(48, 40, 32, 28, 26), shift = s.lv(8, 9, 10, 9, 8);
-        const rows = Math.round(600 * v / cell);          // 미로가 기체를 지나가는 시간 약 10초
+        const rows = Math.round(840 * v / cell);          // 미로가 기체를 지나가는 시간 약 14초
         const pre = 10;                                   // 처음 10줄은 한꺼번에 깔아 둠(y 110 → -10)
         const total = 20 + Math.ceil(((rows - pre) * cell + s.H + 40) / v) + 20;
         s.bulletTime(k, total);
@@ -2033,6 +2027,75 @@ const SPELLS = [
         }
         s.spread(s.lv(1, 3, 3, 5, 5), s.aim(), 0.25, { spd: s.sp(2.4), shape: 'rice', color: 'white' });
         yield 90;
+      }
+    },
+  },
+  {
+    name: '「백일몽」(가칭)',
+    type: 'spell', boss: '이즘', bossColor: '#8fe8ff', hp: 3200, time: 70, start: [192, 70],
+    *run(s) {
+      // 「열흘 같은 하루」의 강화판: 느려진 시간 속 미로 도중에 OVERCLOCK 경고가 뜨고 약 1.2초 동안 시간이 두 배로 빨라짐
+      // (미로가 두 배 빠르게 흘러옴). 빨라져도 따라갈 수 있게 통로가 줄마다 옮겨 가는 폭(shift)을 6px 이하로 둠:
+      // 빨라진 동안 한 줄이 기체를 지나는 시간 약 4.3프레임 × 저속 1.6px ≈ 6.9px > 6px.
+      // 통로 폭은 열흘 같은 하루보다 조금 넓게(기체가 설 수 있는 폭 gapW - 10.8, 이웃 줄과 헬에서도 11px 이상 겹침)
+      const cell = 12, fall = 5, slowK = 0.25, fastK = 0.5, top = -10;
+      for (;;) {
+        const gapW = s.lv(50, 42, 36, 32, 28), shift = s.lv(5, 6, 6, 6, 6);
+        const rows = s.lv(64, 72, 80, 84, 88);
+        s.bulletTime(slowK, 99999);
+        yield 20;
+        const path = [];
+        let cx = Math.max(gapW, Math.min(s.W - gapW, s.player.x)), dir = cx < s.W / 2 ? 1 : -1;
+        for (let r = 0; r < rows; r++) {
+          path.push(cx);
+          if (Math.random() < 0.2) dir = -dir;
+          if (cx + dir * shift < gapW || cx + dir * shift > s.W - gapW) dir = -dir;
+          cx += dir * shift * s.rand(0.6, 1);
+        }
+        const row = (r, y) => {
+          let first = null;
+          for (const side of [-1, 1]) for (let x = path[r] + side * gapW / 2; x > -cell && x < s.W + cell; x += side * cell) {
+            const b = s.fire({ x, y, ang: Math.PI / 2, spd: fall, shape: 'small', color: r % 2 ? 'purple' : 'cyan', marginTop: 200 });
+            first = first || b;
+          }
+          return first;
+        };
+        // 오버클럭: 미로가 기체에 닿은 뒤부터 약 3.5초마다. 0.75초 동안 경고(말풍선·빨라지는 경고음) → 1.2초 동안 두 배
+        let alive = true;
+        s.task(function* () {
+          yield 200;
+          while (alive) {
+            s.say(s.boss, 'OVERCLOCK', 45);
+            for (let t = 0; t < 45; t += 9) { s.sound('beep', t / 45); yield 9; }
+            if (!alive) break;
+            s.bulletTime(fastK, 99999);
+            yield 72;
+            s.bulletTime(slowK, 99999);
+            yield 210;
+          }
+        }());
+        let last = null, refY = 0;
+        const v = () => fall * s.slow;
+        const tick = () => { refY = last.dead ? refY + v() : last.y; };
+        for (let r = 0; r < 10; r++) last = row(r, 110 - r * cell);
+        refY = last.y;
+        for (let r = 10; r < rows; r++) {
+          while (refY - cell < top) { yield 1; tick(); }
+          last = row(r, refY - cell); refY = last.y;
+        }
+        while (refY < s.H + 20) { yield 1; tick(); }
+        alive = false;
+        s.clear();
+        s.bulletTime(1, 40);
+        yield 110;
+        // 숨 돌린 뒤: 느린 원형탄을 깔고 한 번 오버클럭(「오버클럭」의 압축판)
+        for (let k = 0; k < 5; k++) { s.ring(s.cnt(18), { offset: s.rand(0, s.TAU), spd: s.sp(0.75), shape: 'orb', color: 'cyan' }); yield s.wait(22); }
+        s.say(s.boss, 'OVERCLOCK', 45);
+        yield 45;
+        s.bulletTime(s.lv(2.2, 2.4, 2.6, 2.8, 3), 100);
+        yield 130;
+        s.clear();   // 남은 원형탄이 다음 미로와 겹치지 않게 지움
+        yield 30;
       }
     },
   },
@@ -2267,6 +2330,7 @@ const BOSS_RUNS = [
       spellOf('「오버클럭」(가칭)'),
       spellOf('「세이브 포인트」(가칭)'),
       spellOf('「열흘 같은 하루」(가칭)'),
+      spellOf('「백일몽」(가칭)'),
     ],
   },
 ];
