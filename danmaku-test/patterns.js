@@ -615,35 +615,46 @@ const SPELLS = [
     name: '파테르 제2식 — 능히 일어나지 못하게 하리니',
     type: 'spell', boss: '마르코', bossColor: '#e0c89a', bgmRate: 1.2, hp: 2500, time: 58, start: [192, 100],
     *run(s) {
-      // 폭주한 마르코의 마지막 스펠: 달려드는 제압. 돌진 횟수가 늘고 멈춘 자리에서 충격파가 두 겹
+      // 폭주한 마르코의 마지막 스펠: 달려드는 제압. 플레이어가 1초 전에 있던 자리로 끝까지 돌진하고, 착지한 자리에서 충격파
       marcoRage(s);
+      const hist = [];   // 플레이어 자리 기록(최근 1.5초)
+      s.task(function* () { for (;;) { hist.push({ x: s.player.x, y: s.player.y }); if (hist.length > 90) hist.shift(); yield 1; } }());
       for (;;) {
         const light = s.task(function* () {   // 영창하는 동안 느린 원형탄과 조준탄
           for (let k = 0; ; k++) {
-            s.ring(s.cnt(14), { offset: k * 0.29, spd: s.sp(1.5), shape: 'small', color: 'yellow' });
+            s.ring(s.cnt(16), { offset: k * 0.29, spd: s.sp(1.5), shape: 'small', color: 'yellow' });
             yield s.wait(34);
           }
         }());
         yield* castGap(s);
         yield* s.chant('PATER2', { by: s.boss, step: 50 });
         light.return();
-        for (let k = 0; k < s.lv(3, 3, 4, 4, 5); k++) {
-          // 플레이어 위치에서 70px 앞에 멈춤. 도착 지점에서 퍼지는 탄을 피할 거리를 남김
-          const px = s.player.x, py = s.player.y, d = Math.hypot(px - s.boss.x, py - s.boss.y) || 1;
-          const stop = Math.max(0, d - 70);
-          const tx = s.boss.x + (px - s.boss.x) / d * stop, ty = Math.min(s.boss.y + (py - s.boss.y) / d * stop, s.H - 120);
-          s.warnLine({ x: s.boss.x, y: s.boss.y, x2: tx, y2: ty, band: 32, dur: s.lv(48, 40, 32) });
-          yield* hardAim(s, s.lv(48, 40, 32), 'yellow');
+        for (let k = 0; k < s.lv(2, 2, 3, 3, 4); k++) {
+          // 목표는 1초 전 플레이어 자리. 멈추지 않고 그 자리까지 끝까지 달려듦(예고선이 그 자리까지 그어짐)
+          const back = hist[Math.max(0, hist.length - 61)] || s.player;
+          const tx = Math.max(24, Math.min(s.W - 24, back.x)), ty = Math.max(60, Math.min(s.H - 40, back.y));
+          const warn = s.lv(50, 44, 38, 36, 34);
+          s.warnLine({ x: s.boss.x, y: s.boss.y, x2: tx, y2: ty, band: 32, dur: warn });
+          yield* hardAim(s, warn, 'yellow');
           // 사거리가 없으므로 직접 달려듦. 돌진 중에는 몸에 닿아도 피격
           s.boss.contact = true;
-          yield* s.moveTo(tx, ty, 18);
+          // 달려드는 동안 지나간 자리 양옆으로 작은 탄을 흘림
+          const trail = s.task(function* () {
+            const ang = Math.atan2(ty - s.boss.y, tx - s.boss.x);
+            for (;;) {
+              for (const d of [-1, 1]) s.fire({ x: s.boss.x, y: s.boss.y, ang: ang + d * Math.PI / 2, spd: 0.4, accel: 0.02, maxSpd: s.sp(1.5), shape: 'small', color: 'yellow' });
+              yield 3;
+            }
+          }());
+          yield* s.moveTo(tx, ty, 20);
+          trail.return();
           s.boss.contact = false;
           s.impact(7);
-          s.ring(s.cnt(20), { spd: 0.6, accel: 0.04, maxSpd: s.sp(2.2), shape: 'orb', color: 'gold' });
-          yield 30;   // 붙든 자리에서 잠시 멈춤 = 공격 기회
+          s.ring(s.cnt(24), { offset: s.rand(0, s.TAU), spd: 0.6, accel: 0.04, maxSpd: s.sp(2.2), shape: 'orb', color: 'gold' });
+          yield 36;   // 붙든 자리에서 잠시 멈춤 = 공격 기회
           // 제자리로 물러남
-          s.move(s.rand(140, 244), s.rand(80, 110), 36);
-          yield 36;
+          s.move(s.rand(140, 244), s.rand(80, 110), 40);
+          yield 40 + s.wait(24);
         }
         yield 30;
       }
