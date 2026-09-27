@@ -161,69 +161,59 @@ function shotSprite(shape, color) {
 // 탄 한 발: {x,y,vx,vy,dmg,shape,color,homing,turn,life,laser}
 // 파워 단계 L(0~4)에 따라 구성이 바뀐다. 괄호 안은 정지 표적에 붙어 쏠 때 최대 파워 기준 초당 피해량
 // 모든 기체 공통 대미지 배율. 표 안의 대미지·주석의 초당 피해량은 배율 적용 전 값
-const SHOT_DMG = 1.4375;   // 1.25 × 1.15
+const SHOT_DMG = 1.65;   // 1.25 × 1.15 × 1.15
 function shot(out, x, y, a, spd, dmg, shape, color, extra) {
   out.push({ x, y, vx: Math.cos(a) * spd, vy: Math.sin(a) * spd, dmg: dmg * SHOT_DMG, shape, color, ...extra });
 }
 const UP = -Math.PI / 2;
 // 거리 감쇠가 있는 탄은 멀리 갈수록 약해짐(남은 수명 비율 기준)
 function shotDamage(s) { return s.falloff ? s.dmg * (0.45 + 0.85 * (1 - s.t / s.life)) : s.dmg; }
-// 파워 단계별 표: [0, 1, 2, 3, 4]. 탄 줄 수·발사 간격(틱)·한 발 대미지가 함께 오른다.
-// 낮은 파워는 적은 줄을 느리게 쏘는 대신 한 발이 조금 더 아프다.
-const SHOT_TYPES = {
-  // 아리엘: 바늘 1→3줄 + 첫 단계부터 적을 따라 휘는 유도 레이저(대미지 22, 파워가 오를수록 자주, 4에서 두 줄)
-  // 초당 피해량(대미지 배율 적용 전) 약 50 / 80 / 140 / 150 / 180. 레이저 몫이 커서 바늘은 가벼움
-  AR(p, out, focus, L) {
-    const t = p.fireT, n = [1, 2, 3, 3, 3][L], iv = [6, 5, 4, 3, 3][L], dmg = [3.4, 2.55, 2.6, 2.05, 1.9][L];
-    if (t % iv === 0) {
-      const gapX = focus ? 5 : 10, spread = focus ? 0 : 0.06;
-      for (let i = 0; i < n; i++) {
-        const k = i - (n - 1) / 2;
-        shot(out, p.x + k * gapX, p.y - 10, UP + k * spread, 18, dmg, 'needle', 'gold');
-      }
-    }
-    const every = [80, 70, 60, 50, 40][L];
-    if (t % every === 0) {
-      for (const k of L >= 4 ? [-1, 1] : [0]) shot(out, p.x + k * 8, p.y - 12, UP + k * 0.5, 11, 22, 'needle', 'white', { homing: true, turn: 0.18, laser: true, trail: [], life: 120 });
-    }
-  },
-  // 유리엘: 하이리스크 하이리턴. 유도 없음. 가시 2→7개, 간격 5→2틱.
-  // 사거리 약 360px이지만 멀리 날아갈수록 대미지가 줄고 흐려짐(가까이서 쏘면 약 1.15배, 끝에서는 약 0.5배).
-  // 붙어서 쏠 때 초당 피해량(대미지 배율 적용 전) 약 70 / 110 / 150 / 190 / 230, 화면 아래에서는 그 절반 남짓
-  UR(p, out, focus, L) {
-    const n = [2, 3, 4, 5, 7][L], iv = [5, 4, 3, 2, 2][L], dmg = [2.55, 2.1, 1.7, 1.25, 0.96][L] * (focus ? 1 : 0.9);
-    if (p.fireT % iv) return;
-    const gap = focus ? Math.min(0.045, 0.2 / Math.max(n - 1, 1)) : 0.11, wob = focus ? 0.01 : 0.03;   // 저속은 가시가 많아도 폭 0.2rad 안에 모음
-    for (let i = 0; i < n; i++) {
-      const a = UP + (i - (n - 1) / 2) * gap + (Math.random() * 2 - 1) * wob;
-      shot(out, p.x, p.y - 6, a, 14, dmg, 'thorn', 'red', { life: 25 + (Math.random() * 3 | 0), falloff: true });
-    }
-  },
-  // 루미엘(중립 선): 정면 바늘 1→2줄 + 첫 단계부터 빗나가지 않는 유도 부적(2→4장). 부적이 빗나가지 않는 대신 화력은 가장 낮음
-  // 초당 피해량(대미지 배율 적용 전) 약 45 / 90 / 105 / 140 / 165
-  LM(p, out, focus, L) {
-    const t = p.fireT, nN = [1, 2, 2, 2, 2][L], ivN = [6, 4, 3, 3, 3][L], dN = [2.2, 2.2, 1.8, 1.8, 1.8][L];
-    if (t % ivN === 0) for (let i = 0; i < nN; i++) shot(out, p.x + (nN > 1 ? (i ? 4 : -4) : 0), p.y - 10, UP, 16, dN, 'needle', 'pink');
-    const ks = [[-1, 1], [-1, 1], [-1, 1], [-1, -0.4, 0.4, 1], [-1, -0.4, 0.4, 1]][L], ivA = [10, 9, 7, 7, 5][L];
-    if (t % ivA === 0) {
-      const spreadA = focus ? 0.35 : 0.9;
-      for (const k of ks) shot(out, p.x + k * 10, p.y, UP + k * spreadA, 8, focus ? 1.9 : 1.7, 'amulet', 'purple', { homing: true, turn: focus ? 0.25 : 0.14, life: 90 });
-    }
-  },
-  // 라티엘(진 중립): 가운데 바늘 1→3줄 + 첫 단계부터 옵션 둘의 별탄(4에서 겹별). 고속은 넓게, 저속은 옵션이 앞으로 모임.
-  // 별탄은 잡몹을 꿰뚫고 지나가 여러 마리를 고르게 맞힘(보스에게는 한 번 맞고 사라짐)
-  // 초당 피해량(대미지 배율 적용 전) 약 50 / 80 / 145 / 175 / 190
-  RH(p, out, focus, L) {
-    const n = [1, 2, 3, 3, 3][L], iv = [6, 5, 4, 3, 3][L], dmg = [2.6, 2.2, 2.4, 1.7, 1.7][L];
-    if (p.fireT % iv) return;
-    for (let i = 0; i < n; i++) shot(out, p.x + (i - (n - 1) / 2) * 5, p.y - 10, UP, 16, dmg, 'needle', 'cyan');
-    for (const o of p.options) {
-      const a = UP + (focus ? 0 : Math.sign(o.x - p.x) * 0.12);
-      if (L >= 4) for (const d of [-3, 3]) shot(out, o.x + d, o.y - 4, a, 13, 1.1, 'star', 'blue', { pierce: [] });
-      else shot(out, o.x, o.y - 4, a, 13, L >= 3 ? 1.8 : 1.2, 'star', 'blue', { pierce: [] });
-    }
-  },
+
+// 모든 기체는 기본으로 유도탄을 쏜다(유도탄 모양·색은 기체마다). 기체의 특색은 본체 탄의 퍼짐·개수·속도·모양에서 나온다.
+// 표는 파워 단계 [0, 1, 2, 3, 4]. n=발 수, iv=발사 간격(틱), dmg=한 발 대미지(공통 배율 적용 전)
+const HOMING = {
+  AR: { n: [1, 1, 1, 1, 2], iv: [70, 60, 50, 45, 40], dmg: [22, 22, 22, 22, 22], spd: 9.5, turn: 0.18, spread: 0.5, shape: 'needle', color: 'white', laser: true },
+  UR: { n: [2, 2, 2, 3, 4], iv: [12, 10, 9, 8, 7], dmg: [1.2, 1.2, 1.2, 1.2, 1.2], spd: 8, turn: 0.14, spread: 0.9, shape: 'amulet', color: 'orange' },
+  LM: { n: [2, 2, 2, 4, 4], iv: [10, 9, 7, 7, 5], dmg: [1.8, 1.8, 1.8, 1.8, 1.8], spd: 7, turn: 0.16, spread: 0.9, shape: 'amulet', color: 'purple' },
+  RH: { n: [2, 2, 2, 2, 4], iv: [10, 9, 8, 7, 6], dmg: [1.2, 1.2, 1.2, 1.2, 1.2], spd: 8.5, turn: 0.15, spread: 0.35, shape: 'star', color: 'blue', fromOptions: true, pierce: true },
 };
+function homingShots(p, out, focus, L, h) {
+  const n = h.n[L];
+  if (p.fireT % h.iv[L]) return;
+  const ks = n === 1 ? [0] : n === 2 ? [-1, 1] : n === 3 ? [-1, 0, 1] : [-1, -0.4, 0.4, 1];
+  ks.forEach((k, i) => {
+    const o = h.fromOptions && p.options.length ? p.options[i % p.options.length] : { x: p.x + k * 10, y: p.y - 4 };
+    const extra = { homing: true, turn: focus ? h.turn * 1.6 : h.turn, life: 110 };
+    if (h.laser) Object.assign(extra, { laser: true, trail: [] });
+    if (h.pierce) extra.pierce = [];
+    shot(out, o.x, o.y, UP + k * h.spread * (focus ? 0.4 : 1), h.spd, h.dmg[L], h.shape, h.color, extra);
+  });
+}
+// 본체 탄: n줄을 좌우 간격 gapX·각도 간격 spread로 부채꼴 발사
+function bodyShots(p, out, focus, L, b) {
+  if (p.fireT % b.iv[L]) return;
+  const n = b.n[L], spread = focus ? b.focusSpread(n) : b.spread, gapX = focus ? 4 : b.gapX;
+  for (let i = 0; i < n; i++) {
+    const k = i - (n - 1) / 2, wob = b.wob ? (Math.random() * 2 - 1) * (focus ? b.wob / 3 : b.wob) : 0;
+    const extra = b.falloff ? { life: b.life + (Math.random() * 3 | 0), falloff: true } : undefined;
+    shot(out, p.x + k * gapX, p.y - 10, UP + k * spread + wob, b.spd, b.dmg[L] * (focus ? 1 : (b.wideDmg ?? 1)), b.shape, b.color, extra);
+  }
+}
+const BODY = {
+  // 아리엘(질서 선): 가장 빠르고 곧은 좁은 바늘 다발
+  AR: { n: [2, 3, 3, 4, 5], iv: [6, 5, 4, 3, 3], dmg: [1.6, 1.65, 2.5, 1.5, 1.2], spd: 15.5, spread: 0.03, focusSpread: () => 0, gapX: 8, shape: 'needle', color: 'gold' },
+  // 유리엘(혼돈 선): 가장 많은 가시를 부채꼴로. 멀리 갈수록 약해지고 흐려짐(사거리 약 360px)
+  UR: { n: [3, 4, 5, 6, 8], iv: [5, 4, 3, 2, 2], dmg: [1.41, 1.37, 1.2, 0.9, 0.68], spd: 12, spread: 0.07, focusSpread: n => Math.min(0.035, 0.16 / Math.max(n - 1, 1)),
+        gapX: 3, wob: 0.03, wideDmg: 0.9, shape: 'thorn', color: 'red', falloff: true, life: 29 },
+  // 루미엘(중립 선): 적고 느린 바늘. 대신 유도탄 비중이 가장 큼
+  LM: { n: [1, 2, 2, 2, 3], iv: [6, 4, 3, 3, 3], dmg: [2.2, 2.2, 1.8, 1.9, 1.25], spd: 12.5, spread: 0, focusSpread: () => 0, gapX: 8, shape: 'needle', color: 'pink' },
+  // 라티엘(진 중립): 중간 퍼짐의 바늘. 옵션 둘이 유도 별을 쏨
+  RH: { n: [1, 2, 3, 3, 4], iv: [6, 5, 4, 3, 3], dmg: [3.6, 2.7, 2.8, 2.57, 1.8], spd: 14, spread: 0.05, focusSpread: () => 0.012, gapX: 6, shape: 'needle', color: 'cyan' },
+};
+const SHOT_TYPES = Object.fromEntries(['AR', 'UR', 'LM', 'RH'].map(code => [code, (p, out, focus, L) => {
+  bodyShots(p, out, focus, L, BODY[code]);
+  homingShots(p, out, focus, L, HOMING[code]);
+}]));
 
 // ── 게임 본체 ─────────────────────────────────────────────
 class Game {
@@ -711,6 +701,7 @@ function makeAPI(G) {
     shake(mag = 4) { G.shake(mag); },
     impact(mag = 6) { G.shake(mag); SFX.impact(); },
     sound(name, ...args) { SFX[name]?.(...args); },
+    title(text, color = 'white') { G.fx.push({ kind: 'title', text, color: COLORS[color] || color, t: 0, life: 110 }); },
     // 초록 안전지대 표시(판정 없음). 돌려받은 객체의 x·y를 바꾸면 따라 움직임 {x,y,r,dur,label}
     safeZone(o) { const z = { x: o.x, y: o.y, r: o.r ?? 40, dur: o.dur ?? 90, label: o.label ?? '', t: 0 }; G.safes.push(z); return z; },
     // 탄 여러 개를 한꺼번에 터뜨려 지움. loud면 '빰!' 소리와 흔들림
@@ -1276,6 +1267,17 @@ function drawFx(G, g) {
       g.moveTo(f.x - r - 5, f.y); g.lineTo(f.x + r + 5, f.y); g.moveTo(f.x, f.y - r - 5); g.lineTo(f.x, f.y + r + 5); g.stroke();
     } else if (f.kind === 'ghost') {
       g.globalAlpha = 0.5 * (1 - k); g.fillStyle = COLORS[f.color] || f.color; g.fillRect(f.x - 2, f.y - 2, 4, 4);
+    } else if (f.kind === 'title') {
+      // 큰 제목: 살짝 크게 나타났다가 제자리로 줄고, 글자 간격이 벌어지며 사라짐
+      const inK = Math.min(1, f.t / 14), outK = Math.min(1, (f.life - f.t) / 30);
+      g.save(); g.translate(W / 2, H * 0.36); const sc = 1 + (1 - inK) * 0.35; g.scale(sc, sc);
+      g.globalAlpha = 0.85 * Math.min(inK, outK);
+      g.font = `bold 40px ${CHANT_FONT}`; g.textAlign = 'center'; g.textBaseline = 'middle';
+      if ('letterSpacing' in g) g.letterSpacing = `${4 + k * 10}px`;
+      g.shadowColor = f.color; g.shadowBlur = 24; g.fillStyle = f.color; g.fillText(f.text, 0, 0);
+      g.shadowBlur = 0; g.globalAlpha *= 0.7; g.fillStyle = '#fff'; g.fillText(f.text, 0, 0);
+      if ('letterSpacing' in g) g.letterSpacing = '0px';
+      g.restore(); g.textAlign = 'left'; g.textBaseline = 'top';
     } else if (f.kind === 'say') {
       const a = f.who, fade = Math.min(1, (f.life - f.t) / 15, f.t / 8);
       g.globalAlpha = fade; g.font = 'bold 12px system-ui, "Malgun Gothic", sans-serif';

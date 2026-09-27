@@ -38,6 +38,7 @@
 //   s.safeZone({x, y, r, dur, label})          초록 안전지대 표시(판정 없음). 돌려받은 객체의 x·y를 바꾸면 따라 움직임
 //   fillField(s, {holes, motion, pad, spacing, color})   안전지대만 빼고 화면을 탄으로 채움. motion.vx·vy로 통째로 이동
 //   s.pop(탄 목록)                            한꺼번에 터뜨려 지움(빰!)
+//   s.title(글자, color)                       화면 가운데에 큰 제목이 떠올랐다 사라짐
 //   s.warnLine({x, y, x2, y2, dur, band})     판정 없는 빨간 예고선. band=덮을 폭을 옅은 띠로(돌진이면 몸통 폭 32)
 //   s.extendTime(초)                          제한시간 연장
 //   s.area({x, y, w, h, warn, dur, label, color})   사각 구역 공격. 번호(label)를 붙여 순서를 보여 줌
@@ -1166,25 +1167,42 @@ function fillField(s, o) {
   return out;
 }
 
-// CONFITEOR에서 부르는 일곱 죄: 안전지대가 어디서 시작하고(hx, hy) 탄막 전체가 어떻게 움직이는지(v(t)),
-// 본체가 안전지대 안에서도 피할 수 있게 쏘는 간단한 탄(shot)
+// CONFITEOR에서 부르는 일곱 죄.
+// latin=화면 가운데 크게 뜨는 이름, hx·hy=안전지대 시작 자리, v(t)=채운 탄막 전체의 움직임,
+// call=이름을 부르는 순간부터 화면을 채우기 직전까지 나오는 그 죄다운 탄막(안전지대로 가는 길을 막지 않을 만큼 가볍게),
+// shot=채운 동안 본체가 쏘는, 안전지대 안에서도 피할 수 있는 간단한 탄
 const SINS = [
-  { name: '교만', color: 'purple', hx: 192, hy: 190, v: t => [0, 0.5],
+  { latin: 'SUPERBIA', color: 'purple', hx: 192, hy: 190, v: t => [0, 0.5],
+    // 교만: 위에서 내려다보듯 큰 탄이 줄지어 내려옴
+    *call(s) { for (let k = 0; ; k++) { const n = s.lv(4, 5, 5, 6, 6, 7), gap = s.W / n; for (let i = 0; i < n; i++) s.fire({ x: gap * (i + (k % 2 ? 0.75 : 0.25)), y: -10, ang: Math.PI / 2, spd: s.sp(1.6), shape: 'big', color: 'purple' }); yield 40; } },
     shot: s => s.spread(s.lv(1, 1, 3, 3, 3, 3), s.aim(), 0.12, { spd: s.sp(2.2), shape: 'knife', color: 'white' }) },
-  { name: '탐욕', color: 'gold', hx: 192, hy: 370, v: t => [0, -0.45],
+  { latin: 'AVARITIA', color: 'gold', hx: 192, hy: 370, v: t => [0, -0.45],
+    // 탐욕: 흩뿌린 금화가 다시 본체에게 모여듦
+    *call(s) { for (;;) { s.ring(s.cnt(18), { offset: s.rand(0, s.TAU), spd: s.sp(3), accel: -0.06, minSpd: -s.sp(2.2), shape: 'orb', color: 'gold' }); yield 36; } },
     shot: s => s.spread(s.lv(1, 1, 3, 3, 3, 3), s.aim(), 0.3, { spd: s.sp(1.8), shape: 'orb', color: 'gold' }) },
-  { name: '색욕', color: 'pink', hx: 192, hy: 300, v: t => [Math.cos(t * 0.021) * 1.1, 0],
+  { latin: 'LUXURIA', color: 'pink', hx: 192, hy: 300, v: t => [Math.cos(t * 0.021) * 1.1, 0],
+    // 색욕: 번갈아 휘어 도는 꽃잎
+    *call(s) { for (let k = 0; ; k++) { const n = s.cnt(14), dir = k % 2 ? 1 : -1; for (let i = 0; i < n; i++) s.fire({ ang: i * s.TAU / n + k * 0.2, spd: s.sp(2.2), angVel: dir * 0.012, shape: 'rice', color: 'pink' }); yield 16; } },
     shot: s => s.spread(s.lv(1, 1, 3, 3, 3, 3), s.aim(), 0.25, { spd: s.sp(2), shape: 'rice', color: 'pink' }) },
-  { name: '질투', color: 'green', hx: 192, hy: 310, holes: 2, v: t => [t < 150 ? 0.45 : -0.45, 0],
+  { latin: 'INVIDIA', color: 'green', hx: 192, hy: 310, holes: 2, v: t => [t < 150 ? 0.45 : -0.45, 0],
+    // 질투: 좌우를 뒤집은 자리의 나와 진짜 나를 번갈아 노림
+    *call(s) { for (let k = 0; ; k++) { const x = k % 2 ? s.W - s.player.x : s.player.x; s.spread(s.lv(3, 3, 5, 5, 5, 7), Math.atan2(s.player.y - s.boss.y, x - s.boss.x), 0.12, { spd: s.sp(3), shape: 'orb', color: 'green' }); yield 16; } },
     shot: s => s.spread(s.lv(1, 1, 3, 3, 3, 3), s.aim(), 0.25, { spd: s.sp(2), shape: 'small', color: 'green' }) },
-  { name: '탐식', color: 'orange', hx: 192, hy: 290, v: t => [-Math.sin(t * 0.021) * 1.0, Math.cos(t * 0.021) * 1.0 - 0],
+  { latin: 'GULA', color: 'orange', hx: 192, hy: 290, v: t => [-Math.sin(t * 0.021), Math.cos(t * 0.021)],
+    // 탐식: 솟구쳤다 떨어지는 덩어리
+    *call(s) { for (;;) { s.fire({ vx: s.rand(-2.4, 2.4), vy: s.rand(-5, -3), ay: 0.06, shape: s.pick(['orb', 'small', 'big']), color: 'orange', marginTop: 200 }); yield s.lv(6, 5, 4, 4, 3, 3); } },
     shot: s => s.spread(s.lv(1, 1, 3, 3, 3, 3), s.aim(), 0.25, { spd: s.sp(2), shape: 'orb', color: 'orange' }) },
-  // 분노: 1초마다 빰! 하고 한 방향으로 확 끌려감(끌리기 전 삐 소리)
-  { name: '분노', color: 'red', hx: 192, hy: 290, v: t => {
+  // 분노: 채운 뒤에는 1초마다 삐 소리 뒤 한 방향으로 확 끌려감
+  { latin: 'IRA', color: 'red', hx: 192, hy: 290, v: t => {
       const k = t % 60, dirs = [[1, 0], [0, 1], [-1, 0], [0, -1], [-1, 0]], d = dirs[Math.floor(t / 60) % 5];
       return k >= 40 ? [d[0] * 1.6, d[1] * 1.6] : [0, 0];
-    }, shot: s => s.spread(s.lv(1, 1, 3, 3, 3, 3), s.aim(), 0.15, { spd: s.sp(2.6), shape: 'knife', color: 'red' }) },
-  { name: '나태', color: 'blue', hx: 230, hy: 250, small: 6, v: t => [-0.15, 0.2],
+    },
+    // 분노: 빠른 칼날 연사 + 원형 폭발
+    *call(s) { for (;;) { const a = s.aim(); for (let k = 0; k < s.lv(4, 5, 6, 7, 8, 9); k++) { s.fire({ ang: a, spd: s.sp(6.5), shape: 'knife', color: 'red' }); yield 3; } s.ring(s.cnt(20), { offset: s.rand(0, s.TAU), spd: s.sp(2.4), shape: 'rice', color: 'red' }); yield 30; } },
+    shot: s => s.spread(s.lv(1, 1, 3, 3, 3, 3), s.aim(), 0.15, { spd: s.sp(2.6), shape: 'knife', color: 'red' }) },
+  { latin: 'ACEDIA', color: 'blue', hx: 230, hy: 250, small: 6, v: t => [-0.15, 0.2],
+    // 나태: 뿌린 탄이 멈췄다가 한참 뒤 느릿느릿 흩어짐
+    *call(s) { for (;;) { const n = s.cnt(16), off = s.rand(0, s.TAU); for (let i = 0; i < n; i++) s.fire({ ang: off + i * s.TAU / n, spd: s.sp(3), accel: -0.1, minSpd: 0, shape: 'orb', color: 'blue', fn: b => { if (b.t === 90) { b.accel = 0.01; b.maxSpd = s.sp(1.2); b.ang += s.rand(-0.5, 0.5); } } }); yield 34; } },
     shot: s => s.ring(s.lv(6, 8, 10, 10, 12, 12), { offset: s.rand(0, s.TAU), spd: s.sp(1.2), shape: 'small', color: 'blue' }) },
 ];
 
@@ -1202,12 +1220,16 @@ SPELLS.push({
     // 일곱 죄: 이름 → 초록 안전지대 미리 보기 → 안전지대만 빼고 화면을 채움 → 탄막 전체가 천천히 움직임 → 빰! 지움
     for (let i = 0; i < 7; i++) {
       const sin = SINS[i];
-      yield* s.chant([C[6 + i]], { by: s.boss, step: 30, hold: 0 });
+      // 호명: 가운데에 라틴어 이름이 크게 뜨고, 그 죄다운 탄막이 곧바로 시작돼 채우기 직전까지 이어짐
+      s.title(sin.latin, sin.color);
       s.shake(6);
+      const call = s.task(sin.call(s));
+      yield* s.chant([C[6 + i]], { by: s.boss, step: 30, hold: 0 });
       const r = R - (sin.small || 0);
       const holes = sin.holes === 2 ? [{ x: sin.hx - 90, y: sin.hy, r }, { x: sin.hx + 90, y: sin.hy, r }] : [{ x: sin.hx, y: sin.hy, r }];
       const zones = holes.map(h => s.safeZone({ x: h.x, y: h.y, r, dur: preview + hold + 10 }));
       yield preview;
+      call.return();
       const motion = { vx: 0, vy: 0 };
       const list = fillField(s, { holes, motion, pad: 160, spacing: s.lv(20, 19, 18, 17, 16, 16), color: sin.color });
       for (let t = 0; t < hold; t++) {
@@ -1219,7 +1241,7 @@ SPELLS.push({
         yield 1;
       }
       s.pop(list);
-      yield 50;
+      yield 16;   // 빰! 하고 곧바로 다음 이름으로
     }
     s.clear();
     // 대답하라 ~ 호명: 응답한 이름에 못박혀 잠시 둔해진 채 일곱 색의 탄을 버팀
