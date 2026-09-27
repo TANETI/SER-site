@@ -267,17 +267,25 @@ const SPELLS = [
     type: 'spell', boss: '윤도연', bossColor: '#9fb4c8', hp: 1800, time: 40, start: [192, 90],
     *run(s) {
       // 대책반의 구속 장비. 점착제 덩어리가 포물선으로 날아가 떨어진 자리에 한동안 붙어 있는 장애물이 됨.
-      // 떨어질 자리를 십자선으로 먼저 보여 주고, 플레이어 바로 위에는 떨어뜨리지 않음. 붙은 덩어리 사이로 조준 사격을 피함
+      // 떨어질 자리를 십자선으로 먼저 보여 주고, 플레이어 바로 위에는 떨어뜨리지 않음. 붙는 순간 작은 방울이 튀고,
+      // 붙은 덩어리 사이로 조준 사격을 피함
       const stick = s.lv(200, 180, 160, 150, 140);
       for (let w = 0; ; w++) {
-        for (let i = 0; i < s.lv(3, 4, 5, 5, 6); i++) {
+        for (let i = 0; i < s.lv(4, 5, 6, 6, 7); i++) {
           let tx, ty, tries = 0;
           do { tx = s.rand(40, s.W - 40); ty = s.rand(220, s.H - 40); } while (Math.hypot(tx - s.player.x, ty - s.player.y) < 60 && ++tries < 20);
           const T = 50, g = 0.12;
           s.mark({ x: tx, y: ty, dur: T });
           s.fire({
             vx: (tx - s.boss.x) / T, vy: (ty - s.boss.y) / T - 0.5 * g * T, ay: g, shape: 'big', color: '#f0e6a0', marginTop: 200,
-            fn: b => { if (b.t === T) { b.vx = 0; b.vy = 0; b.ay = 0; } if (b.t > T + stick) b.dead = true; },
+            fn: (b, s) => {
+              if (b.t === T) {
+                // 철퍽: 붙는 순간 작은 방울이 느리게 튐
+                b.vx = 0; b.vy = 0; b.ay = 0;
+                s.ring(s.lv(4, 5, 6, 6, 7), { x: b.x, y: b.y, offset: s.rand(0, s.TAU), spd: 0.3, accel: 0.02, maxSpd: s.sp(1.4), shape: 'small', color: '#f0e6a0' });
+              }
+              if (b.t > T + stick) b.dead = true;
+            },
           });
           yield 8;
         }
@@ -308,11 +316,14 @@ const SPELLS = [
     name: '「강선 그물」(가칭)',
     type: 'spell', boss: '고현성', bossColor: '#c8d4e8', hp: 2200, time: 45, start: [192, 90],
     *run(s) {
-      // 강선 그물: 플레이어 둘레에 45도 격자로 예고선이 깔리고, 강선이 한꺼번에 팽팽해짐. 마름모 칸 한가운데로 옮기면 안전
+      // 강선 그물: 플레이어 둘레에 격자로 예고선이 깔리고, 강선이 한꺼번에 팽팽해짐. 칸 한가운데로 옮기면 안전.
+      // 45도 마름모 격자와 가로세로 격자를 번갈아 치고, 예고하는 동안 느린 원형탄이 지나가 칸으로 가는 길을 골라야 함
       for (let w = 0; ; w++) {
         const gap = s.lv(110, 96, 86, 80, 76), warn = s.lv(62, 54, 48, 44, 40);
         const cx = s.player.x, cy = s.player.y, off = s.rand(-gap / 2, gap / 2);
-        for (const ang of [Math.PI / 4, Math.PI * 3 / 4]) {
+        s.ring(s.cnt(18), { offset: s.rand(0, s.TAU), spd: s.sp(1.5), shape: 'small', color: 'white' });
+        const tilt = w % 2 ? 0 : Math.PI / 4;
+        for (const ang of [tilt, tilt + Math.PI / 2]) {
           const nx = Math.cos(ang + Math.PI / 2), ny = Math.sin(ang + Math.PI / 2);
           for (let k = -4; k <= 4; k++) {
             const px = cx + nx * (k * gap + off), py = cy + ny * (k * gap + off);
@@ -329,8 +340,20 @@ const SPELLS = [
     name: '논스펠 · 고현성 2',
     type: 'nonspell', boss: '고현성', bossColor: '#c8d4e8', hp: 2000, time: 36, start: [192, 100],
     *run(s) {
-      // 충격탄: 느려지며 멈춘 자리에서 터져 작은 탄을 사방으로
+      // 충격탄: 느려지며 멈춘 자리에서 터져 작은 탄을 사방으로.
+      // 두 번에 한 번 조명탄: 위로 쏘아 올린 탄이 터지며 불똥이 포물선을 그리며 흩날려 떨어짐
       for (let w = 1; ; w++) {
+        if (w % 2 === 0) {
+          const fx = s.rand(60, s.W - 60), fy = s.rand(30, 70), T = 30;
+          s.fire({ x: s.boss.x, y: s.boss.y, vx: (fx - s.boss.x) / T, vy: (fy - s.boss.y) / T, shape: 'big', color: 'white',
+            fn: (b, s) => {
+              if (b.t < T) return;
+              b.dead = true;
+              s.shake(1);
+              for (let i = 0; i < s.cnt(18); i++) s.fire({ x: b.x, y: b.y, vx: s.rand(-1.6, 1.6), vy: s.rand(-1.8, -0.4), ay: 0.035, shape: 'small', color: 'orange', marginTop: 120,
+                fn: c => { if (c.vy > 2) c.vy = 2; c.vx *= 0.995; } });   // 떨어지는 속도는 2까지
+            } });
+        }
         for (let i = 0; i < s.lv(2, 3, 3, 4, 4); i++) {
           s.fire({
             ang: s.aim() + (i - 1) * 0.5, spd: s.sp(3.4), accel: -0.06, minSpd: 0, shape: 'big', color: 'blue',
@@ -448,19 +471,25 @@ const SPELLS = [
       // → 마리가 다시 영창하는 동안(보호막이 없는 동안)이 공격할 때
       const mari = churchDuo(s, [152, 95]);
       for (;;) {
-        s.task(function* () {   // 영창 중에도 가벼운 견제
-          for (let k = 0; k < 4; k++) { s.spread(s.lv(1, 3, 3), s.aim(), 0.35, { spd: s.sp(2.4), shape: 'small', color: 'orange' }); yield s.wait(45); }
+        const light = s.task(function* () {   // 마리가 영창하는 동안 마르코가 조준탄과 느린 원형탄으로 견제
+          for (let k = 0; ; k++) {
+            s.spread(s.lv(1, 3, 3, 5, 5), s.aim(), 0.3, { spd: s.sp(2.4), shape: 'small', color: 'orange' });
+            if (k % 2 === 0) s.ring(s.cnt(14), { offset: k * 0.31, spd: s.sp(1.5), shape: 'small', color: 'yellow' });
+            yield s.wait(32);
+          }
         }());
         yield* castGap(s);
         yield* s.chant('FILIUS2', { by: mari });
+        light.return();
         const dur = s.lv(240, 300, 360);
         s.zone({ x: 192, y: 95, r: 82, dur });
-        // 보호막 안의 마르코: 황금 탄을 보호막 밖으로 크게 돌려 던짐. 마리는 유지하느라 쏘지 않음
-        for (let t = 0; t < dur; t += s.wait(50)) {
-          const a = s.aim();
-          s.fire({ ang: a, spd: s.sp(3.6), shape: 'big', color: 'gold' });
-          s.ring(s.cnt(20), { offset: s.rand(0, s.TAU), spd: s.sp(1.8), shape: 'rice', color: 'gold' });
-          yield s.wait(50);
+        // 보호막 안의 마르코: 황금 탄을 던지고, 한 번은 시계방향·한 번은 반시계방향으로 휘는 원형탄을 번갈아 깖.
+        // 마리는 유지하느라 쏘지 않음
+        for (let t = 0, k = 0; t < dur; t += s.wait(40), k++) {
+          s.fire({ ang: s.aim(), spd: s.sp(3.6), shape: 'big', color: 'gold' });
+          s.ring(s.cnt(20), { offset: s.rand(0, s.TAU), spd: s.sp(1.8), angVel: (k % 2 ? 1 : -1) * 0.006, shape: 'rice', color: 'gold' });
+          if (k % 2) s.spread(s.lv(1, 3, 3, 5, 5), s.aim(), 0.2, { spd: s.sp(2.8), shape: 'rice', color: 'orange' });
+          yield s.wait(40);
         }
         yield 30;
       }
@@ -573,8 +602,16 @@ const SPELLS = [
       // 폭주한 마르코의 마지막 스펠: 달려드는 제압. 돌진 횟수가 늘고 멈춘 자리에서 충격파가 두 겹
       marcoRage(s);
       for (;;) {
+        const light = s.task(function* () {   // 영창하는 동안 느린 원형탄과 조준탄
+          for (let k = 0; ; k++) {
+            s.ring(s.cnt(14), { offset: k * 0.29, spd: s.sp(1.5), shape: 'small', color: 'yellow' });
+            if (k % 2) s.spread(3, s.aim(), 0.25, { spd: s.sp(2.4), shape: 'rice', color: 'orange' });
+            yield s.wait(34);
+          }
+        }());
         yield* castGap(s);
         yield* s.chant('PATER2', { by: s.boss, step: 50 });
+        light.return();
         for (let k = 0; k < s.lv(3, 3, 4, 4, 5); k++) {
           // 플레이어 위치에서 70px 앞에 멈춤. 도착 지점에서 퍼지는 탄을 피할 거리를 남김
           const px = s.player.x, py = s.player.y, d = Math.hypot(px - s.boss.x, py - s.boss.y) || 1;
@@ -589,8 +626,11 @@ const SPELLS = [
           s.impact(7);
           s.ring(s.cnt(20), { spd: 0.6, accel: 0.04, maxSpd: s.sp(2.2), shape: 'orb', color: 'gold' });
           if (s.diff > 0) s.ring(s.cnt(20), { offset: Math.PI / 20, spd: 0.4, accel: 0.03, maxSpd: s.sp(1.4), shape: 'small', color: 'yellow' });
-          yield 36;   // 붙든 자리에서 잠시 멈춤 = 공격 기회
-          yield* s.moveTo(s.rand(140, 244), s.rand(80, 110), 36);
+          yield 30;   // 붙든 자리에서 잠시 멈춤 = 공격 기회
+          // 제자리로 물러나며 발을 굴러 느린 원형탄, 그 사이 조준탄
+          s.move(s.rand(140, 244), s.rand(80, 110), 36);
+          for (let t = 0; t < 36; t += 12) { s.spread(s.lv(3, 3, 5, 5, 7), s.aim(), 0.2, { spd: s.sp(2.6), shape: 'rice', color: 'gold' }); yield 12; }
+          s.ring(s.cnt(16), { offset: s.rand(0, s.TAU), spd: s.sp(1.4), shape: 'small', color: 'yellow' });
         }
         yield 30;
       }
@@ -672,21 +712,31 @@ const SPELLS = [
         yield* castGap(s);
         yield* s.chant('PATER1', { by: s.boss });
         light.return();
-        // 황금빛 오른손으로 던진 큰 탄이 멈춰 선 자리에서 사슬 고리가 번져 나감(붙드는 손)
-        s.boss.glow = 220;
-        for (let k = 0; k < s.lv(2, 3, 3); k++) {
+        // 황금빛 오른손으로 던진 큰 탄이 멈춰 선 자리에서 사슬 고리가 두 겹으로 번져 나감(붙드는 손).
+        // 던지는 동안에도 조준 쌀알탄을 쏴서, 고리가 번지는 틈을 찾으며 움직여야 함
+        s.boss.glow = 260;
+        const aimT = s.task(function* () {
+          for (let k = 0; ; k++) {
+            yield s.wait(14);
+            s.spread(s.lv(1, 3, 3, 3, 5), s.aim(), 0.2, { spd: s.sp(2.6), shape: 'rice', color: 'gold' });
+            if (k % 3 === 0) s.ring(s.cnt(16), { offset: s.rand(0, s.TAU), spd: s.sp(1.5), shape: 'small', color: 'white' });
+          }
+        }());
+        for (let k = 0; k < s.lv(3, 4, 5, 5, 6); k++) {
           s.fire({
-            ang: s.aim() + s.rand(-0.25, 0.25), spd: 5, accel: -0.1, minSpd: 0, shape: 'big', color: 'gold',
+            ang: s.aim() + s.rand(-0.35, 0.35), spd: 5, accel: -0.1, minSpd: 0, shape: 'big', color: 'gold',
             fn: (b, s) => {
               if (b.spd > 0) return;
               b.dead = true;
-              s.ring(s.cnt(14), { x: b.x, y: b.y, offset: s.rand(0, s.TAU), spd: 0.6, accel: 0.03, maxSpd: s.sp(2.4), shape: 'link', color: 'gold' });
-              if (s.diff > 0) s.ring(s.cnt(14), { x: b.x, y: b.y, offset: s.rand(0, s.TAU), spd: 0.4, accel: 0.02, maxSpd: s.sp(1.6), shape: 'small', color: 'yellow' });
+              s.ring(s.cnt(20), { x: b.x, y: b.y, offset: s.rand(0, s.TAU), spd: 0.6, accel: 0.03, maxSpd: s.sp(2.4), shape: 'link', color: 'gold' });
+              s.ring(s.cnt(14), { x: b.x, y: b.y, offset: s.rand(0, s.TAU), spd: 0.4, accel: 0.02, maxSpd: s.sp(1.6), shape: 'small', color: 'yellow' });
+              s.shake(2);
             },
           });
-          yield 30;
+          yield 22;
         }
-        yield 70;
+        yield 50;
+        aimT.return();
         yield* s.wander(60, 50);
       }
     },
@@ -695,24 +745,28 @@ const SPELLS = [
     name: '논스펠 · 예로니모 3',
     type: 'nonspell', boss: '예로니모', bossColor: '#e8e0c8', hp: 2900, time: 42, start: [192, 110],
     *run(s) {
-      // 사슬 고리가 보스 둘레를 돌며 원을 넓히다가 바깥으로 풀려 나감. 틈은 고리 사이 각도로 생김
+      // 사슬 고리 두 겹: 보스 둘레를 서로 반대로 돌며 원을 넓히다가 풀려 나감. 두 겹의 속도가 달라 엇갈리며 그물눈 같은 틈이 생김.
+      // 고리가 풀려 나가는 사이 조준 칼날을 세 번
       for (let w = 1; ; w++) {
-        const n = s.cnt(16), a0 = s.rand(0, s.TAU), dir = w % 2 ? 1 : -1, cx = s.boss.x, cy = s.boss.y;
-        for (let i = 0; i < n; i++) {
-          const base = a0 + i * s.TAU / n;
-          s.fire({
-            x: cx, y: cy, spd: 0, shape: 'link', color: 'gold',
-            fn: b => {
-              if (b.t < 50) {
-                const r = 20 + b.t * 1.4, a = base + dir * b.t * 0.05;
-                b.x = cx + Math.cos(a) * r; b.y = cy + Math.sin(a) * r; b.ang = a + dir * Math.PI / 2;
-              } else if (b.t === 50) { b.ang = base + dir * 2.5 + dir * 0.35; b.spd = s.sp(2.2); }
-            },
-          });
+        const cx = s.boss.x, cy = s.boss.y;
+        for (const dir of [1, -1]) {
+          const n = s.cnt(22), a0 = s.rand(0, s.TAU), out = dir > 0 ? s.sp(2.2) : s.sp(1.5);
+          for (let i = 0; i < n; i++) {
+            const base = a0 + i * s.TAU / n;
+            s.fire({
+              x: cx, y: cy, spd: 0, shape: 'link', color: dir > 0 ? 'gold' : 'yellow',
+              fn: b => {
+                if (b.t < 50) {
+                  const r = 20 + b.t * 1.4, a = base + dir * b.t * 0.05;
+                  b.x = cx + Math.cos(a) * r; b.y = cy + Math.sin(a) * r; b.ang = a + dir * Math.PI / 2;
+                } else if (b.t === 50) { b.ang = base + dir * 2.85; b.spd = out; }
+              },
+            });
+          }
+          yield s.wait(14);
         }
-        yield s.wait(35);
-        s.spread(s.lv(1, 3, 3, 5), s.aim(), 0.2, { spd: s.sp(3.2), shape: 'knife', color: 'white' });
-        yield s.wait(35);
+        for (let k = 0; k < 3; k++) { s.spread(s.lv(1, 3, 3, 5, 5), s.aim(), 0.18, { spd: s.sp(3.4), shape: 'knife', color: 'white' }); yield s.wait(10); }
+        yield s.wait(14);
         if (w % 4 === 0) yield* s.wander();
       }
     },
@@ -721,12 +775,14 @@ const SPELLS = [
     name: '논스펠 · 예로니모 4',
     type: 'nonspell', boss: '예로니모', bossColor: '#e8e0c8', hp: 2900, time: 42, start: [192, 110],
     *run(s) {
-      // 빛의 십자: 네 갈래 줄기가 천천히 돌고, 가끔 대각으로 한 번 비틀림. 줄기 사이가 안전 지대
-      let a = 0;
+      // 빛의 십자 두 개: 빠른 황금 십자는 천천히 돌다 방향을 바꾸고, 느린 흰 십자는 반대로 돎.
+      // 두 십자가 엇갈리며 마름모 틈이 계속 옮겨 가므로 틈을 따라 움직여야 함. 가끔 조준 칼날
+      let a = 0, b = Math.PI / 4;
       for (let f = 0; ; f++) {
-        a += 0.014 * (Math.floor(f / 90) % 2 ? -1 : 1);
+        a += 0.016 * (Math.floor(f / 90) % 2 ? -1 : 1);
+        b -= 0.011;
         for (let i = 0; i < 4; i++) s.fire({ ang: a + i * Math.PI / 2, spd: s.sp(2.8), shape: 'rice', color: 'yellow' });
-        if (f % 24 === 0) s.ring(s.cnt(12), { offset: a + Math.PI / 4, spd: s.sp(1.4), shape: 'small', color: 'white' });
+        if (f % 2 === 0) for (let i = 0; i < 4; i++) s.fire({ ang: b + i * Math.PI / 2, spd: s.sp(1.6), shape: 'small', color: 'white' });
         if (f % 18 === 9) s.spread(s.lv(1, 3, 3, 3, 5), s.aim(), 0.12, { spd: s.sp(3.6), shape: 'knife', color: 'white' });
         if (f % 300 === 299) yield* s.wander(40, 50);
         yield s.lv(8, 6, 5, 4);
@@ -737,11 +793,16 @@ const SPELLS = [
     name: '파테르 제2식 — 능히 일어나지 못하게 하리니',
     type: 'spell', boss: '예로니모', bossColor: '#e8e0c8', hp: 3200, time: 52, start: [192, 100],
     *run(s) {
-      // 예로니모의 파테르 제2식: 돌진해 멈춘 자리에서 황금 사슬을 사방으로 뻗어 붙들어 둠(사슬 사이 대각선 방향이 틈)
+      // 예로니모의 파테르 제2식: 돌진해 멈춘 자리에서 황금 사슬을 사방으로 뻗어 붙들어 둠(사슬 사이 대각선 방향이 틈).
+      // 사슬이 뻗어 있는 동안 조준탄이 이어지고, 걷힐 때 원형탄 두 겹
       for (;;) {
+        const light = s.task(function* () {
+          for (let k = 0; ; k++) { s.ring(s.cnt(14), { offset: k * 0.27, spd: s.sp(1.5), shape: 'small', color: 'white' }); yield s.wait(34); }
+        }());
         yield* castGap(s);
         yield* s.chant('PATER2', { by: s.boss, step: 50 });
-        for (let k = 0; k < s.lv(2, 2, 3, 3); k++) {
+        light.return();
+        for (let k = 0; k < s.lv(2, 3, 3, 4, 4); k++) {
           const px = s.player.x, py = s.player.y, d = Math.hypot(px - s.boss.x, py - s.boss.y) || 1;
           const stop = Math.max(0, d - 110);
           const tx = s.boss.x + (px - s.boss.x) / d * stop, ty = Math.min(s.boss.y + (py - s.boss.y) / d * stop, s.H - 160);
@@ -751,12 +812,15 @@ const SPELLS = [
           yield* s.moveTo(tx, ty, 20);
           s.boss.contact = false;
           s.impact(7);
-          const n = s.lv(4, 4, 6, 6, 8), off = s.rand(0, s.TAU);
-          for (let i = 0; i < n; i++) s.chain({ x: tx, y: ty, ang: off + i * s.TAU / n, len: 520, warn: s.lv(45, 40, 34), shoot: 10, hold: 14, retract: 70 });
-          yield s.lv(45, 40, 34) + 30;
-          s.ring(s.cnt(18), { spd: 0.5, accel: 0.03, maxSpd: s.sp(2), shape: 'orb', color: 'gold' });
-          yield 50;
-          yield* s.moveTo(s.rand(140, 244), s.rand(80, 110), 45);
+          const n = s.lv(4, 6, 8, 8, 10), off = s.rand(0, s.TAU), warn = s.lv(45, 40, 34);
+          for (let i = 0; i < n; i++) s.chain({ x: tx, y: ty, ang: off + i * s.TAU / n, len: 520, warn, shoot: 10, hold: 14, retract: 70 });
+          yield* aimWhile(s, warn + 30, 'gold');
+          s.ring(s.cnt(20), { offset: off + Math.PI / n, spd: 0.5, accel: 0.03, maxSpd: s.sp(2.2), shape: 'orb', color: 'gold' });
+          yield 10;
+          s.ring(s.cnt(20), { offset: off, spd: 0.4, accel: 0.025, maxSpd: s.sp(1.5), shape: 'small', color: 'yellow' });
+          yield 30;
+          s.move(s.rand(140, 244), s.rand(80, 110), 40);
+          for (let t = 0; t < 40; t += 10) { s.spread(s.lv(3, 3, 5, 5, 7), s.aim(), 0.2, { spd: s.sp(2.4), shape: 'rice', color: 'gold' }); yield 10; }
         }
         yield 30;
       }
@@ -794,6 +858,230 @@ const SPELLS = [
           yield 16;
         }
         yield 20;
+        if (w % 3 === 2) yield* s.wander();
+      }
+    },
+  },
+  // ── 엑스트라 · 진심 예로니모: 6스테이지와 같은 술식을 다른 모양으로. extra라 한 단계 위 난이도로 계산 ──
+  {
+    name: '논스펠 · 예로니모 1',
+    type: 'nonspell', extra: true, boss: '예로니모(진심)', bossColor: '#e8e0c8', hp: 2800, time: 42, start: [192, 100],
+    *run(s) {
+      // 사슬 채찍: 고리 줄기를 부채처럼 휘둘러 쓸어 냄(좌→우, 우→좌 번갈아). 속도가 다른 두 줄이라 줄 사이가 틈.
+      // 한 번 휘두를 때마다 조준 칼날
+      for (let w = 0; ; w++) {
+        const dir = w % 2 ? -1 : 1, base = s.aim() - dir * 1.1;
+        for (let t = 0; t < 24; t++) {
+          const a = base + dir * t * 0.095;
+          s.fire({ ang: a, spd: s.sp(2.6), shape: 'link', color: 'gold' });
+          if (t % 2 === 0) s.fire({ ang: a + dir * 0.05, spd: s.sp(1.8), shape: 'link', color: 'yellow' });
+          yield 2;
+        }
+        s.spread(s.lv(3, 3, 5, 5, 7), s.aim(), 0.16, { spd: s.sp(3.6), shape: 'knife', color: 'white' });
+        yield s.wait(26);
+        if (w % 2 === 1) s.ring(s.cnt(20), { offset: s.rand(0, s.TAU), spd: s.sp(1.5), shape: 'small', color: 'white' });
+        if (w % 6 === 5) yield* s.wander();
+      }
+    },
+  },
+  {
+    name: '스피리투스 제1식 — 꺼져가는 등불을 끄지 아니하고',
+    type: 'spell', extra: true, boss: '예로니모(진심)', bossColor: '#e8e0c8', hp: 3400, time: 45, start: [192, 90],
+    *run(s) {
+      // 등불이 화면 가운데 줄에 걸려 제자리에서 도는 불씨를 뿜음 → 흐려지며 불씨가 끊김 → 다시 타올라 흩어짐.
+      // 등불마다 도는 방향이 달라 불씨 줄이 엇갈림
+      for (let cycle = 0; ; cycle++) {
+        const light = s.task(function* () {
+          for (;;) { s.spread(3, s.aim(), 0.3, { spd: s.sp(2.2), shape: 'small', color: 'white' }); yield s.wait(34); }
+        }());
+        yield* castGap(s);
+        yield* s.chant('SPIRITUS1', { by: s.boss });
+        light.return();
+        if (cycle < 3) s.extendTime(5);
+        const n = s.lv(3, 3, 4, 4, 5), lamps = [];
+        for (let i = 0; i < n; i++) {
+          const tx = s.W * (i + 0.5) / n, ty = s.rand(150, 210);
+          lamps.push(s.fire({ x: s.boss.x, y: s.boss.y, spd: 0, shape: 'big', color: 'orange',
+            fn: b => { if (b.t <= 40) { const k = b.t / 40; b.x = b.x + (tx - b.x) * k * 0.2; b.y = b.y + (ty - b.y) * k * 0.2; } } }));
+        }
+        yield 45;
+        for (let t = 0; t < 150; t += 6) {
+          lamps.forEach((L, i) => {
+            if (L.dead) return;
+            const a = t * 0.07 * (i % 2 ? -1 : 1) + i;
+            for (let j = 0; j < 4; j++) s.fire({ x: L.x, y: L.y, ang: a + j * s.TAU / 4, spd: s.sp(1.5), shape: 'small', color: 'orange' });
+          });
+          yield 6;
+        }
+        for (let t = 0; t < 50; t++) { for (const L of lamps) L.alpha = 1 - 0.65 * t / 50; yield 1; }
+        yield 24;
+        for (const L of lamps) {
+          if (L.dead) continue;
+          s.ring(s.cnt(18), { x: L.x, y: L.y, offset: s.rand(0, s.TAU), spd: 0.6, accel: 0.03, maxSpd: s.sp(2.4), shape: 'rice', color: 'yellow' });
+          L.dead = true;
+          yield 10;
+        }
+        yield 50;
+      }
+    },
+  },
+  {
+    name: '논스펠 · 예로니모 2',
+    type: 'nonspell', extra: true, boss: '예로니모(진심)', bossColor: '#e8e0c8', hp: 3000, time: 42, start: [192, 100],
+    *run(s) {
+      // 쌍둥이 나선: 보스 양옆 두 점에서 서로 반대로 도는 사슬 나선. 가운데에서 두 나선이 엇갈림. 가끔 조준 칼날
+      let a = 0;
+      for (let f = 0; ; f++) {
+        a += 0.07;
+        for (const side of [-1, 1]) {
+          const x = s.boss.x + side * 70, y = s.boss.y + 10;
+          for (let i = 0; i < 3; i++) s.fire({ x, y, ang: side * a + i * s.TAU / 3, spd: s.sp(2.2), shape: 'link', color: side < 0 ? 'gold' : 'yellow' });
+        }
+        if (f % 6 === 0) s.spread(s.lv(1, 3, 3, 3, 5), s.aim(), 0.14, { spd: s.sp(3.8), shape: 'knife', color: 'white' });
+        if (f % 60 === 59) yield* s.wander(30, 40);
+        yield s.lv(8, 7, 6, 6, 5);
+      }
+    },
+  },
+  {
+    name: '파테르 제1식 — 나의 의로운 오른손으로 너를 붙들리라',
+    type: 'spell', extra: true, boss: '예로니모(진심)', bossColor: '#e8e0c8', hp: 3400, time: 52, start: [192, 100],
+    *run(s) {
+      // 붙드는 손: 황금 주먹이 플레이어가 있던 자리에 멈추면 그 둘레에 사슬 고리 울타리가 둘러쳐짐 →
+      // 울타리가 조여들다가(고리 사이 틈으로 빠져나감) 한가운데에서 바깥으로 터져 나감
+      for (;;) {
+        const light = s.task(function* () {
+          for (let k = 0; ; k++) { s.ring(s.cnt(12), { offset: k * 0.3, spd: s.sp(1.4), shape: 'small', color: 'white' }); yield s.wait(32); }
+        }());
+        yield* castGap(s);
+        yield* s.chant('PATER1', { by: s.boss });
+        light.return();
+        s.boss.glow = 300;
+        for (let k = 0; k < s.lv(3, 3, 4, 4, 5); k++) {
+          const tx = s.player.x, ty = s.player.y, T = 30;
+          s.mark({ x: tx, y: ty, dur: T });
+          s.fire({ x: s.boss.x, y: s.boss.y, vx: (tx - s.boss.x) / T, vy: (ty - s.boss.y) / T, shape: 'big', color: 'gold',
+            fn: (b, s) => {
+              if (b.t < T) return;
+              b.dead = true;
+              s.shake(3);
+              const n = s.lv(10, 12, 12, 14, 14);
+              for (let i = 0; i < n; i++) {
+                const a0 = i * s.TAU / n;
+                s.fire({ x: tx, y: ty, spd: 0, shape: 'link', color: 'gold',
+                  fn: c => {
+                    // 0~20: 반지름 80에 둘러쳐짐, 20~80: 조여듦, 80: 바깥으로 풀려 나감
+                    if (c.t <= 80) {
+                      const r = c.t < 20 ? 80 : 80 - (c.t - 20) * 1.0, a = a0 + c.t * 0.015;
+                      const nx = tx + Math.cos(a) * r, ny = ty + Math.sin(a) * r;
+                      c.pvx = nx - c.x; c.pvy = ny - c.y;   // 회피 봇 예측용
+                      c.x = nx; c.y = ny; c.ang = a + Math.PI / 2;
+                    } else if (c.t === 81) { c.pvx = undefined; c.pvy = undefined; c.ang = a0 + 81 * 0.015; c.spd = s.sp(2.2); }
+                  } });
+              }
+            } });
+          for (let t = 0; t < 40; t += 10) { s.spread(s.lv(1, 3, 3, 3, 5), s.aim(), 0.22, { spd: s.sp(2.4), shape: 'rice', color: 'gold' }); yield 10; }
+        }
+        yield 70;
+        yield* s.wander(50, 50);
+      }
+    },
+  },
+  {
+    name: '논스펠 · 예로니모 3',
+    type: 'nonspell', extra: true, boss: '예로니모(진심)', bossColor: '#e8e0c8', hp: 2900, time: 42, start: [192, 90],
+    *run(s) {
+      // 교차 사슬: 위쪽 두 모서리에서 플레이어 자리를 지나는 사슬이 X자로 뻗음(예고선 뒤). 옆으로 비키고,
+      // 그사이 보스가 고리 원형탄을 천천히 깖
+      s.task(function* () {
+        for (let k = 0; ; k++) { s.ring(s.cnt(18), { offset: k * 0.17, spd: s.sp(1.5), shape: 'link', color: 'yellow' }); yield s.wait(36); }
+      }());
+      for (let w = 0; ; w++) {
+        const tx = s.player.x, ty = s.player.y, warn = s.lv(50, 46, 42, 40, 40);
+        for (const x of [-8, s.W + 8]) {
+          const y = s.rand(-8, 60);
+          s.chain({ x, y, ang: Math.atan2(ty - y, tx - x), len: 760, warn, shoot: 10, hold: 12, retract: 60 });
+        }
+        yield warn + 20;
+        s.spread(s.lv(3, 3, 5, 5, 7), s.aim(), 0.18, { spd: s.sp(3.4), shape: 'knife', color: 'white' });
+        yield s.wait(40);
+      }
+    },
+  },
+  {
+    name: '파테르 제2식 — 능히 일어나지 못하게 하리니',
+    type: 'spell', extra: true, boss: '예로니모(진심)', bossColor: '#e8e0c8', hp: 3200, time: 52, start: [192, 100],
+    *run(s) {
+      // 연속 돌진: 제자리로 돌아가지 않고 세 번 이어 달려듦. 멈출 때마다 사슬을 사방으로 뻗고,
+      // 마지막 돌진 뒤에는 사슬을 두 겹(엇갈린 각도)으로 뻗음
+      for (;;) {
+        const light = s.task(function* () {
+          for (let k = 0; ; k++) { s.ring(s.cnt(14), { offset: k * 0.27, spd: s.sp(1.5), shape: 'small', color: 'white' }); yield s.wait(32); }
+        }());
+        yield* castGap(s);
+        yield* s.chant('PATER2', { by: s.boss, step: 44 });
+        light.return();
+        const dashes = 3;
+        for (let k = 0; k < dashes; k++) {
+          const px = s.player.x, py = s.player.y, d = Math.hypot(px - s.boss.x, py - s.boss.y) || 1;
+          const stop = Math.max(0, d - 110);
+          const tx = Math.max(30, Math.min(s.W - 30, s.boss.x + (px - s.boss.x) / d * stop)), ty = Math.max(60, Math.min(s.boss.y + (py - s.boss.y) / d * stop, s.H - 160));
+          const warn = s.lv(40, 36, 32, 30, 28);
+          s.warnLine({ x: s.boss.x, y: s.boss.y, x2: tx, y2: ty, band: 32, dur: warn });
+          yield* aimWhile(s, warn, 'yellow');
+          s.boss.contact = true;
+          yield* s.moveTo(tx, ty, 16);
+          s.boss.contact = false;
+          s.impact(7);
+          const n = s.lv(4, 5, 6, 6, 7), off = s.rand(0, s.TAU), cw = s.lv(45, 40, 36);
+          for (let i = 0; i < n; i++) s.chain({ x: tx, y: ty, ang: off + i * s.TAU / n, len: 520, warn: cw, shoot: 10, hold: 10, retract: 50 });
+          if (k === dashes - 1) for (let i = 0; i < n; i++) s.chain({ x: tx, y: ty, ang: off + (i + 0.5) * s.TAU / n, len: 520, warn: cw + 50, shoot: 10, hold: 10, retract: 50 });
+          yield* aimWhile(s, cw + 20, 'gold');
+          s.ring(s.cnt(20), { offset: off + Math.PI / n, spd: 0.5, accel: 0.03, maxSpd: s.sp(2.2), shape: 'orb', color: 'gold' });
+          yield 16;
+        }
+        yield 60;
+        yield* s.moveTo(s.rand(140, 244), s.rand(80, 110), 40);
+      }
+    },
+  },
+  {
+    name: 'Clavis Collata — NUNC DIMITTIS',
+    type: 'spell', extra: true, boss: '예로니모(진심)', bossColor: '#e8e0c8', hp: 3600, time: 60, start: [192, 100],
+    *run(s) {
+      // 사슬이 걷힌 자리에 고리가 남아 양옆으로 천천히 흩어짐. 사슬이 늘어날수록 남는 고리도 늘어 화면이 조여듦
+      const light = s.task(function* () {
+        for (let k = 0; ; k++) { s.ring(s.cnt(14), { offset: k * 0.3, spd: s.sp(1.3), shape: 'small', color: 'gold' }); yield s.wait(36); }
+      }());
+      yield* s.chant('NUNC_DIMITTIS', { by: s.boss, step: 32 });
+      light.return();
+      function edgeChain(target) {
+        const side = s.randInt(0, 2);
+        const x = side === 0 ? -8 : side === 1 ? s.W + 8 : s.rand(20, s.W - 20);
+        const y = side === 2 ? -8 : s.rand(20, s.H * 0.8);
+        const tx = target ? target.x : s.rand(40, s.W - 40), ty = target ? target.y : s.rand(s.H * 0.4, s.H - 30);
+        const ang = Math.atan2(ty - y, tx - x), warn = s.lv(64, 56, 48, 46, 44), hold = 16;
+        s.chain({ x, y, ang, len: 720, warn, shoot: 12, hold, retract: 60 });
+        // 사슬이 다 뻗은 뒤 그 줄을 따라 고리를 남김(34px 간격). 사슬과 수직으로 천천히 흩어짐
+        s.task(function* () {
+          yield warn + 12 + hold;
+          for (let d = 20; d < 720; d += 34) {
+            const bx = x + Math.cos(ang) * d, by = y + Math.sin(ang) * d;
+            if (bx < -10 || bx > s.W + 10 || by < -10 || by > s.H + 10) continue;
+            s.fire({ x: bx, y: by, ang: ang + (d / 34 % 2 < 1 ? 1 : -1) * Math.PI / 2, spd: 0, accel: 0.01, maxSpd: s.sp(1), shape: 'link', color: 'gold' });
+          }
+        }());
+      }
+      for (let w = 0; ; w++) {
+        const n = Math.min(s.lv(2, 3, 3) + w, s.lv(3, 4, 4, 5, 5));
+        for (let i = 0; i < n; i++) { edgeChain(i === 0 ? { x: s.player.x, y: s.player.y } : null); yield 6; }
+        yield s.lv(64, 56, 48, 46, 44);
+        for (let k = 0; k < 8; k++) {
+          if (k % 2 === 0) s.ring(s.cnt(14), { offset: k * 0.19, spd: s.sp(1.7), shape: 'orb', color: 'yellow' });
+          if (k % 3 === 2) s.spread(s.lv(3, 3, 5), s.aim(), 0.14, { spd: s.sp(3.2), shape: 'rice', color: 'gold' });
+          yield 16;
+        }
+        yield 30;
         if (w % 3 === 2) yield* s.wander();
       }
     },
@@ -1101,6 +1389,13 @@ const SPELLS = [
       // 저격: 가는 방향을 읽어 도착할 자리에 십자선과 조준선을 띄우고, 점점 빨라지는 경고음(삐비비빅) 뒤
       // 그 줄을 따라 칼날을 한 줄로 주르륵 쏨. 멈추거나 방향을 틀면 빗나감. 한 줄이니 옆으로 비키면 됨
       const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+      // 배경: 위에서 성긴 데이터 비가 비스듬히 내림. 가만히 서서 저격만 기다릴 수 없게
+      s.task(function* () {
+        for (;;) {
+          s.fire({ x: s.rand(0, s.W + 80), y: -6, ang: Math.PI / 2 + 0.35, spd: s.sp(1.6), shape: 'small', color: 'cyan' });
+          yield s.wait(s.lv(14, 10, 8, 7, 6));
+        }
+      }());
       for (let w = 0; ; w++) {
         for (let k = 0; k < s.lv(3, 4, 5, 6, 6); k++) {
           const p = s.player, delay = s.lv(48, 42, 36, 32, 28), travel = s.lv(20, 18, 16, 14, 13), lead = delay + travel;
@@ -1108,6 +1403,12 @@ const SPELLS = [
           const a = Math.atan2(ty - s.boss.y, tx - s.boss.x), dist = Math.hypot(tx - s.boss.x, ty - s.boss.y);
           s.mark({ x: tx, y: ty, dur: lead });
           s.warnLine({ x: s.boss.x, y: s.boss.y, x2: s.boss.x + Math.cos(a) * 700, y2: s.boss.y + Math.sin(a) * 700, dur: delay, band: 10 });
+          // 하드 이상: 가는 쪽과 지금 자리가 30px 넘게 떨어지면 지금 자리에도 한 줄(그대로 가도, 멈춰도 맞으므로 방향을 틀어야 함).
+          // 가만히 서 있으면 조금 벌어진 두 줄 사이 틈이 아니라 옆으로 한 칸 크게 비껴 쏨 → 서 있던 자리 좌우 한쪽이 막힘
+          const moving = Math.hypot(tx - p.x, ty - p.y) > 30;
+          const a2 = moving ? Math.atan2(p.y - s.boss.y, p.x - s.boss.x) : a + (Math.random() < 0.5 ? -1 : 1) * 0.16;
+          const two = s.diff >= 2;
+          if (two) s.warnLine({ x: s.boss.x, y: s.boss.y, x2: s.boss.x + Math.cos(a2) * 700, y2: s.boss.y + Math.sin(a2) * 700, dur: delay, band: 10 });
           // 삐… 삐… 삐비비빅: 간격이 점점 짧아지는 경고음
           for (let t = 0, gap = 12; t < delay;) {
             s.sound('beep', t / delay);
@@ -1115,8 +1416,8 @@ const SPELLS = [
             yield g; t += g; gap *= 0.78;
           }
           const spd = Math.max(5, dist / travel), n = s.lv(6, 8, 10, 12, 14);
-          for (let i = 0; i < n; i++) { s.fire({ ang: a, spd, shape: 'knife', color: 'red' }); yield 2; }
-          s.ring(s.cnt(14), { offset: s.rand(0, s.TAU), spd: s.sp(1.5), shape: 'small', color: 'cyan' });
+          for (let i = 0; i < n; i++) { s.fire({ ang: a, spd, shape: 'knife', color: 'red' }); if (two) s.fire({ ang: a2, spd, shape: 'knife', color: 'red' }); yield 2; }
+          s.ring(s.cnt(16), { offset: s.rand(0, s.TAU), spd: s.sp(1.7), shape: 'small', color: 'cyan' });
           yield s.lv(24, 20, 16, 14, 12);
         }
         s.ring(s.cnt(24), { offset: s.rand(0, s.TAU), spd: s.sp(1.6), shape: 'small', color: 'cyan' });
@@ -1182,15 +1483,38 @@ const SPELLS = [
       // 이전 비가 다 내린 뒤 다음 신호가 오도록 사이를 둠
       const lanes = 8, lw = s.W / lanes;
       for (let w = 0; ; w++) {
-        const on = s.lv(3, 4, 4, 5, 5), pick = [...Array(lanes).keys()].sort(() => Math.random() - 0.5).slice(0, on);
-        const warn = s.lv(50, 42, 36);
+        const on = s.lv(3, 4, 4, 5, 5), warn = s.lv(50, 42, 36);
+        const pickLanes = () => [...Array(lanes).keys()].sort(() => Math.random() - 0.5).slice(0, on);
+        let pick = pickLanes();
         for (const i of pick) s.area({ x: i * lw + 2, y: 0, w: lw - 4, h: s.H, warn, dur: 0, label: '1', color: '#35d6ff' });
         yield warn;
-        for (let t = 0; t < 120; t += 3) {
-          for (const i of pick) if (Math.random() < s.lv(0.45, 0.6, 0.7, 0.8, 0.9)) {
-            s.fire({ x: i * lw + s.rand(6, lw - 6), y: -6, ang: Math.PI / 2, spd: s.sp(s.rand(3, 4.5)), shape: 'small', color: 'cyan' });
+        // 두 번 내림: 첫 비가 내리는 끝무렵에 다음 줄을 예고하고, 이어서 그 줄에 비가 내림
+        for (let round = 0; round < 2; round++) {
+          let next = null;
+          for (let t = 0; t < 120; t += 3) {
+            if (round === 0 && t === 120 - warn - (warn % 3)) {
+              // 다음 줄은 지금 서 있는 줄을 반드시 포함하고, 비가 안 오는 이웃 칸(비 줄을 건너지 않고 갈 수 있는 곳) 하나는 비워 둠.
+              // 그런 칸이 없으면 두 번째 비는 없음
+              const pl = Math.max(0, Math.min(lanes - 1, Math.floor(s.player.x / lw))), seg = [];
+              if (!pick.includes(pl)) {
+                for (let i = pl - 1; i >= 0 && !pick.includes(i); i--) seg.push(i);
+                for (let i = pl + 1; i < lanes && !pick.includes(i); i++) seg.push(i);
+              }
+              if (seg.length) {
+                const keep = s.pick(seg);
+                next = [pl, ...[...Array(lanes).keys()].filter(i => i !== pl && i !== keep).sort(() => Math.random() - 0.5).slice(0, on - 1)];
+                for (const i of next) s.area({ x: i * lw + 2, y: 0, w: lw - 4, h: s.H, warn, dur: 0, label: '0', color: '#8fe8ff' });
+              }
+            }
+            for (const i of pick) if (Math.random() < s.lv(0.45, 0.6, 0.7, 0.8, 0.9)) {
+              s.fire({ x: i * lw + s.rand(6, lw - 6), y: -6, ang: Math.PI / 2, spd: s.sp(s.rand(3, 4.5)), shape: 'small', color: 'cyan' });
+            }
+            // 빈 줄에 서 있어도 조준탄이 와서 줄 안에서 비켜야 함
+            if (t % 24 === 12) s.spread(s.lv(1, 3, 3, 3, 5), s.aim(), 0.14, { spd: s.sp(2.6), shape: 'rice', color: 'white' });
+            yield 3;
           }
-          yield 3;
+          if (!next) break;
+          pick = next;
         }
         if (s.diff > 0) s.spread(3, s.aim(), 0.3, { spd: s.sp(2.4), shape: 'rice', color: 'white' });
         yield 70;
@@ -1231,17 +1555,21 @@ const SPELLS = [
     name: '「오버클럭」(가칭)',
     type: 'spell', boss: '이즘', bossColor: '#8fe8ff', hp: 3000, time: 48, start: [192, 80],
     *run(s) {
-      // 불렛타임의 반대: 경고 뒤 잠깐 적 탄 시계만 빨라짐. 평소엔 느긋한 탄을 깔아 두었다가 한꺼번에 몰아침
-      for (;;) {
-        for (let k = 0; k < 7; k++) {
-          s.ring(s.cnt(22), { offset: s.rand(0, s.TAU), spd: s.sp(1.1), shape: 'orb', color: 'cyan' });
-          s.spread(s.lv(1, 3, 3, 5, 5), s.aim(), 0.25, { spd: s.sp(1.5), shape: 'rice', color: 'white' });
-          yield s.wait(32);
+      // 불렛타임의 반대: 경고 뒤 잠깐 적 탄 시계만 빨라짐. 평소엔 느긋한 원형탄과 두 갈래 나선을 깔아 두었다가
+      // 한꺼번에 몰아침. 빨라진 동안에도 조준탄을 쏘므로(함께 빨라짐) 깔린 탄 사이에서 계속 움직여야 함
+      for (let w = 0; ; w++) {
+        const dir = w % 2 ? -1 : 1;
+        for (let k = 0; k < 14; k++) {
+          if (k % 2 === 0) s.ring(s.cnt(22), { offset: s.rand(0, s.TAU), spd: s.sp(1.1), shape: 'orb', color: 'cyan' });
+          for (let i = 0; i < 2; i++) s.fire({ ang: dir * k * 0.33 + i * Math.PI, spd: s.sp(1.3), shape: 'rice', color: 'blue' });
+          if (k % 3 === 1) s.spread(s.lv(1, 3, 3, 5, 5), s.aim(), 0.25, { spd: s.sp(1.5), shape: 'rice', color: 'white' });
+          yield s.wait(16);
         }
         s.say(s.boss, 'OVERCLOCK', 50);
         yield 45;
         s.bulletTime(s.lv(1.5, 1.7, 1.9, 2, 2.1), 120);
-        yield 150;
+        for (let t = 0; t < 120; t += 30) { s.spread(3, s.aim(), 0.3, { spd: s.sp(1.4), shape: 'small', color: 'white' }); yield 30; }
+        yield 30;
       }
     },
   },
@@ -1267,15 +1595,24 @@ const SPELLS = [
           s.safeZone({ x: p.x, y: p.y, r: R, label: k + 1, dur: preview - k * stagger + k * gap + hold + 6 });
           s.sound('beep', k / 3);
         }()));
-        yield preview;
+        // 번호를 외우는 동안 조준탄 줄기를 피하며 움직여야 함
+        for (let t = 0; t < preview; t += 12) {
+          s.spread(s.lv(1, 1, 3, 3, 3), s.aim(), 0.18, { spd: s.sp(3), shape: 'rice', color: 'white' });
+          if (t % 36 === 0) s.ring(s.cnt(14), { offset: s.rand(0, s.TAU), spd: s.sp(1.8), shape: 'small', color: 'cyan' });
+          yield Math.min(12, preview - t);
+        }
+        s.clear();
         for (let k = 0; k < 3; k++) {
           const list = fillField(s, { holes: [pts[k]], spacing: s.lv(20, 19, 18, 17, 16), color: k % 2 ? 'cyan' : 'blue' });
           yield hold;
           s.pop(list);
           yield move;
         }
-        for (let k = 0; k < 2; k++) { s.spread(s.lv(1, 3, 3, 5, 5), s.aim(), 0.25, { spd: s.sp(2.2), shape: 'small', color: 'white' }); yield s.wait(40); }
-        yield s.wait(50);
+        for (let k = 0; k < 4; k++) {
+          s.spread(s.lv(1, 3, 3, 5, 5), s.aim(), 0.25, { spd: s.sp(2.4), shape: 'small', color: 'white' });
+          s.ring(s.cnt(16), { offset: k * 0.4, spd: s.sp(1.6), shape: 'small', color: 'blue' });
+          yield s.wait(28);
+        }
       }
     },
   },
@@ -1288,13 +1625,17 @@ const SPELLS = [
       for (;;) {
         // 줄 사이 간격(12px)에는 기체가 설 자리가 없으므로 이웃한 두 줄의 통로가 겹쳐야 지나갈 수 있음.
         // 통로의 안전 폭은 gapW - 11 정도이므로 줄마다 옮겨 가는 폭(shift)을 그보다 작게 둠
-        const rows = s.lv(14, 18, 22, 24, 26), gapW = s.lv(46, 36, 28, 26, 24), shift = s.lv(8, 10, 12, 12, 11);
+        const rows = s.lv(22, 28, 34, 38, 42), gapW = s.lv(46, 36, 28, 26, 24), shift = s.lv(8, 10, 12, 12, 11);
         const dur = Math.round((s.H + rows * cell + 40) / (fall * k));
         s.bulletTime(k, dur + 40);
         yield 20;
-        let cx = s.player.x;   // 첫 줄의 통로는 플레이어 바로 위에서 시작
+        // 첫 줄의 통로는 플레이어 바로 위에서 시작. 통로는 한 방향으로 줄마다 shift씩 흘러가다가
+        // 벽에 닿거나 가끔(20%) 방향을 틀어, 미로를 따라 화면을 가로질러야 함
+        let cx = s.player.x, dir = cx < s.W / 2 ? 1 : -1;
         for (let r = 0; r < rows; r++) {
-          cx = Math.max(gapW, Math.min(s.W - gapW, cx + s.rand(-1, 1) * shift));
+          if (Math.random() < 0.2) dir = -dir;
+          if (cx + dir * shift < gapW || cx + dir * shift > s.W - gapW) dir = -dir;
+          cx += dir * shift * s.rand(0.6, 1);
           for (let x = cell / 2; x < s.W; x += cell) {
             if (Math.abs(x - cx) < gapW / 2) continue;
             s.fire({ x, y: -10 - r * cell, ang: Math.PI / 2, spd: fall, shape: 'small', color: r % 2 ? 'cyan' : 'blue', marginTop: rows * cell + 40 });
@@ -1317,11 +1658,6 @@ const SPELLS = [
 
 // ── 엑스트라: 진심 예로니모 ──
 // 엑스트라 패턴은 extra: true로 표시하며 고른 난이도보다 한 단계 위로 계산된다(하드는 그 위의 엑스트라 하드)
-function exOf(sp) {
-  const c = { ...sp, extra: true, boss: sp.boss ? '예로니모(진심)' : sp.boss };
-  SPELLS.push(c);
-  return c;
-}
 
 // ── 화면 채우기(발악·안전지대 패턴) ──
 // 안전지대(holes: [{x, y, r}])만 비우고 화면 전체를 엇갈린 격자로 탄을 깖. motion을 주면 모든 탄이 motion.vx·vy로
@@ -1497,13 +1833,13 @@ const BOSS_RUNS = [
   {
     title: '엑스트라 · 진심 예로니모', name: '진심 예로니모', power: 4, hpScale: 1.7,
     seq: [
-      exOf(spellOf('논스펠 · 예로니모 1')),
-      exOf(spellOf('스피리투스 제1식 — 꺼져가는 등불을 끄지 아니하고')),
-      exOf(spellOf('논스펠 · 예로니모 2')),
-      exOf(spellOf('파테르 제1식 — 나의 의로운 오른손으로 너를 붙들리라', '예로니모')),
-      exOf(spellOf('논스펠 · 예로니모 3')),
-      exOf(spellOf('파테르 제2식 — 능히 일어나지 못하게 하리니', '예로니모')),
-      exOf(spellOf('Clavis Collata — NUNC DIMITTIS')),
+      spellOf('논스펠 · 예로니모 1', '예로니모(진심)'),
+      spellOf('스피리투스 제1식 — 꺼져가는 등불을 끄지 아니하고', '예로니모(진심)'),
+      spellOf('논스펠 · 예로니모 2', '예로니모(진심)'),
+      spellOf('파테르 제1식 — 나의 의로운 오른손으로 너를 붙들리라', '예로니모(진심)'),
+      spellOf('논스펠 · 예로니모 3', '예로니모(진심)'),
+      spellOf('파테르 제2식 — 능히 일어나지 못하게 하리니', '예로니모(진심)'),
+      spellOf('Clavis Collata — NUNC DIMITTIS', '예로니모(진심)'),
       spellOf('Clavis Communis, 스피리투스 제10식 — CONFITEOR. 내 죄가 항상 내 앞에 있나이다'),
     ],
   },
