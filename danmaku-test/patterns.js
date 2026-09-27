@@ -1768,30 +1768,41 @@ const SPELLS = [
     name: '「뿌리를 찾는 덩굴」(가칭)',
     type: 'spell', boss: '리크니스', bossColor: '#e8b4c8', hp: 3600, time: 50, start: [192, 90],
     *run(s) {
-      // 2급 이상 오르트로스를 만들 수 있는 것은 리크니스뿐 → 고등급 날개 오르트로스를 불러냄
-      s.task(function* () {
-        for (;;) {
-          yield 240;
-          for (const side of [-1, 1]) s.enemy({
-            x: s.W / 2 + side * 120, y: -20, vy: 1.2, hp: s.lv(120, 180, 240), r: 18, color: 'red', label: '2급',
-            run: function* (e, s) {
-              yield 50; e.vy = 0;
-              for (let k = 0; k < 5; k++) { s.ring(s.cnt(18), { x: e.x, y: e.y, offset: k * 0.17, spd: s.sp(1.8), shape: 'rice', color: 'red' }); yield s.wait(40); }
-              e.vy = -1.2;
-            },
-          });
-          yield 360;
-        }
-      }());
-      // 플레이어를 더듬어 찾는 덩굴. 잎은 짧게 붙어 있음
-      for (;;) {
-        const n = s.lv(2, 2, 3);
-        for (let i = 0; i < n; i++) s.task(ivyVine(s, {
-          x: s.boss.x + (i - (n - 1) / 2) * 40, y: s.boss.y, ang: Math.PI / 2 + (i - (n - 1) / 2) * 0.8,
-          spd: s.sp(2.4), len: 200, seek: s.lv(0.012, 0.018, 0.024), turn: 0.02, stay: s.lv(50, 70, 90),
-          seekOffX: (i - (n - 1) / 2) * 80 + s.rand(-15, 15),   // 덩굴마다 플레이어 좌우로 어긋난 곳을 노려 한곳에 모이지 않게
-        }));
-        yield s.wait(150);
+      // 뿌리를 찾는 덩굴: 잎을 만드는 빛나는 덩굴 머리가 기체와 약 110px 거리를 두고 천천히(최대 0.9px/프레임) 계속 쫓아오며
+      // 지나간 자리에 잎을 남기고, 가끔 느린 유도탄을 쏨(노말까지 머리 하나, 하드부터 둘).
+      // 가운데에서는 리크니스에게서 뻗은 빔 세 줄이 켜진 채 천천히 빙글빙글 돎(화면 끝에서도 약 1.8px/프레임, 약 8초마다 방향이 바뀜)
+      const keep = 110, chase = s.sp(0.9);
+      const makeHead = (x, y) => {
+        const head = s.fire({ x, y, spd: 0, shape: 'orb', color: 'green', margin: 60,
+          fn: (b, s) => {
+            const p = s.player, dx = b.x - p.x, dy = b.y - p.y, d = Math.hypot(dx, dy) || 1;
+            const tx = p.x + dx / d * keep, ty = p.y + dy / d * keep, mx = tx - b.x, my = ty - b.y, md = Math.hypot(mx, my);
+            if (md > 1) { const k = Math.min(chase, md) / md; b.pvx = mx * k; b.pvy = my * k; b.x += b.pvx; b.y += b.pvy; }
+            if (b.t % 18 === 0 && !s.near(b.x, b.y, 12, 'leaf')) ivyLeaf(s, b.x, b.y, s.rand(0, s.TAU), s.lv(150, 170, 190));
+            if (b.t % s.wait(80) === 40) {
+              // 느린 유도탄: 기체 쪽으로 조금씩 꺾으며 날아오다 3초 뒤 사라짐
+              s.fire({ x: b.x, y: b.y, ang: Math.atan2(p.y - b.y, p.x - b.x), spd: s.sp(1.3), shape: 'leaf', color: 'ivy',
+                fn: (c, s) => {
+                  const want = Math.atan2(s.player.y - c.y, s.player.x - c.x), da = ((want - c.ang + Math.PI * 3) % s.TAU) - Math.PI;
+                  if (c.t < 120) c.ang += Math.max(-0.02, Math.min(0.02, da));
+                  if (c.t > 180) c.dead = true;
+                } });
+            }
+          } });
+        return head;
+      };
+      makeHead(20, s.H * 0.4);
+      if (s.diff >= 2) makeHead(s.W - 20, s.H * 0.6);
+      // 가운데 나선 빔
+      const st = { rot: 0 }, n = 3, omega = 0.005;
+      for (let i = 0; i < n; i++) {
+        s.laser({ x: s.boss.x, y: s.boss.y, ang: i * s.TAU / n, len: 700, w: 12, warn: 70, dur: 99999, color: 'green',
+          fn: l => { l.ang = i * s.TAU / n + st.rot; l.x = s.boss.x; l.y = s.boss.y; } });
+      }
+      yield 70;
+      for (let k = 0; ; k++) {
+        const dir = k % 2 ? -1 : 1;
+        for (let t = 0; t < 480; t++) { st.rot += dir * omega; yield 1; }
       }
     },
   },
@@ -1799,14 +1810,14 @@ const SPELLS = [
     name: '논스펠 · 리크니스 3',
     type: 'nonspell', boss: '리크니스', bossColor: '#e8b4c8', hp: 3000, time: 42, start: [192, 100],
     *run(s) {
-      // 덩굴 채찍: 보스 양옆에서 크게 휘어 도는 덩굴 + 꽃잎 조준탄
+      // 덩굴 채찍: 보스 양옆에서 덩굴 두 쌍이 서로 다른 각도로 크게 휘어 돌며 휘몰아침(한 쌍은 바깥으로, 한 쌍은 아래로) + 꽃잎 조준탄
       for (let w = 1; ; w++) {
-        for (const side of [-1, 1]) s.task(ivyVine(s, {
-          x: s.boss.x + side * 20, y: s.boss.y, ang: Math.PI / 2 - side * 1.2, spd: s.sp(3), len: 140,
-          curl: side * s.lv(0.018, 0.02, 0.022, 0.024, 0.026), turn: 0.01, stay: s.lv(60, 80, 100),
+        for (const [a0, len] of [[1.2, 170], [0.55, 150]]) for (const side of [-1, 1]) s.task(ivyVine(s, {
+          x: s.boss.x + side * 20, y: s.boss.y, ang: Math.PI / 2 - side * a0, spd: s.sp(3.3), len,
+          curl: side * s.lv(0.02, 0.022, 0.024, 0.026, 0.028), turn: 0.01, stay: s.lv(70, 90, 110),
         }));
-        for (let k = 0; k < 3; k++) { yield s.wait(25); if (k !== 1) s.spread(s.lv(1, 3, 3, 5), s.aim(), 0.16, { spd: s.sp(3), shape: 'small', color: 'pink' }); }
-        yield s.wait(50);
+        for (let k = 0; k < 3; k++) { yield s.wait(22); s.spread(s.lv(3, 3, 5, 5, 7), s.aim(), 0.16, { spd: s.sp(3), shape: 'small', color: 'pink' }); }
+        yield s.wait(34);
         if (w % 3 === 0) yield* s.wander();
       }
     },
@@ -1815,24 +1826,29 @@ const SPELLS = [
     name: '「덩굴에 핀 꽃」(가칭)',
     type: 'spell', boss: '리크니스', bossColor: '#e8b4c8', hp: 3400, time: 50, start: [192, 80],
     *run(s) {
-      // 위에서 굽이치며 내려오는 덩굴 곳곳에 꽃봉오리(큰 분홍 탄)가 맺혔다가 잠시 뒤 꽃잎으로 터짐
-      const bloomAt = s.lv(100, 90, 80, 75, 70);
-      const bloom = (b, s) => {
-        if (b.t !== bloomAt) return;
-        b.dead = true;
-        s.ring(s.lv(6, 8, 9, 10, 11), { x: b.x, y: b.y, offset: s.rand(0, s.TAU), spd: 0.5, accel: 0.03, maxSpd: s.sp(2), shape: 'rice', color: 'pink' });
-      };
+      // 덩굴이 위에서 굽이치며 바닥까지 천천히 늘어지는 동안 곳곳에 꽃봉오리(큰 분홍 탄)가 맺히고,
+      // 덩굴이 바닥에 닿으면 봉오리가 위에서부터 차례로 꽃잎으로 터짐
       for (let w = 0; ; w++) {
-        const n = s.lv(2, 2, 3, 3, 3), budEvery = s.lv(56, 48, 42, 38, 34);
+        const n = s.lv(2, 2, 3, 3, 3), budEvery = s.lv(56, 48, 42, 38, 34), spd = s.sp(1.4), len = Math.round((s.H + 30) / spd);
+        let longest = 0;
         for (let i = 0; i < n; i++) {
-          s.task(ivyVine(s, {
-            x: s.W * (i + 0.5) / n + s.rand(-20, 20), y: -10, ang: Math.PI / 2, spd: s.sp(2.2), len: 160, turn: 0.04, wave: 0.07, phase: i + w,
-            stay: s.lv(60, 70, 80), margin: 40,
-            step: (x, y, t) => { if (t % budEvery === 20) s.fire({ x, y, spd: 0, shape: 'big', color: 'pink', fn: bloom }); },
-          }));
+          const st = { doneAt: 0 }, buds = [];
+          const bloom = (b, s) => {
+            if (!st.doneAt || s.frame < st.doneAt + 20 + b.data.k * 10) return;
+            b.dead = true;
+            s.ring(s.lv(6, 8, 9, 10, 11), { x: b.x, y: b.y, offset: s.rand(0, s.TAU), spd: 0.5, accel: 0.03, maxSpd: s.sp(2), shape: 'rice', color: 'pink' });
+          };
+          s.task(function* () {
+            yield* ivyVine(s, {
+              x: s.W * (i + 0.5) / n + s.rand(-20, 20), y: -10, ang: Math.PI / 2, spd, len, turn: 0.04, wave: 0.05, phase: i + w,
+              stay: s.lv(140, 160, 180), margin: 40,
+              step: (x, y, t) => { if (t % budEvery === 20) buds.push(s.fire({ x, y, spd: 0, shape: 'big', color: 'pink', data: { k: buds.length }, fn: bloom })); },
+            });
+            st.doneAt = s.frame;
+          }());
+          longest = Math.max(longest, len);
         }
-        yield s.wait(60) * 3;   // 큰 패턴이라 본체는 쏘지 않음(꽃에 집중)
-        yield s.wait(40);
+        yield longest + 20 + 10 * 12 + s.wait(80);   // 다 늘어지고 꽃이 다 필 때까지. 큰 패턴이라 본체는 쏘지 않음
       }
     },
   },
@@ -1870,23 +1886,37 @@ const SPELLS = [
     name: '「담쟁이 정원」(가칭)',
     type: 'spell', boss: '리크니스', bossColor: '#e8b4c8', hp: 3800, time: 55, start: [192, 90],
     *run(s) {
-      // 예고선을 따라 덩굴이 빠르게 뻗어 사선 격자(이지는 한 방향 줄무늬)를 만들고,
-      // 격자는 모양을 유지한 채 통째로 내려옴. 칸 안에서 함께 내려가다 잎 사이 틈으로 빠져나감
-      const tilt = 0.6, span = s.H * Math.tan(tilt);
-      for (let w = 0; ; w++) {
-        const gap = s.lv(130, 118, 105, 100, 95), warn = s.lv(56, 48, 42, 40, 38), lines = [];
-        const dirs = s.diff >= 1 ? [1, -1] : [w % 2 ? 1 : -1];
-        for (const dir of dirs) {
-          const ang = Math.PI / 2 - dir * tilt, off = s.rand(0, gap);
-          for (let x0 = (dir > 0 ? -span : 0) + off; x0 < (dir > 0 ? s.W : s.W + span); x0 += gap) {
-            s.warnLine({ x: x0, y: 0, x2: x0 + Math.cos(ang) * 700, y2: Math.sin(ang) * 700, dur: warn });
-            lines.push([x0, ang]);
-          }
+      // 담쟁이 정원: 예고선을 따라 사선 격자를 딱 한 번 만들고(움직여도 가장자리가 비지 않게 화면보다 넓게), 이후 그 구조가
+      // 통째로 대각선으로 천천히 오르내림(진폭 60px, 약 7초 주기, 최대 약 1.05px/프레임). 칸 안에서 함께 움직이며 버티고,
+      // 리크니스가 가끔 조준탄으로 방해함. 잎 사이는 17px 이상이라 잎 줄 사이로 옆 칸에 옮길 수도 있음
+      const tilt = 0.6, gap = s.lv(130, 118, 105, 100, 95), step = s.lv(26, 22, 20, 19, 18), A = 60, pad = A + gap;
+      const warn = 60, lines = [], mv = { x: 0, y: 0 };
+      const dirs = s.diff >= 1 ? [1, -1] : [1];
+      for (const dir of dirs) {
+        const ang = Math.PI / 2 - dir * tilt, span = (s.H + 2 * pad) * Math.tan(tilt), off = s.rand(0, gap);
+        for (let x0 = -pad - (dir > 0 ? span : 0) + off; x0 < s.W + pad + (dir > 0 ? 0 : span); x0 += gap) {
+          s.warnLine({ x: x0, y: -pad, x2: x0 + Math.cos(ang) * 900, y2: -pad + Math.sin(ang) * 900, dur: warn });
+          lines.push([x0, ang]);
         }
-        yield warn;
-        for (const [x0, ang] of lines) s.task(ivyVine(s, { x: x0, y: -5, ang, spd: 6, len: 150, turn: 0, gapPx: s.lv(26, 22, 20, 19, 18), skip: 0, stay: s.lv(80, 90, 100), margin: 400 }));
-        yield s.wait(36) * 4;   // 큰 패턴이라 본체는 쏘지 않음
-        yield s.wait(110);
+      }
+      yield warn;
+      // 격자 깔기: 줄마다 잎을 step 간격으로(겹치는 교차점은 건너뜀). 잎은 공통 이동량 mv를 따라 움직임
+      let li = 0;
+      for (const [x0, ang] of lines) {
+        for (let d = 0, k = 0; d < 1100; d += step, k++) {
+          const x = x0 + Math.cos(ang) * d, y = -pad + Math.sin(ang) * d;
+          if (x < -pad || x > s.W + pad || y < -pad || y > s.H + pad) continue;
+          if (s.near(x + mv.x, y + mv.y, 10, 'leaf')) continue;
+          s.fire({ x, y, spd: 0, ang: ang + (k % 2 ? 0.9 : -0.9), shape: 'leaf', color: 'ivy', margin: pad + 40, data: { x, y },
+            fn: b => { b.x = b.data.x + mv.x; b.y = b.data.y + mv.y; } });
+        }
+        if (++li % 2 === 0) yield 1;
+      }
+      // 대각선(오른쪽 아래 ↔ 왼쪽 위)으로 통째로 오르내림
+      s.task(function* () { for (let t = 0; ; t++) { const k = A * Math.sin(t * s.TAU / 420); mv.x = k * 0.707; mv.y = k * 0.707; yield 1; } }());
+      for (;;) {
+        yield s.wait(80);
+        s.spread(s.lv(1, 1, 3, 3, 3), s.aim(), 0.2, { spd: s.sp(2.2), shape: 'small', color: 'pink' });
       }
     },
   },
