@@ -334,9 +334,9 @@ const SPELLS = [
     *run(s) {
       // E3 제압 사격: 짧게 끊어 쏘는 조준 3점사 + 박자에 맞춘 느린 원형탄. 홍마향 1스테이지처럼 조준과 고정 탄을 번갈아
       for (let w = 1; ; w++) {
-        for (let k = 0; k < 3; k++) { s.spread(s.lv(1, 3, 3, 5, 5), s.aim(), 0.14, { spd: s.sp(3.4), shape: 'rice', color: 'blue' }); yield 6; }
+        for (let k = 0; k < 3; k++) { s.spread(s.lv(1, 3, 3, 5, 5), s.aim(), 0.14, { spd: s.sp(3), shape: 'rice', color: 'blue' }); yield 8; }
         yield s.wait(24);
-        s.ring(s.cnt(20), { offset: w * 0.13, spd: s.sp(1.6), shape: 'small', color: 'white' });
+        s.ring(s.cnt(16), { offset: w * 0.13, spd: s.sp(1.5), shape: 'small', color: 'white' });
         yield s.wait(30);
         if (w % 3 === 0) yield* s.wander(70, 50);
       }
@@ -349,9 +349,9 @@ const SPELLS = [
       // 대책반의 구속 장비. 점착제 덩어리가 포물선으로 날아가 떨어진 자리에 한동안 붙어 있는 장애물이 됨.
       // 떨어질 자리를 십자선으로 먼저 보여 주고, 플레이어 바로 위에는 떨어뜨리지 않음. 붙는 순간 작은 방울이 튀고,
       // 붙은 덩어리 사이로 조준 사격을 피함
-      const stick = s.lv(200, 180, 160, 150, 140);
+      const stick = s.lv(170, 150, 135, 125, 120);
       for (let w = 0; ; w++) {
-        for (let i = 0; i < s.lv(4, 5, 6, 6, 7); i++) {
+        for (let i = 0; i < s.lv(3, 4, 5, 5, 6); i++) {
           let tx, ty, tries = 0;
           do { tx = s.rand(40, s.W - 40); ty = s.rand(220, s.H - 40); } while (Math.hypot(tx - s.player.x, ty - s.player.y) < 60 && ++tries < 20);
           const T = 50, g = 0.12;
@@ -369,7 +369,7 @@ const SPELLS = [
           });
           yield 8;
         }
-        for (let k = 0; k < 4; k++) { s.spread(s.lv(1, 3, 3, 5, 5), s.aim(), 0.2, { spd: s.sp(2.8), shape: 'rice', color: 'blue' }); yield s.wait(22); }
+        for (let k = 0; k < 3; k++) { s.spread(s.lv(1, 3, 3, 5, 5), s.aim(), 0.2, { spd: s.sp(2.5), shape: 'rice', color: 'blue' }); yield s.wait(24); }
         yield s.wait(50);
       }
     },
@@ -2516,7 +2516,7 @@ function spellOf(name, boss) {
 }
 const BOSS_RUNS = [
   {
-    title: '1스테이지 · 괴이사건대책반', name: '대책반', pages: [2, 2, 2], power: 0, hpScale: 4.64, bossScale: { '윤도연': 1.3 },
+    title: '1스테이지 · 괴이사건대책반', name: '대책반', pages: [2, 2, 2], power: 0, hpScale: 4.18, bossScale: { '윤도연': 1.3 },
     seq: [
       spellOf('논스펠 · 윤도연'),
       spellOf('「발포 점착제」(가칭)'),
@@ -2527,7 +2527,7 @@ const BOSS_RUNS = [
     ],
   },
   {
-    title: '2스테이지 · 마리와 마르코', name: '마리·마르코', pages: [2, 2, 3], power: 1.5, hpScale: 8.26, bossScale: { '마리': 1.79 },
+    title: '2스테이지 · 마리와 마르코', name: '마리·마르코', pages: [2, 2, 3], power: 1.5, hpScale: 7.43, bossScale: { '마리': 1.61 },
     seq: [
       spellOf('논스펠 · 마리'),
       spellOf('파테르 제1식 — 나의 의로운 오른손으로 너를 붙들리라', '마리'),
@@ -2539,7 +2539,7 @@ const BOSS_RUNS = [
     ],
   },
   {
-    title: '3스테이지-1 · 김예나', name: '김예나', pages: [2, 2], power: 2, hpScale: 10.95,
+    title: '3스테이지-1 · 김예나', name: '김예나', pages: [2, 2], power: 2, hpScale: 9.86,
     seq: [
       spellOf('논스펠 · 김예나 1'),
       spellOf('「셔터 찬스」(가칭)'),
@@ -2548,7 +2548,7 @@ const BOSS_RUNS = [
     ],
   },
   {
-    title: '3스테이지-2 · 차서린', name: '차서린', pages: [2, 2], power: 2.25, hpScale: 10.59,
+    title: '3스테이지-2 · 차서린', name: '차서린', pages: [2, 2], power: 2.25, hpScale: 9.53,
     seq: [
       spellOf('논스펠 · 차서린 1'),
       spellOf('「리프」(가칭)'),
@@ -2557,7 +2557,7 @@ const BOSS_RUNS = [
     ],
   },
   {
-    title: '3스테이지-3 · 고태웅', name: '고태웅', pages: [2, 2], power: 2.5, hpScale: 8.8,
+    title: '3스테이지-3 · 고태웅', name: '고태웅', pages: [2, 2], power: 2.5, hpScale: 7.92,
     seq: [
       spellOf('논스펠 · 고태웅 1'),
       spellOf('「히어로 킥」(가칭)'),
@@ -2566,7 +2566,7 @@ const BOSS_RUNS = [
     ],
   },
   {
-    title: '5스테이지 · 아즈라엘', name: '아즈라엘', pages: [2, 2, 1], power: 2.75, hpScale: 8.09,
+    title: '5스테이지 · 아즈라엘', name: '아즈라엘', pages: [2, 2, 1], power: 2.75, hpScale: 7.28,
     seq: [
       spellOf('논스펠 · 아즈라엘 1'),
       spellOf('「명암」(가칭)'),
@@ -2576,7 +2576,7 @@ const BOSS_RUNS = [
     ],
   },
   {
-    title: '6스테이지 · 예로니모', name: '예로니모', pages: [2, 2, 2], power: 3, hpScale: 7.67,
+    title: '6스테이지 · 예로니모', name: '예로니모', pages: [2, 2, 2], power: 3, hpScale: 6.9,
     seq: [
       spellOf('논스펠 · 예로니모 1'),
       spellOf('스피리투스 제1식 — 꺼져가는 등불을 끄지 아니하고'),
@@ -2587,7 +2587,7 @@ const BOSS_RUNS = [
     ],
   },
   {
-    title: '7스테이지 · 리크니스', name: '리크니스', pages: [2, 2, 1], power: 3.5, hpScale: 8.77,
+    title: '7스테이지 · 리크니스', name: '리크니스', pages: [2, 2, 1], power: 3.5, hpScale: 7.89,
     seq: [
       spellOf('논스펠 · 리크니스 2'),
       spellOf('「뿌리를 찾는 덩굴」(가칭)'),
@@ -2597,7 +2597,7 @@ const BOSS_RUNS = [
     ],
   },
   {
-    title: '엑스트라 · 진심 예로니모', name: '진심 예로니모', pages: [2, 3, 1], power: 4, hpScale: 9.31,
+    title: '엑스트라 · 진심 예로니모', name: '진심 예로니모', pages: [2, 3, 1], power: 4, hpScale: 8.38,
     seq: [
       spellOf('논스펠 · 예로니모 3', '예로니모(진심)'),
       spellOf('파테르 제2식 — 능히 일어나지 못하게 하리니', '예로니모(진심)'),
@@ -2608,7 +2608,7 @@ const BOSS_RUNS = [
     ],
   },
   {
-    title: '엑스트라 2 · 이즘', name: '이즘', pages: [2, 2, 1], power: 4, hpScale: 11.3,
+    title: '엑스트라 2 · 이즘', name: '이즘', pages: [2, 2, 1], power: 4, hpScale: 10.17,
     seq: [
       spellOf('논스펠 · 이즘 1'),
       spellOf('「순차 격자 타격」(가칭)'),
