@@ -324,11 +324,10 @@ const SPELLS = [
     type: 'spell', boss: '고현성', bossColor: '#c8d4e8', hp: 2200, time: 45, start: [192, 90],
     *run(s) {
       // 강선 그물: 플레이어 둘레에 격자로 예고선이 깔리고, 강선이 한꺼번에 팽팽해짐. 칸 한가운데로 옮기면 안전.
-      // 45도 마름모 격자와 가로세로 격자를 번갈아 치고, 예고하는 동안 느린 원형탄이 지나가 칸으로 가는 길을 골라야 함
+      // 45도 마름모 격자와 가로세로 격자를 번갈아 침
       for (let w = 0; ; w++) {
         const gap = s.lv(110, 96, 86, 80, 76), warn = s.lv(62, 54, 48, 44, 40);
         const cx = s.player.x, cy = s.player.y, off = s.rand(-gap / 2, gap / 2);
-        s.ring(s.cnt(18), { offset: s.rand(0, s.TAU), spd: s.sp(1.5), shape: 'small', color: 'white' });
         const tilt = w % 2 ? 0 : Math.PI / 4;
         for (const ang of [tilt, tilt + Math.PI / 2]) {
           const nx = Math.cos(ang + Math.PI / 2), ny = Math.sin(ang + Math.PI / 2);
@@ -433,7 +432,6 @@ const SPELLS = [
           const a = s.aim();
           s.spread(s.lv(3, 5, 5, 7, 7), a, 0.26, { spd: s.sp(2.2), shape: 'big', color: 'yellow' });
           if (k % 2 === 0) { s.say(s.boss, '딱!', 24); s.sound('flick'); }
-          for (const side of [-1, 1]) s.spread(s.lv(1, 1, 3, 3, 3), a + side * 0.6, 0.18, { spd: s.sp(2.8), shape: 'small', color: 'cyan' });
           yield 22;
         }
       }
@@ -575,7 +573,6 @@ const SPELLS = [
               for (const d of [-1, 1]) s.fire({ x: b.x, y: b.y, ang: b.ang + d * Math.PI / 2, spd: 0.5, accel: 0.015, maxSpd: s.sp(1.6), shape: 'small', color: 'yellow' });
             },
           });
-          s.ring(s.cnt(18), { offset: s.rand(0, s.TAU), spd: s.sp(2.2), shape: 'rice', color: 'gold' });
           s.impact(4);
           yield s.wait(40);
         }
@@ -592,7 +589,7 @@ const SPELLS = [
       for (let w = 1; ; w++) {
         const tx = Math.max(90, Math.min(s.W - 90, s.player.x + s.rand(-80, 80))), ty = s.rand(90, 150);
         s.warnLine({ x: s.boss.x, y: s.boss.y, x2: tx, y2: ty, band: 32, dur: 26 });
-        yield* aimWhile(s, 26, 'yellow');
+        yield 26;
         yield* s.moveTo(tx, ty, 16);
         s.impact(6);
         s.ring(s.cnt(24), { spd: 0.5, accel: 0.035, maxSpd: s.sp(2.2), shape: 'orb', color: 'gold' });
@@ -612,7 +609,6 @@ const SPELLS = [
         const light = s.task(function* () {   // 영창하는 동안 느린 원형탄과 조준탄
           for (let k = 0; ; k++) {
             s.ring(s.cnt(14), { offset: k * 0.29, spd: s.sp(1.5), shape: 'small', color: 'yellow' });
-            if (k % 2) s.spread(3, s.aim(), 0.25, { spd: s.sp(2.4), shape: 'rice', color: 'orange' });
             yield s.wait(34);
           }
         }());
@@ -625,19 +621,17 @@ const SPELLS = [
           const stop = Math.max(0, d - 70);
           const tx = s.boss.x + (px - s.boss.x) / d * stop, ty = Math.min(s.boss.y + (py - s.boss.y) / d * stop, s.H - 120);
           s.warnLine({ x: s.boss.x, y: s.boss.y, x2: tx, y2: ty, band: 32, dur: s.lv(48, 40, 32) });
-          yield* aimWhile(s, s.lv(48, 40, 32), 'yellow');
+          yield s.lv(48, 40, 32);
           // 사거리가 없으므로 직접 달려듦. 돌진 중에는 몸에 닿아도 피격
           s.boss.contact = true;
           yield* s.moveTo(tx, ty, 18);
           s.boss.contact = false;
           s.impact(7);
           s.ring(s.cnt(20), { spd: 0.6, accel: 0.04, maxSpd: s.sp(2.2), shape: 'orb', color: 'gold' });
-          if (s.diff > 0) s.ring(s.cnt(20), { offset: Math.PI / 20, spd: 0.4, accel: 0.03, maxSpd: s.sp(1.4), shape: 'small', color: 'yellow' });
           yield 30;   // 붙든 자리에서 잠시 멈춤 = 공격 기회
-          // 제자리로 물러나며 발을 굴러 느린 원형탄, 그 사이 조준탄
+          // 제자리로 물러남
           s.move(s.rand(140, 244), s.rand(80, 110), 36);
-          for (let t = 0; t < 36; t += 12) { s.spread(s.lv(3, 3, 5, 5, 7), s.aim(), 0.2, { spd: s.sp(2.6), shape: 'rice', color: 'gold' }); yield 12; }
-          s.ring(s.cnt(16), { offset: s.rand(0, s.TAU), spd: s.sp(1.4), shape: 'small', color: 'yellow' });
+          yield 36;
         }
         yield 30;
       }
@@ -667,10 +661,7 @@ const SPELLS = [
     type: 'spell', boss: '김예나', bossColor: '#ffb3d9', hp: 2300, time: 42, start: [192, 90],
     *run(s) {
       // 촬영: 플레이어 자리에 뷰파인더(십자선)가 잡히고, 찰칵(경고음) 하는 순간의 자리로 부채꼴 연사가 날아감.
-      // 세 장을 연달아 찍으므로 찍힌 자리에서 계속 비켜야 함. 뒤로는 느린 별 원형탄
-      s.task(function* () {
-        for (let k = 0; ; k++) { s.ring(s.cnt(16), { offset: k * 0.21, spd: s.sp(1.4), shape: 'star', color: 'pink' }); yield s.wait(44); }
-      }());
+      // 세 장을 연달아 찍으므로 찍힌 자리에서 계속 비켜야 함
       for (let w = 0; ; w++) {
         for (let k = 0; k < s.lv(3, 3, 4, 4, 5); k++) {
           const tx = s.player.x, ty = s.player.y, lead = s.lv(40, 34, 30, 28, 26);
@@ -729,7 +720,6 @@ const SPELLS = [
             } });
           yield s.lv(20, 18, 16, 15, 14);
         }
-        s.spread(s.lv(3, 3, 5, 5, 7), s.aim(), 0.18, { spd: s.sp(2.8), shape: 'rice', color: 'white' });
         yield s.wait(50);
         if (w % 3 === 2) yield* s.wander(60, 50);
       }
@@ -765,7 +755,6 @@ const SPELLS = [
           s.sound('beep', 0.4 + (i % 4 === 0 ? 0.5 : 0));
           const a = Math.PI / 2 + riff[i] * (bar % 2 ? -1 : 1);
           s.spread(s.lv(3, 5, 5, 7, 7), a, 0.09, { spd: s.sp(2.6), shape: 'knife', color: 'cyan' });
-          if (i % 4 === 3) s.spread(s.lv(1, 1, 3, 3, 3), s.aim(), 0.2, { spd: s.sp(3), shape: 'rice', color: 'white' });
           yield s.lv(20, 17, 15, 14, 13);
         }
         s.ring(s.cnt(20), { offset: s.rand(0, s.TAU), spd: s.sp(1.6), shape: 'orb', color: 'blue' });
@@ -817,7 +806,6 @@ const SPELLS = [
           s.laser({ x: ex, y: ey, ang: a, len: 700, w: s.lv(12, 14, 16, 16, 18), warn, dur: 30, color: 'cyan' });
           yield s.lv(40, 34, 30, 28, 26);
         }
-        s.spread(s.lv(3, 3, 5, 5, 7), s.aim(), 0.2, { spd: s.sp(2.6), shape: 'rice', color: 'white' });
         yield s.wait(40);
         if (w % 3 === 2) yield* s.wander(40, 40);
       }
@@ -849,28 +837,26 @@ const SPELLS = [
     type: 'spell', boss: '고태웅', bossColor: '#ffcf6b', hp: 2700, time: 48, start: [192, 100],
     *run(s) {
       // 뛰어올라(화면 위로 사라짐) 비스듬히 내리꽂는 발차기. 예고선 끝(플레이어 70px 앞)에서 멈추고 착지 충격파 두 겹.
-      // 뛰어오르는 동안 떨어지는 별 탄. 돌진 중에는 몸에 닿아도 피격
+      // 돌진 중에는 몸에 닿아도 피격
       siyeonWatch(s);
       for (let w = 0; ; w++) {
         s.boss.glow = 40;
         yield* s.moveTo(s.boss.x, -40, 24);
-        for (let k = 0; k < 6; k++) { s.fire({ x: s.rand(20, s.W - 20), y: -8, ang: Math.PI / 2, spd: s.sp(2.2), shape: 'star', color: 'yellow' }); yield 4; }
         const sx = s.player.x < s.W / 2 ? s.W - 40 : 40, sy = -30;
         s.boss.x = sx; s.boss.y = sy;
         const px = s.player.x, py = s.player.y, d = Math.hypot(px - sx, py - sy) || 1, stop = Math.max(0, d - 70);
         const tx = sx + (px - sx) / d * stop, ty = Math.min(sy + (py - sy) / d * stop, s.H - 110);
         const warn = s.lv(50, 44, 38, 36, 34);
         s.warnLine({ x: sx, y: sy, x2: tx, y2: ty, band: 32, dur: warn });
-        yield* aimWhile(s, warn, 'yellow');
+        yield warn;
         s.boss.contact = true;
         yield* s.moveTo(tx, ty, 16);
         s.boss.contact = false;
         s.impact(7);
         s.ring(s.cnt(20), { spd: 0.6, accel: 0.04, maxSpd: s.sp(2.2), shape: 'star', color: 'yellow' });
-        if (s.diff > 0) s.ring(s.cnt(20), { offset: Math.PI / 20, spd: 0.4, accel: 0.03, maxSpd: s.sp(1.5), shape: 'small', color: 'orange' });
         yield 36;
         s.move(s.rand(140, 244), s.rand(80, 110), 40);
-        for (let t = 0; t < 40; t += 10) { s.spread(s.lv(1, 3, 3, 5, 5), s.aim(), 0.2, { spd: s.sp(2.6), shape: 'rice', color: 'white' }); yield 10; }
+        yield 40;
         yield s.wait(30);
       }
     },
@@ -904,7 +890,7 @@ const SPELLS = [
       // 변신 벨트 불빛처럼 깜빡이는 격자. 엇갈린 세로 줄들이 고정 간격(가로 40px, 세로 dy, 이웃 줄은 반 칸 엇갈림)을 지키며
       // 왼쪽에서 오른쪽으로 함께 진행하고, 격자 전체가 같은 박자로 켜졌다 꺼짐. 꺼진 동안은 자리만 아주 흐리게 보이고
       // 판정이 없음. 처음엔 느리게 깜빡이다가 점점 빨라짐. 켜진 동안은 탄 사이 틈에 머무르며 격자와 함께 흘러가고,
-      // 꺼진 동안 자리를 옮김. 보스는 가끔 느린 조준 별탄을 쏘고, 두 번에 한 번 양옆으로 부채꼴을 뿌림
+      // 꺼진 동안 자리를 옮김. 보스는 약 2.3초마다 양옆으로 부채꼴을 뿌림
       siyeonWatch(s);
       const dx = 40, dy = s.lv(46, 42, 40, 38, 38), v = s.sp(0.9), top = 130, grid = { on: true };
       // 깜빡임: 켜짐 약 1.6초·꺼짐 1초에서 시작해 14번에 걸쳐 켜짐 약 0.5초·꺼짐 0.35초까지 빨라짐. 켜질 때 높은 틱, 꺼질 때 낮은 틱
@@ -927,11 +913,10 @@ const SPELLS = [
           yield Math.round(dx / v);
         }
       }());
-      // 격자는 화면 위쪽(top 위)에 없으므로, 두 번에 한 번 양옆으로 약간 아래를 향한 부채꼴을 뿌려 위쪽 빈 곳을 쓸어 줌
-      for (let k = 0; ; k++) {
-        yield s.wait(70);
-        s.spread(s.lv(1, 1, 3, 3, 3), s.aim(), 0.25, { spd: s.sp(1.8), shape: 'star', color: 'orange' });
-        if (k % 2 === 1) for (const a of [0.3, Math.PI - 0.3]) s.spread(s.lv(5, 6, 7, 8, 9), a, 0.14, { spd: s.sp(2.2), shape: 'rice', color: 'orange' });
+      // 격자는 화면 위쪽(top 위)에 없으므로, 양옆으로 약간 아래를 향한 부채꼴을 뿌려 위쪽 빈 곳을 쓸어 줌
+      for (;;) {
+        yield s.wait(140);
+        for (const a of [0.3, Math.PI - 0.3]) s.spread(s.lv(5, 6, 7, 8, 9), a, 0.14, { spd: s.sp(2.2), shape: 'rice', color: 'orange' });
       }
     },
   },
@@ -1003,7 +988,6 @@ const SPELLS = [
         yield warn + 30;
         s.ring(s.cnt(16), { offset: off + Math.PI / n, spd: s.sp(1.4), shape: 'orb', color: 'void' });
         yield s.wait(24);
-        s.spread(s.lv(1, 3, 3, 3, 5), s.aim(), 0.2, { spd: s.sp(2.6), shape: 'rice', color: 'white' });
         yield s.wait(36);
         if (w % 2 === 1) yield* s.wander(50, 50);
       }
@@ -1031,7 +1015,7 @@ const SPELLS = [
     type: 'spell', boss: '아즈라엘', bossColor: '#e8e8f4', hp: 3100, time: 52, start: [192, 80],
     *run(s) {
       // 보스 양옆을 검은 안개로 막아 들어갈 수 없는 구역을 만듦(판정 있음). 남는 곳은 보스 밑 통로와 화면 아래 띠뿐이고,
-      // 그 좁은 곳으로 흰 원형탄과 검은 조준탄이 옴. 안개는 1초 예고(깜빡이는 흰 테두리) 뒤 짙어지고, 보스가 옮기면 다시 깔림
+      // 그 좁은 곳으로 흰 원형탄이 옴. 안개는 1초 예고(깜빡이는 흰 테두리) 뒤 짙어지고, 보스가 옮기면 다시 깔림
       for (let w = 0; ; w++) {
         yield* s.moveTo(s.rand(140, s.W - 140), s.rand(70, 100), 40);
         const cx = s.boss.x, gap = s.lv(84, 74, 66, 62, 58), bottom = s.lv(290, 300, 310, 316, 320);
@@ -1042,7 +1026,6 @@ const SPELLS = [
         yield warn;
         for (let t = 0, k = 0; t < dur; t += s.wait(30), k++) {
           s.ring(s.cnt(14), { offset: k * 0.21, spd: s.sp(1.6), shape: 'rice', color: 'white' });
-          if (k % 2) s.spread(s.lv(1, 3, 3, 3, 5), s.aim(), 0.2, { spd: s.sp(2.4), shape: 'orb', color: 'void' });
           yield s.wait(30);
         }
         yield 30;
@@ -1271,7 +1254,7 @@ const SPELLS = [
           const stop = Math.max(0, d - 110);
           const tx = s.boss.x + (px - s.boss.x) / d * stop, ty = Math.min(s.boss.y + (py - s.boss.y) / d * stop, s.H - 160);
           s.warnLine({ x: s.boss.x, y: s.boss.y, x2: tx, y2: ty, band: 32, dur: s.lv(48, 40, 34) });
-          yield* aimWhile(s, s.lv(48, 40, 34), 'yellow');
+          yield s.lv(48, 40, 34);
           s.boss.contact = true;
           yield* s.moveTo(tx, ty, 20);
           s.boss.contact = false;
@@ -1281,7 +1264,6 @@ const SPELLS = [
           yield warn + 30;   // 사슬이 뻗은 동안은 본체가 쏘지 않음(사슬에 집중)
           s.ring(s.cnt(20), { offset: off + Math.PI / n, spd: 0.5, accel: 0.03, maxSpd: s.sp(2.2), shape: 'orb', color: 'gold' });
           yield 10;
-          s.ring(s.cnt(20), { offset: off, spd: 0.4, accel: 0.025, maxSpd: s.sp(1.5), shape: 'small', color: 'yellow' });
           yield 30;
           s.move(s.rand(140, 244), s.rand(80, 110), 40);
           yield 40;
@@ -1491,7 +1473,7 @@ const SPELLS = [
           const tx = Math.max(30, Math.min(s.W - 30, s.boss.x + (px - s.boss.x) / d * stop)), ty = Math.max(60, Math.min(s.boss.y + (py - s.boss.y) / d * stop, s.H - 160));
           const warn = s.lv(40, 36, 32, 30, 28);
           s.warnLine({ x: s.boss.x, y: s.boss.y, x2: tx, y2: ty, band: 32, dur: warn });
-          yield* aimWhile(s, warn, 'yellow');
+          yield warn;
           s.boss.contact = true;
           yield* s.moveTo(tx, ty, 16);
           s.boss.contact = false;
@@ -1872,13 +1854,6 @@ const SPELLS = [
       // 저격: 가는 방향을 읽어 도착할 자리에 십자선과 조준선을 띄우고, 점점 빨라지는 경고음(삐비비빅) 뒤
       // 그 줄을 따라 칼날을 한 줄로 주르륵 쏨. 멈추거나 방향을 틀면 빗나감. 한 줄이니 옆으로 비키면 됨
       const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
-      // 배경: 위에서 성긴 데이터 비가 비스듬히 내림. 가만히 서서 저격만 기다릴 수 없게
-      s.task(function* () {
-        for (;;) {
-          s.fire({ x: s.rand(0, s.W + 80), y: -6, ang: Math.PI / 2 + 0.35, spd: s.sp(1.6), shape: 'small', color: 'cyan' });
-          yield s.wait(s.lv(14, 10, 8, 7, 6));
-        }
-      }());
       for (let w = 0; ; w++) {
         for (let k = 0; k < s.lv(3, 4, 5, 6, 6); k++) {
           const p = s.player, delay = s.lv(48, 42, 36, 32, 28), travel = s.lv(20, 18, 16, 14, 13), lead = delay + travel;
@@ -1900,10 +1875,8 @@ const SPELLS = [
           }
           const spd = Math.max(5, dist / travel), n = s.lv(6, 8, 10, 12, 14);
           for (let i = 0; i < n; i++) { s.fire({ ang: a, spd, shape: 'knife', color: 'red' }); if (two) s.fire({ ang: a2, spd, shape: 'knife', color: 'red' }); yield 2; }
-          s.ring(s.cnt(16), { offset: s.rand(0, s.TAU), spd: s.sp(1.7), shape: 'small', color: 'cyan' });
           yield s.lv(24, 20, 16, 14, 12);
         }
-        s.ring(s.cnt(24), { offset: s.rand(0, s.TAU), spd: s.sp(1.6), shape: 'small', color: 'cyan' });
         yield s.wait(60);
         if (w % 3 === 2) yield* s.wander();
       }
@@ -2039,19 +2012,18 @@ const SPELLS = [
     type: 'spell', boss: '이즘', bossColor: '#8fe8ff', hp: 3000, time: 48, start: [192, 80],
     *run(s) {
       // 불렛타임의 반대: 경고 뒤 잠깐 적 탄 시계만 확 빨라짐(2.4~3.4배). 평소엔 아주 느린 원형탄과 두 갈래 나선을 깔아 두었다가
-      // 한꺼번에 몰아침. 빨라진 동안에도 조준탄을 쏘므로(함께 빨라짐) 깔린 탄 사이에서 계속 움직여야 함
+      // 한꺼번에 몰아침
       for (let w = 0; ; w++) {
         const dir = w % 2 ? -1 : 1;
         for (let k = 0; k < 14; k++) {
           if (k % 2 === 0) s.ring(s.cnt(22), { offset: s.rand(0, s.TAU), spd: s.sp(0.75), shape: 'orb', color: 'cyan' });
           for (let i = 0; i < 2; i++) s.fire({ ang: dir * k * 0.33 + i * Math.PI, spd: s.sp(0.9), shape: 'rice', color: 'blue' });
-          if (k % 3 === 1) s.spread(s.lv(1, 3, 3, 5, 5), s.aim(), 0.25, { spd: s.sp(1.1), shape: 'rice', color: 'white' });
           yield s.wait(16);
         }
         s.say(s.boss, 'OVERCLOCK', 50);
         yield 45;
         s.bulletTime(s.lv(2.4, 2.7, 3, 3.2, 3.4), 120);
-        for (let t = 0; t < 120; t += 30) { s.spread(3, s.aim(), 0.3, { spd: s.sp(1.1), shape: 'small', color: 'white' }); yield 30; }
+        yield 120;
         yield 30;
       }
     },
@@ -2062,8 +2034,7 @@ const SPELLS = [
     *run(s) {
       // 안전지대 셋에 1·2·3 번호를 차례로 미리 보여 준 뒤, 빰! 1번만 남기고 화면이 탄막으로 찼다가 터져 사라지고,
       // 빰! 2번만 남기고 … 번호 순서대로 옮겨 다니면 됨. 안전지대는 한 번에 옮길 수 있는 거리로만 이어짐.
-      // 채워진 동안 탄막이 안전지대째 다음 번호 쪽으로 천천히 흘러가므로 안전지대를 따라 움직여야 하고,
-      // 그사이 보스가 안전지대 안에서 비킬 수 있는 느린 조준탄을 쏨
+      // 채워진 동안 탄막이 안전지대째 다음 번호 쪽으로 천천히 흘러가므로 안전지대를 따라 움직여야 함
       const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
       const R = s.lv(50, 44, 40, 36, 34), hold = s.lv(72, 66, 60, 56, 52), move = s.lv(52, 46, 40, 36, 34);
       for (let w = 0; ; w++) {
@@ -2081,13 +2052,7 @@ const SPELLS = [
           zones[k] = s.safeZone({ x: p.x, y: p.y, r: R, label: k + 1, dur: preview - k * stagger + k * gap + hold + 6 });
           s.sound('beep', k / 3);
         }()));
-        // 번호를 외우는 동안 조준탄 줄기를 피하며 움직여야 함
-        for (let t = 0; t < preview; t += 12) {
-          s.spread(s.lv(1, 1, 3, 3, 3), s.aim(), 0.18, { spd: s.sp(3), shape: 'rice', color: 'white' });
-          if (t % 36 === 0) s.ring(s.cnt(14), { offset: s.rand(0, s.TAU), spd: s.sp(1.8), shape: 'small', color: 'cyan' });
-          yield Math.min(12, preview - t);
-        }
-        s.clear();
+        yield preview;
         for (let k = 0; k < 3; k++) {
           // 흐를 방향: 다음 번호 쪽(마지막은 화면 가운데 쪽). 흐르는 거리는 다음 번호까지 거리의 절반 이하, 45px 이하
           const to = pts[k + 1] || { x: s.W / 2, y: s.H - 120 }, dx = to.x - pts[k].x, dy = to.y - pts[k].y, d = Math.hypot(dx, dy) || 1;
@@ -2095,17 +2060,12 @@ const SPELLS = [
           const list = fillField(s, { holes: [pts[k]], spacing: s.lv(20, 19, 18, 17, 16), color: k % 2 ? 'cyan' : 'blue', motion, pad: 50 });
           for (let t = 0; t < hold; t++) {
             if (zones[k]) { zones[k].x += motion.vx; zones[k].y += motion.vy; }
-            if (t % s.lv(36, 30, 26, 24, 22) === 12) s.spread(s.lv(1, 1, 1, 3, 3), s.aim(), 0.16, { spd: s.sp(1.8), shape: 'rice', color: 'white' });
             yield 1;
           }
           s.pop(list);
           yield move;
         }
-        for (let k = 0; k < 4; k++) {
-          s.spread(s.lv(1, 3, 3, 5, 5), s.aim(), 0.25, { spd: s.sp(2.4), shape: 'small', color: 'white' });
-          s.ring(s.cnt(16), { offset: k * 0.4, spd: s.sp(1.6), shape: 'small', color: 'blue' });
-          yield s.wait(28);
-        }
+        yield s.wait(90);
       }
     },
   },
@@ -2156,13 +2116,7 @@ const SPELLS = [
         while (refY < s.H + 20) { yield 1; tick(); }
         s.clear();
         yield 90;   // 미로를 빠져나온 뒤 숨 돌릴 틈
-        // 재동기화: 세로 줄(32px 간격)에 맞춰 성긴 데이터 비가 잠깐 내림. 줄 사이로 피함
-        for (let t = 0; t < 150; t += 5) {
-          if (Math.random() < s.lv(0.5, 0.6, 0.7, 0.8, 0.9)) s.fire({ x: s.randInt(0, 11) * 32 + 16, y: -6, ang: Math.PI / 2, spd: s.sp(2.6), shape: 'small', color: 'cyan' });
-          yield 5;
-        }
-        s.spread(s.lv(1, 3, 3, 5, 5), s.aim(), 0.25, { spd: s.sp(2.4), shape: 'rice', color: 'white' });
-        yield 90;
+        yield 60;
       }
     },
   },
@@ -2223,15 +2177,8 @@ const SPELLS = [
         alive = false;
         s.clear();
         s.bulletTime(1, 40);
-        yield 110;
-        // 숨 돌린 뒤: 느린 원형탄을 깔고 한 번 오버클럭(「오버클럭」의 압축판)
-        for (let k = 0; k < 5; k++) { s.ring(s.cnt(18), { offset: s.rand(0, s.TAU), spd: s.sp(0.75), shape: 'orb', color: 'cyan' }); yield s.wait(22); }
-        s.say(s.boss, 'OVERCLOCK', 45);
-        yield 45;
-        s.bulletTime(s.lv(2.2, 2.4, 2.6, 2.8, 3), 100);
-        yield 130;
-        s.clear();   // 남은 원형탄이 다음 미로와 겹치지 않게 지움
-        yield 30;
+        yield 60;
+
       }
     },
   },
