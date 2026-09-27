@@ -1521,7 +1521,7 @@ const SPELLS = [
         light.return();
         s.boss.glow = 300;
         for (let k = 0; k < s.lv(3, 3, 4, 4, 5); k++) {
-          const tx = s.player.x, ty = s.player.y, T = 30;
+          const tx = s.player.x, ty = s.player.y, T = 50;   // 주먹이 날아오는 시간(프레임). 너무 빠르지 않게
           s.mark({ x: tx, y: ty, dur: T });
           s.fire({ x: s.boss.x, y: s.boss.y, vx: (tx - s.boss.x) / T, vy: (ty - s.boss.y) / T, shape: 'big', color: 'gold',
             fn: (b, s) => {

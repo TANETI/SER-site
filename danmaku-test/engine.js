@@ -5,7 +5,7 @@ const TAU = Math.PI * 2;
 const W = 384, H = 448;          // 플레이 영역
 const FX = 32, FY = 16;          // 화면(640×480) 안 플레이 영역 위치
 const SC = 2;                    // 캔버스 내부 배율
-const HIT_R = 2.4, GRAZE_R = 18;
+const HIT_R = 2.0, GRAZE_R = 18;   // 기체 피격 반지름(2.4에서 줄임). 판정점 표시도 이 값을 따름
 const START_LIVES = 3, START_BOMBS = 3;
 // 노말 이하는 목숨 하나 더
 const livesFor = diff => diff <= 1 ? 4 : START_LIVES;
