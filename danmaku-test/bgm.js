@@ -69,7 +69,7 @@ const BGM = {
     if (!c) return;
     if (!this.out) { this.out = c.createGain(); this.out.connect(c.destination); this.apply(); }
     if (this.want === this.cur) return;
-    if (this.cur) this.fade(0.8);   // 다른 곡으로 바뀔 때는 짧게 줄이고 넘어감
+    if (this.cur) this.fade(1);   // 다른 곡으로 바뀔 때는 1초에 걸쳐 줄이고 넘어감
     const name = this.want;
     if (!name) return;
     const buf = this.buffers[name];
