@@ -26,8 +26,9 @@ const DENSITY = [0.55, 0.8, 1, 1.2, 1.4, 1.6], INTERVAL = [1.6, 1.25, 1, 0.88, 0
 
 // ── 탄 스프라이트 ──────────────────────────────────────────
 const COLORS = {
+  // ivy: 리크니스의 잎. 리크니스 이펙트는 빨강·검정 계열(잎 짙은 빨강, 덩굴 머리 검정, 꽃잎 빨강)
   // 배경이 거의 검정이라 어두운 색(파랑·보라·갈색)은 밝게 둠. 노랑(레몬)과 금색(호박)은 서로 구분되게 벌림
-  ivy: '#3fae5a', red: '#ff3b4a', orange: '#ff8a2a', yellow: '#ffe55c', green: '#3ddc6a', cyan: '#35d6ff',
+  ivy: '#b3142c', red: '#ff3b4a', orange: '#ff8a2a', yellow: '#ffe55c', green: '#3ddc6a', cyan: '#35d6ff',
   blue: '#5b8cff', purple: '#bb6bff', pink: '#ff5ec8', white: '#e8e8f4', gold: '#f0ad32',
   brown: '#cf8446', black: '#30303c',
   // void: 흰 광채를 두른 검은 탄(sprite에서 따로 그림)
@@ -299,6 +300,9 @@ function unlockStory(cleared) {
   try { const u = JSON.parse(localStorage.getItem('danmaku.unlock') || '{}'); u[key] = true; localStorage.setItem('danmaku.unlock', JSON.stringify(u)); } catch (e) { /* 저장 못 해도 진행 */ }
 }
 
+// 오래 켜 두는 레이저(패턴 내내 켜진 빔·쓸고 가는 레이저·시선): 폭탄이나 피탄으로 지우면 패턴이 다시 만들지 않으므로 남김
+function lasting(l) { return l.kind !== 'chain' && (l.light || l.dur >= 300); }
+
 // ── 게임 본체 ─────────────────────────────────────────────
 class Game {
   constructor(canvas) {
@@ -529,10 +533,16 @@ class Game {
     if (this.run && this.run.idx >= this.run.seq.length - 1 && (reason === 'defeat' || sp.survival)) BGM.fadeOut(3);
   }
 
-  clearBullets(points) {
-    for (const b of this.bullets) this.fx.push({ kind: 'spark', x: b.x, y: b.y, t: 0, life: 20, color: b.color });
-    if (points) this.score += this.bullets.length * 10;
-    this.bullets = []; this.lasers = [];
+  // keepStructures: 피탄 때처럼 패턴이 계속 이어지는 경우. 구조물 탄(keep)은 되살아난 무적 동안 꺼 두고, 오래 켜 두는 레이저는 남김
+  clearBullets(points, keepStructures = false) {
+    const gone = keepStructures ? this.bullets.filter(b => !b.keep) : this.bullets;
+    for (const b of gone) this.fx.push({ kind: 'spark', x: b.x, y: b.y, t: 0, life: 20, color: b.color });
+    if (points) this.score += gone.length * 10;
+    if (keepStructures) {
+      this.bullets = this.bullets.filter(b => b.keep);
+      for (const b of this.bullets) { b.off = true; b.offT = Math.max(b.offT || 0, 150); }
+      this.lasers = this.lasers.filter(l => lasting(l));
+    } else { this.bullets = []; this.lasers = []; }
   }
 
   // 아이템: 작은 P(p)·큰 P(P). magnet이면 곧장 플레이어에게 날아옴
@@ -685,8 +695,13 @@ class Game {
       if (bm.t > 30) {
         if (bm.t === 31) this.shake(7);
         bm.r = (bm.t - 30) * 9;
-        for (const b of this.bullets) if (dist2(b.x, b.y, p.x, p.y) < bm.r * bm.r) { b.dead = true; this.fx.push({ kind: 'spark', x: b.x, y: b.y, t: 0, life: 20, color: b.color }); }
-        if (bm.r > 100) this.lasers = [];
+        for (const b of this.bullets) {
+          if (b.off || dist2(b.x, b.y, p.x, p.y) >= bm.r * bm.r) continue;
+          // 구조물 탄은 지우지 않고 폭탄이 끝날 때까지 꺼 둠(흐리게, 판정 없음)
+          if (b.keep) { b.off = true; b.offT = Math.max(b.offT || 0, 100 - bm.t + 1); continue; }
+          b.dead = true; this.fx.push({ kind: 'spark', x: b.x, y: b.y, t: 0, life: 20, color: b.color });
+        }
+        if (bm.r > 100) this.lasers = this.lasers.filter(l => lasting(l));
         if (bm.t < 100) { this.damageBoss(14); for (const e of this.enemies) e.hp -= 14; }
       }
       if (bm.t >= 100) p.bomb = null;
@@ -725,7 +740,7 @@ class Game {
     this.stats.miss++;
     this.fx.push({ kind: 'burst', x: p.x, y: p.y, t: 0, life: 40 });
     SFX.die(); this.shake(12);
-    this.clearBullets(false);
+    this.clearBullets(false, true);
     // respawn: 되살아난 직후 무적 동안 새로 깔린 레이저·사슬은 판정 없음(되살아난 자리를 노린 레이저가 무적이 끝나는 순간 맞혀 목숨이 연달아 줄지 않게)
     p.x = W / 2; p.y = H - 48; p.inv = 150; p.respawn = 150; p.bomb = null;
     // 한 번 죽을 때마다 목숨 하나. 폭탄은 다시 3개로
@@ -752,6 +767,7 @@ class Game {
     const p = this.player, bs = this.bullets, k = this.slowFactor();
     for (const b of bs) {
       b.t++;
+      if (b.offT > 0 && --b.offT === 0) b.off = false;   // 폭탄·되살아남 동안 꺼 둔 구조물 탄이 돌아옴
       if (b.fn) { try { b.fn(b, this.api); } catch (e) { this.fail(e); b.fn = null; } }
       if (b.cart) { b.vx += b.ax * k; b.vy += b.ay * k; b.x += b.vx * k; b.y += b.vy * k; }
       else {
@@ -982,6 +998,7 @@ function makeAPI(G) {
         vx: o.vx ?? 0, vy: o.vy ?? 0, ax: o.ax ?? 0, ay: o.ay ?? 0,
         shape: o.shape || 'small', color: o.color || 'red', r: o.r ?? def.r, alpha: o.alpha ?? 1,
         fn: o.fn, margin: o.margin ?? 32, marginTop: o.marginTop ?? 0, data: o.data || {},
+        keep: !!o.keep,   // keep: 한 번 깔고 계속 쓰는 구조물 탄(채운 화면·격자). 폭탄·피탄에 지워지지 않고 잠깐 꺼졌다가 돌아옴
       };
       G.bullets.push(b);
       SFX.fire(b.shape === 'big' || b.shape === 'orb');

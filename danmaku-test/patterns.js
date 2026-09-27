@@ -28,6 +28,7 @@
 // s 주요 함수
 //   s.fire({ang, spd, shape, color, accel, angVel, maxSpd, minSpd, x, y, fn, alpha})
 //   s.fire({vx, vy, ax, ay, ...})             // 직교 좌표 운동(중력 등)
+//   s.fire({..., keep: true})                 // 한 번 깔고 계속 쓰는 구조물 탄: 폭탄·피탄에 지워지지 않고 잠깐 꺼졌다가 돌아옴
 //   s.ring(n, {offset, spd, shape, color})    // 원형 n발
 //   s.spread(n, 중심각, 간격, {...})           // 부채꼴 n발
 //   s.laser({x, y, ang, len, w, warn, dur, color})
@@ -207,7 +208,7 @@ function ivyLeaf(s, x, y, ang, stay, group) {
 function* ivyVine(s, o) {
   let { x, y, ang } = o;
   const spd = o.spd ?? 2.4, gapPx = o.gapPx ?? s.lv(26, 22, 19, 18, 17), m = o.margin ?? 20, seekFor = o.seekFor ?? 70;
-  const head = s.fire({ x, y, spd: 0, shape: 'orb', color: 'green', margin: m + 20 });
+  const head = s.fire({ x, y, spd: 0, shape: 'orb', color: 'void', margin: m + 20 });   // 덩굴 머리: 빛나는 검은 구슬
   // 출발점 근처(skip px)에는 잎을 두지 않음: 한 점에서 여러 덩굴이 나갈 때 잎이 뭉치지 않게
   const group = { fallAt: Infinity, phase: Math.random() * 6 };
   let run = -(o.skip ?? 18), side = 0;
@@ -1828,7 +1829,7 @@ const SPELLS = [
   },
   {
     name: '논스펠 · 리크니스 1',
-    type: 'nonspell', boss: '리크니스', bossColor: '#e8b4c8', hp: 2800, time: 42, start: [192, 100],
+    type: 'nonspell', boss: '리크니스', bossColor: '#d8404f', hp: 2800, time: 42, start: [192, 100],
     *run(s) {
       // 사방으로 굽이치며 자라는 덩굴. 잎은 잠시 붙어 있다가 떨어짐
       for (let w = 1; ; w++) {
@@ -1842,7 +1843,7 @@ const SPELLS = [
   },
   {
     name: '「벽을 타는 덩굴」(가칭)',
-    type: 'spell', boss: '리크니스', bossColor: '#e8b4c8', hp: 3700, time: 60, start: [192, 90],
+    type: 'spell', boss: '리크니스', bossColor: '#d8404f', hp: 3700, time: 60, start: [192, 90],
     *run(s) {
       for (;;) {
         // 양쪽 벽을 아래에서 위로 천천히 타고 오르며 안쪽으로 길게 가지를 뻗음. 가지는 크게 S자로 굽이침.
@@ -1851,7 +1852,7 @@ const SPELLS = [
           const x0 = side < 0 ? 6 : s.W - 6;
           s.task(function* () {
             let y = s.H + 10;
-            const climb = s.sp(1.5), head = s.fire({ x: x0, y, spd: 0, shape: 'orb', color: 'green' });
+            const climb = s.sp(1.5), head = s.fire({ x: x0, y, spd: 0, shape: 'orb', color: 'void' });
             for (let t = 0; y > -10 && !head.dead; t++) {
               y -= climb; head.y = y;
               if (t % 7 === 0 && !s.near(x0, y, 12, 'leaf')) ivyLeaf(s, x0 + s.rand(-3, 3), y, -Math.PI / 2 + s.rand(-0.8, 0.8), s.lv(200, 240, 270));
@@ -1871,7 +1872,7 @@ const SPELLS = [
   },
   {
     name: '논스펠 · 리크니스 2',
-    type: 'nonspell', boss: '리크니스', bossColor: '#e8b4c8', hp: 3000, time: 40, start: [192, 110],
+    type: 'nonspell', boss: '리크니스', bossColor: '#d8404f', hp: 3000, time: 40, start: [192, 110],
     *run(s) {
       // 잎 소용돌이 + 꽃잎 원형탄(노말 이상)
       let a = 0;
@@ -1879,7 +1880,7 @@ const SPELLS = [
         a += s.spin(0.11);
         const arms = s.arms(s.lv(2, 3, 4));   // 격화마다 한 갈래씩 더
         for (let i = 0; i < arms; i++) s.fire({ ang: a + i * s.TAU / arms, spd: s.sp(2.2), angVel: 0.006, shape: 'leaf', color: 'ivy' });
-        if (f % 40 === 0 && s.diff > 0) s.ring(s.cnt(16), { offset: -a, spd: s.sp(1.4), shape: 'small', color: 'pink' });
+        if (f % 40 === 0 && s.diff > 0) s.ring(s.cnt(16), { offset: -a, spd: s.sp(1.4), shape: 'small', color: 'red' });
         if (f % 300 === 299) yield* s.wander(40, 50);
         yield s.lv(6, 5, 4);
       }
@@ -1887,14 +1888,14 @@ const SPELLS = [
   },
   {
     name: '「뿌리를 찾는 덩굴」(가칭)',
-    type: 'spell', boss: '리크니스', bossColor: '#e8b4c8', hp: 3600, time: 50, start: [192, 90],
+    type: 'spell', boss: '리크니스', bossColor: '#d8404f', hp: 3600, time: 50, start: [192, 90],
     *run(s) {
       // 뿌리를 찾는 덩굴: 잎을 만드는 빛나는 덩굴 머리가 기체와 약 110px 거리를 두고 천천히(최대 0.9px/프레임) 계속 쫓아오며
       // 지나간 자리에 잎을 남기고, 가끔 느린 유도탄을 쏨(노말까지 머리 하나, 하드부터 둘).
       // 가운데에서는 리크니스에게서 뻗은 빔 세 줄이 켜진 채 천천히 빙글빙글 돎(화면 끝에서도 약 1.8px/프레임, 약 8초마다 방향이 바뀜)
       const keep = 110, chase = s.sp(0.9);
       const makeHead = (x, y) => {
-        const head = s.fire({ x, y, spd: 0, shape: 'orb', color: 'green', margin: 60,
+        const head = s.fire({ x, y, spd: 0, shape: 'orb', color: 'void', margin: 60,
           fn: (b, s) => {
             const p = s.player, dx = b.x - p.x, dy = b.y - p.y, d = Math.hypot(dx, dy) || 1;
             const tx = p.x + dx / d * keep, ty = p.y + dy / d * keep, mx = tx - b.x, my = ty - b.y, md = Math.hypot(mx, my);
@@ -1917,7 +1918,7 @@ const SPELLS = [
       // 가운데 나선 빔
       const st = { rot: 0 }, n = 3, omega = 0.005;
       for (let i = 0; i < n; i++) {
-        s.laser({ x: s.boss.x, y: s.boss.y, ang: i * s.TAU / n, len: 700, w: 12, warn: 70, dur: 99999, color: 'green',
+        s.laser({ x: s.boss.x, y: s.boss.y, ang: i * s.TAU / n, len: 700, w: 12, warn: 70, dur: 99999, color: 'red',
           fn: l => { l.ang = i * s.TAU / n + st.rot; l.x = s.boss.x; l.y = s.boss.y; } });
       }
       yield 70;
@@ -1929,23 +1930,25 @@ const SPELLS = [
   },
   {
     name: '논스펠 · 리크니스 3',
-    type: 'nonspell', boss: '리크니스', bossColor: '#e8b4c8', hp: 3000, time: 42, start: [192, 100],
+    type: 'nonspell', boss: '리크니스', bossColor: '#d8404f', hp: 3000, time: 42, start: [192, 100],
     *run(s) {
-      // 덩굴 채찍: 보스 양옆에서 덩굴 두 쌍이 서로 다른 각도로 크게 휘어 돌며 휘몰아침(한 쌍은 바깥으로, 한 쌍은 아래로) + 꽃잎 조준탄
+      // 덩굴 채찍: 보스 양옆에서 덩굴 한 쌍이 크게 휘어 돌며 휘몰아침 + 꽃잎 조준탄. 판마다 바깥으로 도는 쌍과 아래로 도는 쌍을
+      // 번갈아 쓰고(한 번에 한 쌍만), 휘는 각도가 조금씩 달라 같은 모양이 겹쳐 쌓이지 않음
       for (let w = 1; ; w++) {
-        for (const [a0, len] of [[1.2, 170], [0.55, 150]]) for (const side of [-1, 1]) s.task(ivyVine(s, {
-          x: s.boss.x + side * 20, y: s.boss.y, ang: Math.PI / 2 - side * a0, spd: s.sp(3.3), len,
+        const [a0, len] = w % 2 ? [1.2, 170] : [0.55, 150], jit = s.rand(-0.12, 0.12);
+        for (const side of [-1, 1]) s.task(ivyVine(s, {
+          x: s.boss.x + side * 20, y: s.boss.y, ang: Math.PI / 2 - side * (a0 + jit), spd: s.sp(3.3), len,
           curl: side * s.lv(0.02, 0.022, 0.024, 0.026, 0.028), turn: 0.01, stay: s.lv(70, 90, 110),
         }));
-        for (let k = 0; k < 3; k++) { yield s.wait(22); s.spread(s.lv(3, 3, 5, 5, 7), s.aim(), 0.16, { spd: s.sp(3), shape: 'small', color: 'pink' }); }
-        yield s.wait(34);
+        for (let k = 0; k < 2; k++) { yield s.wait(26); s.spread(s.lv(3, 3, 5, 5, 7), s.aim(), 0.16, { spd: s.sp(3), shape: 'small', color: 'red' }); }
+        yield s.wait(40);
         if (w % 3 === 0) yield* s.wander();
       }
     },
   },
   {
     name: '「덩굴에 핀 꽃」(가칭)',
-    type: 'spell', boss: '리크니스', bossColor: '#e8b4c8', hp: 3400, time: 50, start: [192, 80],
+    type: 'spell', boss: '리크니스', bossColor: '#d8404f', hp: 3400, time: 50, start: [192, 80],
     *run(s) {
       // 덩굴이 위에서 굽이치며 바닥까지 천천히 늘어지는 동안 곳곳에 꽃봉오리(큰 분홍 탄)가 맺히고,
       // 덩굴이 바닥에 닿으면 봉오리가 위에서부터 차례로 꽃잎으로 터짐
@@ -1957,13 +1960,13 @@ const SPELLS = [
           const bloom = (b, s) => {
             if (!st.doneAt || s.frame < st.doneAt + 20 + b.data.k * 10) return;
             b.dead = true;
-            s.ring(s.lv(6, 8, 9, 10, 11), { x: b.x, y: b.y, offset: s.rand(0, s.TAU), spd: 0.5, accel: 0.03, maxSpd: s.sp(2), shape: 'rice', color: 'pink' });
+            s.ring(s.lv(6, 8, 9, 10, 11), { x: b.x, y: b.y, offset: s.rand(0, s.TAU), spd: 0.5, accel: 0.03, maxSpd: s.sp(2), shape: 'rice', color: 'red' });
           };
           s.task(function* () {
             yield* ivyVine(s, {
               x: s.W * (i + 0.5) / n + s.rand(-20, 20), y: -10, ang: Math.PI / 2, spd, len, turn: 0.04, wave: 0.05, phase: i + w,
               stay: s.lv(140, 160, 180), margin: 40,
-              step: (x, y, t) => { if (t % budEvery === 20) buds.push(s.fire({ x, y, spd: 0, shape: 'big', color: 'pink', data: { k: buds.length }, fn: bloom })); },
+              step: (x, y, t) => { if (t % budEvery === 20) buds.push(s.fire({ x, y, spd: 0, shape: 'big', color: 'red', data: { k: buds.length }, fn: bloom })); },
             });
             st.doneAt = s.frame;
           }());
@@ -1975,7 +1978,7 @@ const SPELLS = [
   },
   {
     name: '「휘감는 덩굴」(가칭)',
-    type: 'spell', boss: '리크니스', bossColor: '#e8b4c8', hp: 3600, time: 55, start: [192, 80],
+    type: 'spell', boss: '리크니스', bossColor: '#d8404f', hp: 3600, time: 55, start: [192, 80],
     *run(s) {
       // 플레이어를 둘러싸는 원을 덩굴 둘이 틈의 양 끝에서 그려 나가 반대쪽에서 만남. 원이 닫히면 둘레에서
       // 가운데를 향해 가시가 조여 옴. 트인 쪽으로 빠져나가거나, 둘레 쪽 넓은 틈에서 가시를 흘려보냄.
@@ -1996,7 +1999,7 @@ const SPELLS = [
         const n = s.lv(10, 14, 18, 22, 26);
         for (let i = 0; i < n; i++) {
           const a = gapAt + gap / 2 + (s.TAU - gap) * (i + 0.5) / n;
-          s.fire({ x: cx + Math.cos(a) * R, y: cy + Math.sin(a) * R, ang: a + Math.PI, spd: 0.3, accel: 0.03, maxSpd: s.sp(2.2), shape: 'rice', color: 'pink' });
+          s.fire({ x: cx + Math.cos(a) * R, y: cy + Math.sin(a) * R, ang: a + Math.PI, spd: 0.3, accel: 0.03, maxSpd: s.sp(2.2), shape: 'rice', color: 'red' });
         }
         for (let k = 0; k < 3; k++) { yield s.wait(40); if (k === 1) s.spread(s.lv(1, 1, 3, 3, 3), s.aim(), 0.25, { spd: s.sp(2.4), shape: 'leaf', color: 'ivy' }); }
         yield s.wait(60);
@@ -2005,7 +2008,7 @@ const SPELLS = [
   },
   {
     name: '「담쟁이 정원」(가칭)',
-    type: 'spell', strong: true, boss: '리크니스', bossColor: '#e8b4c8', hp: 3800, time: 55, start: [192, 90],
+    type: 'spell', strong: true, boss: '리크니스', bossColor: '#d8404f', hp: 3800, time: 55, start: [192, 90],
     *run(s) {
       // 담쟁이 정원: 예고선을 따라 사선 격자를 딱 한 번 만들고(움직여도 가장자리가 비지 않게 화면보다 넓게), 이후 그 구조가
       // 통째로 대각선으로 천천히 오르내림(진폭 60px, 약 7초 주기, 최대 약 1.05px/프레임). 칸 안에서 함께 움직이며 버티고,
@@ -2028,7 +2031,7 @@ const SPELLS = [
           const x = x0 + Math.cos(ang) * d, y = -pad + Math.sin(ang) * d;
           if (x < -pad || x > s.W + pad || y < -pad || y > s.H + pad) continue;
           if (s.near(x + mv.x, y + mv.y, 10, 'leaf')) continue;
-          s.fire({ x, y, spd: 0, ang: ang + (k % 2 ? 0.9 : -0.9), shape: 'leaf', color: 'ivy', margin: pad + 40, data: { x, y },
+          s.fire({ x, y, spd: 0, ang: ang + (k % 2 ? 0.9 : -0.9), shape: 'leaf', color: 'ivy', margin: pad + 40, data: { x, y }, keep: true,
             fn: b => { b.x = b.data.x + mv.x; b.y = b.data.y + mv.y; } });
         }
         if (++li % 2 === 0) yield 1;
@@ -2037,7 +2040,7 @@ const SPELLS = [
       s.task(function* () { for (let t = 0; ; t++) { const k = A * Math.sin(t * s.TAU / 420); mv.x = k * 0.707; mv.y = k * 0.707; yield 1; } }());
       for (;;) {
         yield s.wait(80);
-        s.spread(s.lv(1, 1, 3, 3, 3), s.aim(), 0.2, { spd: s.sp(2.2), shape: 'small', color: 'pink' });
+        s.spread(s.lv(1, 1, 3, 3, 3), s.aim(), 0.2, { spd: s.sp(2.2), shape: 'small', color: 'red' });
       }
     },
   },
@@ -2428,7 +2431,7 @@ function fillField(s, o) {
     for (let x = -pad + (row % 2 ? sp : sp / 2); x < s.W + pad; x += sp) {
       if (holes.some(h => (x - h.x) ** 2 + (y - h.y) ** 2 < (h.r + 3) ** 2)) continue;
       out.push(s.fire({
-        x, y, vx: 0, vy: 0, shape: o.shape ?? 'small', color: o.color ?? 'red', margin: pad + 40,
+        x, y, vx: 0, vy: 0, shape: o.shape ?? 'small', color: o.color ?? 'red', margin: pad + 40, keep: true,   // 폭탄에 지워지지 않는 구조물
         fn: motion ? (b => { b.vx = motion.vx; b.vy = motion.vy; }) : undefined,
       }));
     }
@@ -2591,7 +2594,7 @@ const BOSS_RUNS = [
     ],
   },
   {
-    title: '5스테이지 · 아즈라엘', name: '아즈라엘', pages: [2, 2], power: 2.75, hpScale: 7.9,
+    title: '5스테이지 · 아즈라엘', name: '아즈라엘', pages: [2, 2], power: 2.75, hpScale: 7.11,
     seq: [
       // 명암은 뺌(패턴 테스트 룸에서만). 1페이즈 논스펠 1 → 검은 안개, 2페이즈 논스펠 3 → 아인
       spellOf('논스펠 · 아즈라엘 1'),
@@ -2601,7 +2604,7 @@ const BOSS_RUNS = [
     ],
   },
   {
-    title: '6스테이지 · 예로니모', name: '예로니모', pages: [4, 2], power: 3, hpScale: 6.06,
+    title: '6스테이지 · 예로니모', name: '예로니모', pages: [4, 2], power: 3, hpScale: 5.45,
     seq: [
       spellOf('논스펠 · 예로니모 1'),
       spellOf('스피리투스 제1식 — 꺼져가는 등불을 끄지 아니하고'),
@@ -2612,7 +2615,7 @@ const BOSS_RUNS = [
     ],
   },
   {
-    title: '7스테이지 · 리크니스', name: '리크니스', pages: [2, 3], power: 3.5, hpScale: 6.5,
+    title: '7스테이지 · 리크니스', name: '리크니스', pages: [2, 3], power: 3.5, hpScale: 5.85,
     seq: [
       spellOf('논스펠 · 리크니스 2'),
       spellOf('「뿌리를 찾는 덩굴」(가칭)'),
@@ -2622,7 +2625,7 @@ const BOSS_RUNS = [
     ],
   },
   {
-    title: '엑스트라 · 진심 예로니모', name: '진심 예로니모', pages: [3, 3], power: 4, hpScale: 5.85,
+    title: '엑스트라 · 진심 예로니모', name: '진심 예로니모', pages: [3, 3], power: 4, hpScale: 5.26,
     seq: [
       spellOf('논스펠 · 예로니모 3', '예로니모(진심)'),
       spellOf('파테르 제2식 — 능히 일어나지 못하게 하리니', '예로니모(진심)'),
@@ -2633,7 +2636,7 @@ const BOSS_RUNS = [
     ],
   },
   {
-    title: '엑스트라 2 · 이즘', name: '이즘', pages: [2, 3], power: 4, hpScale: 8.59,
+    title: '엑스트라 2 · 이즘', name: '이즘', pages: [2, 3], power: 4, hpScale: 7.73,
     seq: [
       spellOf('논스펠 · 이즘 1'),
       spellOf('「순차 격자 타격」(가칭)'),
@@ -2744,7 +2747,7 @@ const MOB_STAGES = {
   '고태웅': { T: 0.2, col: 'orange' },
   '아즈라엘': { T: 0.25, col: 'white', kind: 1 },
   '예로니모': { T: 0.3, col: 'gold' },
-  '리크니스': { T: 0.35, col: 'green', kind: 1 },
+  '리크니스': { T: 0.35, col: 'red', kind: 1 },
   '진심 예로니모': { T: 0.5, col: 'gold' },
   '이즘': { T: 0.5, col: 'cyan', kind: 1 },
 };
