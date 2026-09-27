@@ -2617,14 +2617,16 @@ const BOSS_RUNS = [
 // 스테이지마다 세기 T(0~0.5)로 적 수·탄속·체력이 조금씩 오름. 끝나기 약 5초 전부터는 새 웨이브를 부르지 않아 화면이 비고 보스가 등장함.
 // 부채꼴은 fixed라 하드 이상·격화의 줄 추가를 받지 않음
 const MOB_HP = (T, big) => Math.round(big ? 200 + 400 * T : 10 + 16 * T);
-// 작은 개체는 작은 P 둘, 중형은 작은 P 넷과 큰 P 하나(회피 봇 기준 30초에 약 +0.6). 보스 패턴 종료 때도 스테이지마다 약 +1.3~1.6을 얻어 3스테이지 무렵 MAX
-const MOB_DROP = [2, 0], MOB_DROP_BIG = [4, 1];
+// 작은 개체는 다섯에 셋은 작은 P 둘, 둘은 하나(평균 1.6개). 중형은 작은 P 하나와 큰 P 하나.
+// 회피 봇 기준 30초에 약 +0.5~0.6. 보스 패턴 종료 때도 스테이지마다 약 +1.3~1.6을 얻어 3스테이지 무렵 MAX
+let mobCount = 0;
+const mobDrop = () => [mobCount++ % 5 < 3 ? 2 : 1, 0], MOB_DROP_BIG = [1, 1];
 const MOB_WAVES = {
   // 줄지어 내려오다 반대쪽으로 꺾으며 조준탄 한 번
   *line(s, T, col, side) {
     const n = 5 + Math.round(2 * T);
     for (let i = 0; i < n; i++) {
-      s.enemy({ x: side < 0 ? 50 + i * 4 : s.W - 50 - i * 4, y: -16, vy: 1.9, hp: MOB_HP(T), drop: MOB_DROP, run: function* (e, s) {
+      s.enemy({ x: side < 0 ? 50 + i * 4 : s.W - 50 - i * 4, y: -16, vy: 1.9, hp: MOB_HP(T), drop: mobDrop(), run: function* (e, s) {
         yield 34;
         e.vx = -side * 1.3; e.vy = 0.8;
         yield 12;
@@ -2640,7 +2642,7 @@ const MOB_WAVES = {
     const n = 5, mid = (n - 1) / 2;
     for (let i = 0; i < n; i++) {
       const d = Math.abs(i - mid), ty = 60 + d * 16;
-      s.enemy({ x: s.W / 2 + (i - mid) * 44, y: -16 - d * 20, vy: 2.2, hp: MOB_HP(T), drop: MOB_DROP, run: function* (e, s) {
+      s.enemy({ x: s.W / 2 + (i - mid) * 44, y: -16 - d * 20, vy: 2.2, hp: MOB_HP(T), drop: mobDrop(), run: function* (e, s) {
         while (e.y < ty) yield 1;
         e.vy = 0;
         yield 24 + d * 8;
@@ -2656,7 +2658,7 @@ const MOB_WAVES = {
     const n = 3;
     for (let i = 0; i < n; i++) for (const side of [-1, 1]) {
       const y = 130 + i * 28, tx = side < 0 ? 50 + i * 22 : s.W - 50 - i * 22;
-      s.enemy({ x: side < 0 ? -20 : s.W + 20, y, vx: -side * 2.4, hp: MOB_HP(T), drop: MOB_DROP, run: function* (e, s) {
+      s.enemy({ x: side < 0 ? -20 : s.W + 20, y, vx: -side * 2.4, hp: MOB_HP(T), drop: mobDrop(), run: function* (e, s) {
         while (Math.abs(e.x - tx) > 3) { e.vx = (tx - e.x) * 0.06; yield 1; }
         e.vx = 0;
         yield 20 + i * 12;
