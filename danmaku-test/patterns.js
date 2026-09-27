@@ -55,7 +55,7 @@
 //   s.ghost(x, y, color)                      잔상 한 점
 //   s.player.vx · s.player.vy                 플레이어의 이번 프레임 이동량(예측 조준용)
 //   동료에 ghost = true를 주면 반투명 사본으로 그려짐
-//   extra: true                               엑스트라 패턴. 고른 난이도보다 한 단계 위로 계산 (chants.js, 세계관 원문 그대로)
+//   extra: true                               엑스트라 스테이지 패턴 표시(난이도 계산은 본편과 같음)
 //   탄의 alpha는 판정이 그대로이므로 0.35 아래로 내리지 않는다
 //
 // shape: small orb big rice knife star link leaf
@@ -97,6 +97,15 @@ function* castGap(s) {
   for (let t = 0; t < frames; t += s.wait(40)) {
     s.spread(s.lv(1, 3, 3, 3, 5), s.aim(), 0.3, { spd: s.sp(2.2), shape: 'small', color: 'white' });
     yield s.wait(40);
+  }
+}
+// 베리하드 이상에서만 기다리는 동안 20프레임마다 조준탄 한 발. 그 아래 난이도는 그냥 기다림.
+// 기믹 중심 스펠의 곁다리는 이 난이도에서만 가볍게 붙인다
+function* hardAim(s, frames, color = 'white') {
+  if (s.diff < 3) { yield frames; return; }
+  for (let t = 0; t < frames; t += 20) {
+    s.fire({ ang: s.aim(), spd: s.sp(2.4), shape: 'rice', color });
+    yield Math.min(20, frames - t);
   }
 }
 // 기다리는 동안(돌진 예고 등) 느린 조준탄을 몇 번 쏨. 홍마향처럼 고정 탄 사이에 조준 요소를 섞어 가만히 서 있지 못하게
@@ -328,6 +337,7 @@ const SPELLS = [
       for (let w = 0; ; w++) {
         const gap = s.lv(110, 96, 86, 80, 76), warn = s.lv(62, 54, 48, 44, 40);
         const cx = s.player.x, cy = s.player.y, off = s.rand(-gap / 2, gap / 2);
+        if (s.diff >= 3) s.ring(s.cnt(12), { offset: s.rand(0, s.TAU), spd: s.sp(1.5), shape: 'small', color: 'white' });
         const tilt = w % 2 ? 0 : Math.PI / 4;
         for (const ang of [tilt, tilt + Math.PI / 2]) {
           const nx = Math.cos(ang + Math.PI / 2), ny = Math.sin(ang + Math.PI / 2);
@@ -431,6 +441,7 @@ const SPELLS = [
         for (let k = 0; k < s.lv(4, 5, 6, 6, 7); k++) {
           const a = s.aim();
           s.spread(s.lv(3, 5, 5, 7, 7), a, 0.26, { spd: s.sp(2.2), shape: 'big', color: 'yellow' });
+          if (s.diff >= 3) for (const side of [-1, 1]) s.fire({ ang: a + side * 0.6, spd: s.sp(2.8), shape: 'small', color: 'cyan' });
           if (k % 2 === 0) { s.say(s.boss, '딱!', 24); s.sound('flick'); }
           yield 22;
         }
@@ -573,6 +584,7 @@ const SPELLS = [
               for (const d of [-1, 1]) s.fire({ x: b.x, y: b.y, ang: b.ang + d * Math.PI / 2, spd: 0.5, accel: 0.015, maxSpd: s.sp(1.6), shape: 'small', color: 'yellow' });
             },
           });
+          if (s.diff >= 3) s.ring(s.cnt(10), { offset: s.rand(0, s.TAU), spd: s.sp(2), shape: 'rice', color: 'gold' });
           s.impact(4);
           yield s.wait(40);
         }
@@ -589,7 +601,7 @@ const SPELLS = [
       for (let w = 1; ; w++) {
         const tx = Math.max(90, Math.min(s.W - 90, s.player.x + s.rand(-80, 80))), ty = s.rand(90, 150);
         s.warnLine({ x: s.boss.x, y: s.boss.y, x2: tx, y2: ty, band: 32, dur: 26 });
-        yield 26;
+        yield* hardAim(s, 26, 'yellow');
         yield* s.moveTo(tx, ty, 16);
         s.impact(6);
         s.ring(s.cnt(24), { spd: 0.5, accel: 0.035, maxSpd: s.sp(2.2), shape: 'orb', color: 'gold' });
@@ -621,7 +633,7 @@ const SPELLS = [
           const stop = Math.max(0, d - 70);
           const tx = s.boss.x + (px - s.boss.x) / d * stop, ty = Math.min(s.boss.y + (py - s.boss.y) / d * stop, s.H - 120);
           s.warnLine({ x: s.boss.x, y: s.boss.y, x2: tx, y2: ty, band: 32, dur: s.lv(48, 40, 32) });
-          yield s.lv(48, 40, 32);
+          yield* hardAim(s, s.lv(48, 40, 32), 'yellow');
           // 사거리가 없으므로 직접 달려듦. 돌진 중에는 몸에 닿아도 피격
           s.boss.contact = true;
           yield* s.moveTo(tx, ty, 18);
@@ -662,6 +674,9 @@ const SPELLS = [
     *run(s) {
       // 촬영: 플레이어 자리에 뷰파인더(십자선)가 잡히고, 찰칵(경고음) 하는 순간의 자리로 부채꼴 연사가 날아감.
       // 세 장을 연달아 찍으므로 찍힌 자리에서 계속 비켜야 함
+      if (s.diff >= 3) s.task(function* () {
+        for (let k = 0; ; k++) { s.ring(s.cnt(10), { offset: k * 0.21, spd: s.sp(1.4), shape: 'star', color: 'pink' }); yield s.wait(66); }
+      }());
       for (let w = 0; ; w++) {
         for (let k = 0; k < s.lv(3, 3, 4, 4, 5); k++) {
           const tx = s.player.x, ty = s.player.y, lead = s.lv(40, 34, 30, 28, 26);
@@ -720,6 +735,7 @@ const SPELLS = [
             } });
           yield s.lv(20, 18, 16, 15, 14);
         }
+        if (s.diff >= 3) s.spread(3, s.aim(), 0.18, { spd: s.sp(2.8), shape: 'rice', color: 'white' });
         yield s.wait(50);
         if (w % 3 === 2) yield* s.wander(60, 50);
       }
@@ -755,6 +771,7 @@ const SPELLS = [
           s.sound('beep', 0.4 + (i % 4 === 0 ? 0.5 : 0));
           const a = Math.PI / 2 + riff[i] * (bar % 2 ? -1 : 1);
           s.spread(s.lv(3, 5, 5, 7, 7), a, 0.09, { spd: s.sp(2.6), shape: 'knife', color: 'cyan' });
+          if (s.diff >= 3 && i % 4 === 3) s.fire({ ang: s.aim(), spd: s.sp(3), shape: 'rice', color: 'white' });
           yield s.lv(20, 17, 15, 14, 13);
         }
         s.ring(s.cnt(20), { offset: s.rand(0, s.TAU), spd: s.sp(1.6), shape: 'orb', color: 'blue' });
@@ -806,6 +823,7 @@ const SPELLS = [
           s.laser({ x: ex, y: ey, ang: a, len: 700, w: s.lv(12, 14, 16, 16, 18), warn, dur: 30, color: 'cyan' });
           yield s.lv(40, 34, 30, 28, 26);
         }
+        if (s.diff >= 3) s.spread(3, s.aim(), 0.2, { spd: s.sp(2.6), shape: 'rice', color: 'white' });
         yield s.wait(40);
         if (w % 3 === 2) yield* s.wander(40, 40);
       }
@@ -848,7 +866,7 @@ const SPELLS = [
         const tx = sx + (px - sx) / d * stop, ty = Math.min(sy + (py - sy) / d * stop, s.H - 110);
         const warn = s.lv(50, 44, 38, 36, 34);
         s.warnLine({ x: sx, y: sy, x2: tx, y2: ty, band: 32, dur: warn });
-        yield warn;
+        yield* hardAim(s, warn, 'yellow');
         s.boss.contact = true;
         yield* s.moveTo(tx, ty, 16);
         s.boss.contact = false;
@@ -915,7 +933,9 @@ const SPELLS = [
       }());
       // 격자는 화면 위쪽(top 위)에 없으므로, 양옆으로 약간 아래를 향한 부채꼴을 뿌려 위쪽 빈 곳을 쓸어 줌
       for (;;) {
-        yield s.wait(140);
+        yield s.wait(70);
+        if (s.diff >= 3) s.fire({ ang: s.aim(), spd: s.sp(1.8), shape: 'star', color: 'orange' });
+        yield s.wait(70);
         for (const a of [0.3, Math.PI - 0.3]) s.spread(s.lv(5, 6, 7, 8, 9), a, 0.14, { spd: s.sp(2.2), shape: 'rice', color: 'orange' });
       }
     },
@@ -988,6 +1008,7 @@ const SPELLS = [
         yield warn + 30;
         s.ring(s.cnt(16), { offset: off + Math.PI / n, spd: s.sp(1.4), shape: 'orb', color: 'void' });
         yield s.wait(24);
+        if (s.diff >= 3) s.spread(3, s.aim(), 0.2, { spd: s.sp(2.6), shape: 'rice', color: 'white' });
         yield s.wait(36);
         if (w % 2 === 1) yield* s.wander(50, 50);
       }
@@ -1026,6 +1047,7 @@ const SPELLS = [
         yield warn;
         for (let t = 0, k = 0; t < dur; t += s.wait(30), k++) {
           s.ring(s.cnt(14), { offset: k * 0.21, spd: s.sp(1.6), shape: 'rice', color: 'white' });
+          if (s.diff >= 3 && k % 2) s.fire({ ang: s.aim(), spd: s.sp(2.4), shape: 'orb', color: 'void' });
           yield s.wait(30);
         }
         yield 30;
@@ -1254,7 +1276,7 @@ const SPELLS = [
           const stop = Math.max(0, d - 110);
           const tx = s.boss.x + (px - s.boss.x) / d * stop, ty = Math.min(s.boss.y + (py - s.boss.y) / d * stop, s.H - 160);
           s.warnLine({ x: s.boss.x, y: s.boss.y, x2: tx, y2: ty, band: 32, dur: s.lv(48, 40, 34) });
-          yield s.lv(48, 40, 34);
+          yield* hardAim(s, s.lv(48, 40, 34), 'yellow');
           s.boss.contact = true;
           yield* s.moveTo(tx, ty, 20);
           s.boss.contact = false;
@@ -1307,7 +1329,7 @@ const SPELLS = [
       }
     },
   },
-  // ── 엑스트라 · 진심 예로니모: 6스테이지와 같은 술식을 다른 모양으로. extra라 한 단계 위 난이도로 계산 ──
+  // ── 엑스트라 · 진심 예로니모: 6스테이지와 같은 술식을 다른 모양으로 ──
   {
     name: '논스펠 · 예로니모 1',
     type: 'nonspell', extra: true, boss: '예로니모(진심)', bossColor: '#e8e0c8', hp: 2800, time: 42, start: [192, 100],
@@ -1473,7 +1495,7 @@ const SPELLS = [
           const tx = Math.max(30, Math.min(s.W - 30, s.boss.x + (px - s.boss.x) / d * stop)), ty = Math.max(60, Math.min(s.boss.y + (py - s.boss.y) / d * stop, s.H - 160));
           const warn = s.lv(40, 36, 32, 30, 28);
           s.warnLine({ x: s.boss.x, y: s.boss.y, x2: tx, y2: ty, band: 32, dur: warn });
-          yield warn;
+          yield* hardAim(s, warn, 'yellow');
           s.boss.contact = true;
           yield* s.moveTo(tx, ty, 16);
           s.boss.contact = false;
@@ -1875,6 +1897,7 @@ const SPELLS = [
           }
           const spd = Math.max(5, dist / travel), n = s.lv(6, 8, 10, 12, 14);
           for (let i = 0; i < n; i++) { s.fire({ ang: a, spd, shape: 'knife', color: 'red' }); if (two) s.fire({ ang: a2, spd, shape: 'knife', color: 'red' }); yield 2; }
+          if (s.diff >= 3) s.ring(s.cnt(10), { offset: s.rand(0, s.TAU), spd: s.sp(1.6), shape: 'small', color: 'cyan' });
           yield s.lv(24, 20, 16, 14, 12);
         }
         yield s.wait(60);
@@ -2018,6 +2041,7 @@ const SPELLS = [
         for (let k = 0; k < 14; k++) {
           if (k % 2 === 0) s.ring(s.cnt(22), { offset: s.rand(0, s.TAU), spd: s.sp(0.75), shape: 'orb', color: 'cyan' });
           for (let i = 0; i < 2; i++) s.fire({ ang: dir * k * 0.33 + i * Math.PI, spd: s.sp(0.9), shape: 'rice', color: 'blue' });
+          if (s.diff >= 3 && k % 4 === 1) s.spread(3, s.aim(), 0.25, { spd: s.sp(1.1), shape: 'rice', color: 'white' });
           yield s.wait(16);
         }
         s.say(s.boss, 'OVERCLOCK', 50);
@@ -2060,6 +2084,7 @@ const SPELLS = [
           const list = fillField(s, { holes: [pts[k]], spacing: s.lv(20, 19, 18, 17, 16), color: k % 2 ? 'cyan' : 'blue', motion, pad: 50 });
           for (let t = 0; t < hold; t++) {
             if (zones[k]) { zones[k].x += motion.vx; zones[k].y += motion.vy; }
+            if (s.diff >= 3 && t % 30 === 15) s.fire({ ang: s.aim(), spd: s.sp(1.8), shape: 'rice', color: 'white' });
             yield 1;
           }
           s.pop(list);
@@ -2185,7 +2210,7 @@ const SPELLS = [
 ];
 
 // ── 엑스트라: 진심 예로니모 ──
-// 엑스트라 패턴은 extra: true로 표시하며 고른 난이도보다 한 단계 위로 계산된다(하드는 그 위의 엑스트라 하드)
+// 엑스트라 패턴은 extra: true로 표시만 함. 난이도는 본편과 같이 고른 그대로 계산
 
 // ── 화면 채우기(발악·안전지대 패턴) ──
 // 안전지대(holes: [{x, y, r}])만 비우고 화면 전체를 엇갈린 격자로 탄을 깖. motion을 주면 모든 탄이 motion.vx·vy로

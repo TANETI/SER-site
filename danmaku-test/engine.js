@@ -11,7 +11,7 @@ const START_LIVES = 3, START_BOMBS = 3;
 const livesFor = diff => diff <= 1 ? 4 : START_LIVES;
 // 파워 0.00~4.00. 정수 부분이 탄 단계. 작은 P +0.02, 큰 P +0.25, 죽으면 -0.5
 const MAX_POWER = 4, P_SMALL = 0.02, P_BIG = 0.25, DEATH_POWER_LOSS = 0.5;
-// 난이도별 보스 체력 배율. 엑스트라는 한 단계 위
+// 난이도별 보스 체력 배율
 // 기준을 한 칸 내림: 예전 이지 값이 지금 노말, 예전 노말 값이 지금 하드
 const HP_MUL = [0.6, 0.7, 0.85, 1, 1.1, 1.2];
 // 보스 체력 전체 배율(제한시간에는 영향 없음)
@@ -20,7 +20,7 @@ const BOSS_HP = 0.855;   // 0.9에서 5% 너프
 // 보스전은 스테이지마다 hpScale로 길이를 따로 맞춤(BOSS_RUNS). 단일 패턴 연습은 이 기본값
 const HP_SCALE = 2.2;
 // 난이도: 0=이지 1=노말 2=하드 3=베리하드 4=헬. 패턴은 s.lv·s.cnt·s.wait·s.sp로 난이도를 반영한다.
-// 하드가 시험판 처음의 잠정 최고 밀도. 엑스트라 패턴(extra: true)은 한 단계 위로 계산하며 6번째 값은 헬 위
+// 하드가 시험판 처음의 잠정 최고 밀도. 표의 6번째 값은 예전 '엑스트라 한 단계 위' 계산용으로 지금은 쓰지 않음
 const DIFFS = ['이지', '노말', '하드', '베리하드', '헬'];
 const DENSITY = [0.55, 0.8, 1, 1.2, 1.4, 1.6], INTERVAL = [1.6, 1.25, 1, 0.88, 0.78, 0.7], SPEED = [0.82, 0.92, 1, 1.06, 1.12, 1.16];
 
@@ -319,8 +319,8 @@ class Game {
     return 1 - this.boss.hp / this.boss.maxHp;
   }
 
-  // 실제로 쓰는 난이도. 엑스트라 패턴은 한 단계 위(최대 3)
-  effDiff(sp = this.spell) { return Math.min(DENSITY.length - 1, this.difficulty + (sp && sp.extra ? 1 : 0)); }
+  // 엑스트라는 본편을 깬 뒤 열리는 스테이지일 뿐 난이도 체계가 아니므로 고른 난이도 그대로 씀
+  effDiff(sp = this.spell) { return this.difficulty; }
 
   // 패턴의 실제 체력(난이도·보스전 배율 반영). 체력바를 그릴 때 다음 패턴 몫도 이걸로 셈
   hpFor(sp) {
@@ -830,7 +830,7 @@ function makeAPI(G) {
     get timeLeft() { return G.timer; },
     get hpRate() { return G.boss.hp / G.boss.maxHp; },
     get diff() { return G.effDiff(); },
-    lv: (...v) => v[Math.min(G.effDiff(), v.length - 1)],                        // 난이도별 값 고르기 (이지, 노말, 하드[, 엑스트라 하드])
+    lv: (...v) => v[Math.min(G.effDiff(), v.length - 1)],                        // 난이도별 값 고르기 (이지, 노말, 하드, 베리하드, 헬)
     cnt: n => Math.max(1, Math.round(n * DENSITY[G.effDiff()] * (1 + 0.2 * G.heat()))),     // 탄 개수
     wait: f => Math.max(1, Math.round(f * INTERVAL[G.effDiff()] / (1 + 0.15 * G.heat()))),  // 발사 간격(프레임)
     get heat() { return G.heat(); },
@@ -1661,7 +1661,7 @@ function drawHUD(G, g) {
   g.fillStyle = '#fff'; g.font = font(12, true);
   const nameEnd = wrap(g, G.spell.name, x, 34, w, 16, 3);
   g.fillStyle = '#8e8ea6'; g.font = font(11);
-  g.fillText(`${ANGELS[G.angel].name} · ${DIFFS[G.difficulty]}${G.spell.extra ? ' (엑스트라 +1)' : ''}`, x, nameEnd + 4);
+  g.fillText(`${ANGELS[G.angel].name} · ${DIFFS[G.difficulty]}`, x, nameEnd + 4);
 
   // 게임 정보
   let y = nameEnd + 30;
