@@ -328,7 +328,7 @@ class Game {
   // 패턴의 실제 체력(난이도·보스전 배율 반영). 체력바를 그릴 때 다음 패턴 몫도 이걸로 셈
   hpFor(sp) {
     const scaled = sp.hp < 99999 && !sp.survival && sp.type !== 'stage';
-    const k = scaled ? (this.run?.hpScale ?? HP_SCALE) : 1;
+    const k = scaled ? (this.run ? this.run.hpScale * (this.run.bossScale?.[sp.boss] ?? 1) : HP_SCALE) : 1;   // bossScale: 보스전 안 보스별 배율(중간 보스 등)
     return sp.hp >= 99999 ? sp.hp : Math.max(1, Math.round((sp.hp || 1000) * HP_MUL[this.effDiff(sp)] * k * (scaled ? BOSS_HP : 1)));
   }
 
@@ -397,7 +397,7 @@ class Game {
     Object.assign(this.player, { inv: 60, fireT: 0, bomb: null, flash: 0, stun: 0 });
     this.stats = { miss: 0, hits: 0, bombs: 0, dmgLog: new Array(60).fill(0), dmgNow: 0 };
     const scaled = sp.hp < 99999 && !sp.survival && sp.type !== 'stage';
-    const k = scaled ? (this.run?.hpScale ?? HP_SCALE) : 1;
+    const k = scaled ? (this.run ? this.run.hpScale * (this.run.bossScale?.[sp.boss] ?? 1) : HP_SCALE) : 1;   // bossScale: 보스전 안 보스별 배율(중간 보스 등)
     const hp = this.hpFor(sp);
     const b = this.boss = { x: W / 2, y: -40, hp, maxHp: hp, move: null, hidden: sp.type === 'stage', t: 0,
       name: sp.boss || '', color: sp.bossColor || '#d8d0ff', shield: 0, glow: 0, contact: false };
