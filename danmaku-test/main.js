@@ -50,13 +50,6 @@ const spellSel = $('spellSel'), angelSel = $('angelSel');
 function fillSpells() {
   spellSel.innerHTML = '';
   const group = label => { const g = document.createElement('optgroup'); g.label = label; spellSel.append(g); return g; };
-  // 본게임: 스테이지를 이어서. 엑스트라는 앞을 클리어해야 열림
-  const story = group('본게임 (스테이지를 이어서, 클리어하면 다음으로)');
-  for (const [key, label] of [['main', '본편 (1스테이지부터)'], ['extra', '엑스트라 · 진심 예로니모'], ['extra2', '엑스트라 2 · 이즘']]) {
-    const o = new Option(unlocked(key) ? label : `${label} (잠김)`, 'g:' + key);
-    o.disabled = !unlocked(key);
-    story.append(o);
-  }
   const runs = group('보스전 (패턴을 이어서, 목숨·파워 유지)');
   BOSS_RUNS.forEach((r, i) => runs.append(new Option(r.title, 'r' + i)));
   // 단일 패턴은 스테이지 순서로 묶고, 보스전에 쓰지 않는 시험 패턴은 맨 아래
@@ -79,7 +72,7 @@ DIFFS.forEach((d, i) => $('diffSel').add(new Option(d, i)));
 [0, 1, 2, 3, 4].forEach(v => $('powSel').add(new Option(v === 4 ? '4.00 (MAX)' : v.toFixed(2), v)));
 
 function syncPanel() {
-  spellSel.value = G.story ? 'g:' + G.story.key : G.run ? 'r' + BOSS_RUNS.findIndex(r => r.title === G.run.title) : G.spellIndex;
+  spellSel.value = G.run ? 'r' + BOSS_RUNS.findIndex(r => r.title === G.run.title) : G.spellIndex;
   angelSel.value = G.angel;
   $('diffSel').value = G.difficulty;
   $('powSel').value = G.practicePower;
@@ -87,17 +80,18 @@ function syncPanel() {
   $('invChk').checked = G.invincible;
   $('sndChk').checked = !SFX.muted;
   $('shakeChk').checked = G.shakeOn;
+  $('speedSel').value = G.speed;
   if ($('editor').open) $('code').value = spellSource(G.spell);
+  syncStage();
 }
 G.onChange = syncPanel;
-G.onUnlock = () => { fillSpells(); syncPanel(); };   // 엑스트라가 열리면 목록을 다시 그림
+G.onUnlock = syncPanel;   // 엑스트라가 열리면 시작 버튼을 다시 그림
 
 // 선택 후 포커스를 빼서 방향키가 목록을 바꾸지 않게 함
 const settle = el => el.blur();
 spellSel.onchange = () => {
   const v = spellSel.value;
-  if (v.startsWith('g:')) G.startStory(v.slice(2));
-  else if (v[0] === 'r') { G.story = null; G.startRun(BOSS_RUNS[+v.slice(1)]); } else G.startSingle(+v);
+  if (v[0] === 'r') { G.story = null; G.startRun(BOSS_RUNS[+v.slice(1)]); } else G.startSingle(+v);
   syncPanel(); settle(spellSel);
 };
 angelSel.onchange = () => { G.angel = angelSel.value; settle(angelSel); };
@@ -117,6 +111,47 @@ $('shakeChk').onchange = e => { G.shakeOn = e.target.checked; if (!G.shakeOn) G.
 $('editor').addEventListener('toggle', () => { if ($('editor').open) $('code').value = spellSource(G.spell); });
 $('prevBtn').onclick = e => { G.startSingle(G.spellIndex - 1); syncPanel(); settle(e.target); };
 $('nextBtn').onclick = e => { G.startSingle(G.spellIndex + 1); syncPanel(); settle(e.target); };
+
+// ── 모드: 스테이지 모드(본게임만, 연습 도구 없음) / 패턴 테스트 룸(패턴·보스 하나씩, 연습 도구) ──
+const STORY_INFO = { main: '1스테이지부터 · 8보스', extra: '진심 예로니모', extra2: '이즘' };
+const STORY_LOCK = { extra: '본편을 깨면 열림', extra2: '엑스트라를 깨면 열림' };
+function syncStage() {
+  for (const b of $('angelSeg').children) b.setAttribute('aria-pressed', b.dataset.v === G.angel);
+  for (const b of $('diffSeg').children) b.setAttribute('aria-pressed', +b.dataset.v === G.difficulty);
+  for (const b of $('starts').children) {
+    const key = b.dataset.story, open = unlocked(key);
+    b.disabled = !open;
+    b.querySelector('small').textContent = open ? STORY_INFO[key] : '잠김 · ' + STORY_LOCK[key];
+    b.classList.toggle('on', !!(G.story && G.story.key === key));
+  }
+}
+for (const [code, a] of Object.entries(ANGELS)) {
+  const b = document.createElement('button'); b.textContent = a.name; b.dataset.v = code;
+  b.onclick = () => { G.angel = code; syncPanel(); settle(b); };
+  $('angelSeg').append(b);
+}
+DIFFS.forEach((d, i) => {
+  const b = document.createElement('button'); b.textContent = d; b.dataset.v = i;
+  b.onclick = () => { G.difficulty = i; G.restart(); syncPanel(); settle(b); };
+  $('diffSeg').append(b);
+});
+for (const b of $('starts').children) b.onclick = () => { G.startStory(b.dataset.story); syncPanel(); settle(b); };
+$('stageRestart').onclick = e => { G.restart(); settle(e.target); };
+function setMode(mode) {
+  document.body.dataset.mode = G.mode = mode;
+  $('tabStage').setAttribute('aria-selected', mode === 'stage');
+  $('tabRoom').setAttribute('aria-selected', mode === 'room');
+  try { localStorage.setItem('danmaku.mode', mode); } catch (e) { /* 저장 못 해도 진행 */ }
+  if (mode === 'stage') {
+    // 스테이지 모드는 연습 도구 없이: 무적·파워 고정·속도를 되돌리고 본편부터
+    G.invincible = false; G.powerLock = false; G.speed = 1;
+    G.startStory('main');
+  } else G.startSingle(G.spellIndex);
+  G.paused = false;
+  syncPanel();
+}
+$('tabStage').onclick = e => { if (G.mode !== 'stage') setMode('stage'); settle(e.target); };
+$('tabRoom').onclick = e => { if (G.mode !== 'room') setMode('room'); settle(e.target); };
 
 // ── 코드 편집 ──
 function spellSource(sp) {
@@ -151,7 +186,10 @@ $('code').addEventListener('keydown', e => {
 });
 
 // ── 루프 ──
-G.startSingle(0); syncPanel();
+G.spellIndex = 0;
+let savedMode = 'stage';
+try { savedMode = localStorage.getItem('danmaku.mode') === 'room' ? 'room' : 'stage'; } catch (e) { /* 기본은 스테이지 모드 */ }
+setMode(savedMode);
 let last = performance.now(), audioBusy = false;
 requestAnimationFrame(function tick(now) {
   G.frameTick(now - last); last = now;

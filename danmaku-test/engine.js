@@ -832,9 +832,11 @@ class Game {
     const take = c => this.pressed.delete(c);
     if (take('Escape')) this.paused = !this.paused;
     if (take('KeyR')) this.restart();
+    if (take('KeyM')) { SFX.setMuted(!SFX.muted); this.onChange?.(); }
+    // 패턴 전환·무적·기체·난이도 단축키는 패턴 테스트 룸에서만(스테이지 모드는 패널에서 고름)
+    if (this.mode === 'stage') { for (const c of ['BracketRight', 'BracketLeft', 'KeyD', 'KeyI', 'Digit1', 'Digit2', 'Digit3', 'Digit4']) this.pressed.delete(c); return; }
     if (take('BracketRight')) { this.startSingle(this.spellIndex + 1); this.onChange?.(); }
     if (take('BracketLeft')) { this.startSingle(this.spellIndex - 1); this.onChange?.(); }
-    if (take('KeyM')) { SFX.setMuted(!SFX.muted); this.onChange?.(); }
     if (take('KeyD')) { this.difficulty = (this.difficulty + 1) % DIFFS.length; this.restart(); this.onChange?.(); }
     if (take('KeyI')) { this.invincible = !this.invincible; this.onChange?.(); }
     for (const [code, a] of [['Digit1', 'AR'], ['Digit2', 'UR'], ['Digit3', 'LM'], ['Digit4', 'RH']]) if (take(code)) { this.angel = a; this.onChange?.(); }
