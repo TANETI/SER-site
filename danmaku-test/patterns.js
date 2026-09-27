@@ -879,18 +879,28 @@ const SPELLS = [
     type: 'nonspell', boss: '차서린', bossColor: '#9fc8ff', hp: 2000, time: 36, start: [192, 80],
     *run(s) {
       // 음파: 물결 모양으로 늘어선 탄 줄이 화면 아래로 천천히 퍼져 내려감. 물결 위 한 칸이 틈.
-      // 줄 사이 약 90px(노말). 다음 줄의 틈은 앞 줄 틈에서 150px 안쪽에만 나와 줄이 오기 전에 옮겨 갈 수 있음
+      // 줄 사이 약 90px(노말). 다음 줄의 틈은 앞 줄 틈에서 150px 안쪽에만 나와 줄이 오기 전에 옮겨 갈 수 있음.
+      // 네 줄(한 소절)을 보내면 쉼표: 약 2.5초 동안 줄을 보내지 않고 가운데 근처에 멈춰 가벼운 조준탄만(딜 타임).
+      // 쉼표 뒤 첫 줄의 틈은 보스 바로 아래 근처라 보스 밑에서 쏘던 자리에서 이어서 피할 수 있음
       let gapX = s.W / 2;
-      for (let w = 0; ; w++) {
-        const ph = s.rand(0, s.TAU), n = 24;
-        gapX = Math.max(50, Math.min(s.W - 50, gapX + s.rand(-150, 150)));
-        for (let i = 0; i < n; i++) {
-          const x = (i + 0.5) * s.W / n;
-          if (Math.abs(x - gapX) < s.lv(34, 28, 24, 22, 20)) continue;
-          s.fire({ x, y: s.boss.y + 20 + Math.sin(x * 0.03 + ph) * 26, ang: Math.PI / 2, spd: s.sp(1.2), shape: 'small', color: 'cyan' });
+      for (let bar = 0; ; bar++) {
+        for (let w = 0; w < 4; w++) {
+          const ph = s.rand(0, s.TAU), n = 24;
+          gapX = w === 0 ? Math.max(50, Math.min(s.W - 50, s.boss.x + s.rand(-40, 40))) : Math.max(50, Math.min(s.W - 50, gapX + s.rand(-150, 150)));
+          for (let i = 0; i < n; i++) {
+            const x = (i + 0.5) * s.W / n;
+            if (Math.abs(x - gapX) < s.lv(34, 28, 24, 22, 20)) continue;
+            s.fire({ x, y: s.boss.y + 20 + Math.sin(x * 0.03 + ph) * 26, ang: Math.PI / 2, spd: s.sp(1.2), shape: 'small', color: 'cyan' });
+          }
+          yield s.wait(60);
         }
-        yield s.wait(60);
-        if (w % 6 === 5) yield* s.wander(40, 40);
+        // 쉼표: 마지막 줄이 내려가는 동안 자리를 옮긴 뒤 멈춰 섬
+        if (bar % 2 === 1) yield* s.wander(40, 40);
+        const rest = s.lv(170, 160, 150, 140, 130);
+        for (let t = 0; t < rest; t += 50) {
+          if (s.diff >= 1) s.fire({ ang: s.aim(), spd: s.sp(2.2), shape: 'rice', color: 'white' });
+          yield Math.min(50, rest - t);
+        }
       }
     },
   },
