@@ -2498,6 +2498,8 @@ SPELLS.push({
 // 캐릭터별 스펠은 1~3장. 예측 사격은 뺐지만 시스템(이동 예측 저격)은 나중에 쓰려고 남겨 둠. 나중에 한 보스전 안에서 모든 스펠이 나오는 구조로 바꿀 예정.
 // 본게임에 쓰는 스펠은 여기 보스전 순서에 든 것만(2026-09-27 추림). 필리우스 제1식(내구)·휘감는 덩굴·감정 학습·오버클럭·
 // 열흘 같은 하루와 시험 패턴은 빠졌으며 단일 패턴 연습에서만 볼 수 있다
+// pages: 페이지마다 패턴 수. 한 페이지 = 체력바 하나(논스펠 → 스펠). 1~4스테이지 보스는 2페이지, 5스테이지부터 3페이지, 중간 보스는 1페이지.
+// 그 보스의 스펠이 모두 한 번씩 나옴
 // 보스전은 잡몹 구간 없이 보스부터 시작한다. 시작 파워는 그 스테이지에 닿았을 때쯤의 값이고, 패턴이 끝날 때 떨어지는 P로 오른다
 function spellOf(name, boss) {
   const sp = SPELLS.find(x => x.name === name && (!boss || x.boss === boss));
@@ -2506,7 +2508,7 @@ function spellOf(name, boss) {
 }
 const BOSS_RUNS = [
   {
-    title: '1스테이지 · 괴이사건대책반', name: '대책반', power: 0, hpScale: 1.6,
+    title: '1스테이지 · 괴이사건대책반', name: '대책반', pages: [2, 2, 2], power: 0, hpScale: 1.6,
     seq: [
       spellOf('논스펠 · 윤도연'),
       spellOf('「발포 점착제」(가칭)'),
@@ -2517,7 +2519,7 @@ const BOSS_RUNS = [
     ],
   },
   {
-    title: '2스테이지 · 마리와 마르코', name: '마리·마르코', power: 1.5, hpScale: 2.8,
+    title: '2스테이지 · 마리와 마르코', name: '마리·마르코', pages: [2, 2, 3], power: 1.5, hpScale: 2.8,
     seq: [
       spellOf('논스펠 · 마리'),
       spellOf('파테르 제1식 — 나의 의로운 오른손으로 너를 붙들리라', '마리'),
@@ -2525,12 +2527,11 @@ const BOSS_RUNS = [
       spellOf('필리우스 제2식 — 그의 백성을 두르시리로다'),
       spellOf('논스펠 · 마르코 (폭주)'),
       spellOf('파테르 제1식 — 나의 의로운 오른손으로 너를 붙들리라', '마르코'),
-      spellOf('논스펠 · 마르코 2 (폭주)'),
       spellOf('파테르 제2식 — 능히 일어나지 못하게 하리니', '마르코'),
     ],
   },
   {
-    title: '3스테이지-1 · 김예나', name: '김예나', power: 2, hpScale: 3.56,   // 전체 너프에 더해 5% 추가 너프(3.75×0.95)
+    title: '3스테이지-1 · 김예나', name: '김예나', pages: [2, 2], power: 2, hpScale: 3.56,   // 전체 너프에 더해 5% 추가 너프(3.75×0.95)
     seq: [
       spellOf('논스펠 · 김예나 1'),
       spellOf('「셔터 찬스」(가칭)'),
@@ -2539,7 +2540,7 @@ const BOSS_RUNS = [
     ],
   },
   {
-    title: '3스테이지-2 · 차서린', name: '차서린', power: 2.25, hpScale: 3.5,
+    title: '3스테이지-2 · 차서린', name: '차서린', pages: [2, 2], power: 2.25, hpScale: 3.5,
     seq: [
       spellOf('논스펠 · 차서린 1'),
       spellOf('「리프」(가칭)'),
@@ -2548,7 +2549,7 @@ const BOSS_RUNS = [
     ],
   },
   {
-    title: '3스테이지-3 · 고태웅', name: '고태웅', power: 2.5, hpScale: 2.9,
+    title: '3스테이지-3 · 고태웅', name: '고태웅', pages: [2, 2], power: 2.5, hpScale: 2.9,
     seq: [
       spellOf('논스펠 · 고태웅 1'),
       spellOf('「히어로 킥」(가칭)'),
@@ -2557,7 +2558,7 @@ const BOSS_RUNS = [
     ],
   },
   {
-    title: '5스테이지 · 아즈라엘', name: '아즈라엘', power: 2.75, hpScale: 2.5,
+    title: '5스테이지 · 아즈라엘', name: '아즈라엘', pages: [2, 2, 1], power: 2.75, hpScale: 2.5,
     seq: [
       spellOf('논스펠 · 아즈라엘 1'),
       spellOf('「명암」(가칭)'),
@@ -2567,7 +2568,7 @@ const BOSS_RUNS = [
     ],
   },
   {
-    title: '6스테이지 · 예로니모', name: '예로니모', power: 3, hpScale: 1.95,
+    title: '6스테이지 · 예로니모', name: '예로니모', pages: [2, 2, 2], power: 3, hpScale: 1.95,
     seq: [
       spellOf('논스펠 · 예로니모 1'),
       spellOf('스피리투스 제1식 — 꺼져가는 등불을 끄지 아니하고'),
@@ -2578,7 +2579,7 @@ const BOSS_RUNS = [
     ],
   },
   {
-    title: '7스테이지 · 리크니스', name: '리크니스', power: 3.5, hpScale: 1.95,
+    title: '7스테이지 · 리크니스', name: '리크니스', pages: [2, 2, 1], power: 3.5, hpScale: 1.95,
     seq: [
       spellOf('논스펠 · 리크니스 2'),
       spellOf('「뿌리를 찾는 덩굴」(가칭)'),
@@ -2588,7 +2589,7 @@ const BOSS_RUNS = [
     ],
   },
   {
-    title: '엑스트라 · 진심 예로니모', name: '진심 예로니모', power: 4, hpScale: 1.7,
+    title: '엑스트라 · 진심 예로니모', name: '진심 예로니모', pages: [2, 3, 1], power: 4, hpScale: 1.7,
     seq: [
       spellOf('논스펠 · 예로니모 3', '예로니모(진심)'),
       spellOf('파테르 제2식 — 능히 일어나지 못하게 하리니', '예로니모(진심)'),
@@ -2599,7 +2600,7 @@ const BOSS_RUNS = [
     ],
   },
   {
-    title: '엑스트라 2 · 이즘', name: '이즘', power: 4, hpScale: 1.85,
+    title: '엑스트라 2 · 이즘', name: '이즘', pages: [2, 2, 1], power: 4, hpScale: 1.85,
     seq: [
       spellOf('논스펠 · 이즘 1'),
       spellOf('「순차 격자 타격」(가칭)'),

@@ -334,7 +334,9 @@ class Game {
 
   // 홍마향식 체력바: 논스펠과 바로 뒤의 스펠(같은 보스)이 체력바 하나. 그 밖의 패턴은 혼자 체력바 하나.
   // 돌려주는 값: 패턴 번호마다 체력바 번호
-  barsOf(seq) {
+  barsOf(seq, pages) {
+    // pages(페이지마다 패턴 수)가 있으면 그대로 페이지 = 체력바
+    if (pages && pages.reduce((a, b) => a + b, 0) === seq.length) return pages.flatMap((n, i) => Array(n).fill(i));
     const bar = [];
     let n = -1;
     seq.forEach((sp, i) => {
@@ -354,7 +356,7 @@ class Game {
   // carry=true면 본게임에서 앞 스테이지의 목숨·파워를 이어받음(파워는 그 스테이지 기준값보다 1 넘게 낮지 않게, 폭탄은 다시 채움)
   startRun(run, carry = false) {
     // 보스전 동안 쌓는 상태(김예나 시청자 수 등)는 다시 시작하면 초기화
-    this.run = { ...run, idx: 0, bars: this.barsOf(run.seq), yena: undefined };
+    this.run = { ...run, idx: 0, bars: this.barsOf(run.seq, run.pages), yena: undefined };
     if (carry && this.player) {
       const p = this.player;
       if (!this.powerLock) p.power = Math.max(p.power, (run.power ?? 0) - 1);
@@ -1663,25 +1665,29 @@ function drawFieldUI(G, g) {
     g.globalAlpha = 1; g.strokeStyle = 'rgba(255,255,255,0.5)'; g.lineWidth = 1; g.strokeRect(gx - 0.5, gy - 0.5, gw + 1, 7);
   }
   g.font = '12px system-ui, "Malgun Gothic", sans-serif'; g.textBaseline = 'top';
-  // 홍마향식 체력바: 논스펠과 스펠이 한 막대. 왼쪽 표시선까지가 스펠 몫, 그 오른쪽이 논스펠 몫
+  // 페이지 체력바: 한 페이지(여러 패턴)가 한 막대. 오른쪽부터 줄어들고, 표시선이 패턴 사이 경계(왼쪽일수록 뒤 패턴)
   const run = G.run, bars = run && run.bars, bw = W - 60;
-  let split = 0;   // 막대에서 스펠 몫의 비율(0이면 나누지 않음)
-  if (bars && sp.type === 'nonspell' && bars[run.idx + 1] === bars[run.idx]) {
-    const nx = G.hpFor(run.seq[run.idx + 1]); split = nx / (nx + b.maxHp);
-  } else if (bars && sp.type === 'spell' && run.idx > 0 && bars[run.idx - 1] === bars[run.idx]) {
-    const pv = G.hpFor(run.seq[run.idx - 1]); split = b.maxHp / (b.maxHp + pv);
-  }
   if (!b.hidden && !sp.survival) {
-    const fill = !split ? b.hp / b.maxHp : sp.type === 'nonspell' ? split + (1 - split) * b.hp / b.maxHp : split * b.hp / b.maxHp;
+    let fill = b.hp / b.maxHp, marks = [];
+    if (bars) {
+      const idxs = run.seq.map((_, i) => i).filter(i => bars[i] === bars[run.idx]);
+      const hp = idxs.map(i => (run.seq[i].survival ? 0 : i === run.idx ? b.maxHp : G.hpFor(run.seq[i])));
+      const total = hp.reduce((a2, c) => a2 + c, 0) || 1, k = idxs.indexOf(run.idx);
+      const later = hp.slice(k + 1).reduce((a2, c) => a2 + c, 0);
+      fill = (later + b.hp) / total;
+      // 경계선: 각 패턴 뒤에 남는 몫의 위치
+      for (let j = 0; j < idxs.length - 1; j++) marks.push(hp.slice(j + 1).reduce((a2, c) => a2 + c, 0) / total);
+    }
     g.fillStyle = 'rgba(0,0,0,0.4)'; g.fillRect(8, 6, bw, 4);
     g.fillStyle = sp.type === 'spell' ? '#ffd0dc' : '#fff'; g.fillRect(8, 6, bw * fill, 4);
-    if (split) { g.fillStyle = '#ff5e7a'; g.fillRect(8 + bw * split - 1, 4, 2, 8); }
+    g.fillStyle = '#ff5e7a'; for (const m of marks) g.fillRect(8 + bw * m - 1, 4, 2, 8);
   }
-  if (run) {
-    // 이번 체력바 뒤로 남은 체력바 수(별)
-    const left = bars ? bars[bars.length - 1] - bars[run.idx] : run.seq.length - 1 - run.idx;
-    g.fillStyle = '#f5c542'; g.font = '10px system-ui, sans-serif'; g.textBaseline = 'top'; g.textAlign = 'left';
-    for (let i = 0; i < left; i++) g.fillText('★', 8 + i * 10, 12);
+  if (run && bars) {
+    // 이 보스의 몇 번째 페이지인지(페이지의 보스 = 그 페이지 마지막 패턴의 보스)
+    const pageBoss = pg => { let last = -1; bars.forEach((v, i) => { if (v === pg) last = i; }); return run.seq[last].boss; };
+    const cur = bars[run.idx], boss = pageBoss(cur), all = [...new Set(bars)].filter(pg => pageBoss(pg) === boss);
+    g.fillStyle = '#f5c542'; g.font = 'bold 9px Consolas, monospace'; g.textBaseline = 'top'; g.textAlign = 'left';
+    g.fillText(`PAGE ${all.indexOf(cur) + 1}/${all.length}`, 8, 12);
   }
   // 시간
   const sec = Math.max(0, G.timer) / 60;
