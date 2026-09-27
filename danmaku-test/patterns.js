@@ -1240,7 +1240,7 @@ const SPELLS = [
         if (s.diff >= 1 && f % 2 === 0) for (let i = 0; i < 3; i++) s.fire({ ang: -f * 0.06 + i * s.TAU / 3 + Math.PI / 3, spd: s.sp(1.8), shape: 'small', color: 'yellow' });
         if (f % 5 === 0) s.spread(s.lv(1, 3, 3, 3, 5), s.aim(), 0.15, { spd: s.sp(4), shape: 'knife', color: 'white' });
         if (f % 40 === 39) yield* s.wander(40, 50);
-        yield s.lv(9, 8, 7, 7, 6);
+        yield s.lv(11, 10, 9, 9, 8);   // 팔마다 고리 사이 간격(약 25% 넓힘)
       }
     },
   },
