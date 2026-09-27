@@ -1083,7 +1083,14 @@ function drawActor(G, g, a, isBoss) {
     if (fainted) { g.filter = 'grayscale(1)'; g.globalAlpha = 0.6; }
     g.drawImage(pic, a.x - w / 2, a.y - h / 2, w, h);
     g.filter = 'none';
-    g.strokeStyle = a.color; g.lineWidth = 2; g.beginPath(); g.roundRect(a.x - w / 2, a.y - h / 2, w, h, 8); g.stroke();
+    if (a.rage) {
+      // 폭주: 테두리가 붉게 일렁임(두께·밝기가 맥박처럼, 바깥으로 붉은 번짐)
+      const pulse = 0.5 + 0.5 * Math.sin(a.t * 0.25), jit = Math.random() * 1.5;
+      g.strokeStyle = `rgba(255,48,72,${0.25 + 0.25 * pulse})`; g.lineWidth = 7 + 3 * pulse + jit;
+      g.beginPath(); g.roundRect(a.x - w / 2, a.y - h / 2, w, h, 8); g.stroke();
+      g.strokeStyle = `rgb(255,${60 + Math.round(80 * pulse)},${70 + Math.round(40 * pulse)})`; g.lineWidth = 2.5 + pulse;
+    } else { g.strokeStyle = a.color; g.lineWidth = 2; }
+    g.beginPath(); g.roundRect(a.x - w / 2, a.y - h / 2, w, h, 8); g.stroke();
     if (a.hurt > 0) { g.globalAlpha = 0.45; g.fillStyle = '#fff'; g.beginPath(); g.roundRect(a.x - w / 2, a.y - h / 2, w, h, 8); g.fill(); }
     g.restore();
     if (isBoss) {
