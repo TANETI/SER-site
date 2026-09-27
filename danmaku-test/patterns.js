@@ -378,15 +378,15 @@ const SPELLS = [
     name: '논스펠 · 고현성 1',
     type: 'nonspell', boss: '고현성', bossColor: '#c8d4e8', hp: 1800, time: 34, start: [192, 100],
     *run(s) {
-      // E4 관통탄 연사: 조준한 방향 둘레를 좌우로 훑는 칼날 줄기 + 사이사이 원형탄
+      // E4 관통탄 연사: 조준한 방향 둘레를 좌우로 훑는 칼날 줄기 + 사이사이 원형탄(칼날 속도 3.6, 줄기 사이 5프레임)
       for (let w = 1; ; w++) {
         const a0 = s.aim();
-        for (let k = 0; k < s.lv(8, 10, 12, 14, 14); k++) {
-          s.spread(s.lv(3, 3, 5, 5, 7), a0 + Math.sin(k * 0.4) * 0.25, 0.2, { spd: s.sp(4.2), shape: 'knife', color: 'cyan' });
-          yield 4;
+        for (let k = 0; k < s.lv(6, 8, 10, 11, 12); k++) {
+          s.spread(s.lv(3, 3, 5, 5, 7), a0 + Math.sin(k * 0.4) * 0.25, 0.2, { spd: s.sp(3.6), shape: 'knife', color: 'cyan' });
+          yield 5;
         }
         yield s.wait(30);
-        s.ring(s.cnt(24), { offset: s.rand(0, s.TAU), spd: s.sp(1.8), shape: 'orb', color: 'blue' });
+        s.ring(s.cnt(20), { offset: s.rand(0, s.TAU), spd: s.sp(1.6), shape: 'orb', color: 'blue' });
         yield s.wait(40);
         if (w % 2 === 0) yield* s.wander(80, 45);
       }
