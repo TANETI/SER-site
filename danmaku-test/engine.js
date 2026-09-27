@@ -121,6 +121,7 @@ function charSprite(code, shot, cook) {
   let e = imgCache.get(key);
   if (!e) {
     e = { img: new Image(), ok: false, out: null };
+    e.img.crossOrigin = 'anonymous';   // 화면을 이미지로 저장할 수 있게(이미지 서버가 CORS 허용)
     e.img.onload = () => { e.ok = true; };
     e.img.src = `${IMG_BASE}${code}/D/${shot}.webp`;
     imgCache.set(key, e);
@@ -562,6 +563,7 @@ class Game {
       if (--this.phaseT <= 0) this.restart();
     }
 
+    if (this.cutin) this.cutin.t++;   // 스펠 컷인은 게임 시간으로 흐름(일시정지 중에는 멈춤)
     if (this.slow && ++this.slow.t >= this.slow.dur) { if (this.slow.k < 1) SFX.slowOut(); this.slow = null; }
     this.updateAreas();
     this.updateItems();
@@ -1535,7 +1537,6 @@ function drawCutin(G, g) {
   const c = G.cutin;
   if (!c || c.t > 70) return;
   const strip = charSprite(c.code, '102', img => cookCutin(img, CUTIN_BAND[c.code]));
-  c.t++;
   if (!strip) return;
   // 0~10프레임 왼쪽에서 슉 들어오고, 50프레임부터 오른쪽으로 조금 밀리며 사라짐
   const t = c.t, inK = Math.min(1, t / 10), e = 1 - Math.pow(1 - inK, 3), out = Math.max(0, (t - 50) / 20);
