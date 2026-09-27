@@ -559,7 +559,7 @@ class Game {
       }
       const m = b.margin;
       if (b.x < -m || b.x > W + m || b.y < -m - b.marginTop || b.y > H + m) b.dead = true;
-      if (b.dead) continue;
+      if (b.dead || b.off) continue;   // off: 꺼진(깜빡임) 탄은 판정 없음
       const d = dist2(b.x, b.y, p.x, p.y), r = b.r + HIT_R, gr = b.r + GRAZE_R;
       if (d < r * r) { this.hitPlayer(); if (!this.invincible) break; }
       else if (d < gr * gr && !b.grazed) { b.grazed = true; this.graze++; this.score += 500; this.fx.push({ kind: 'graze', x: p.x, y: p.y, t: 0, life: 12 }); SFX.graze(); }
@@ -1248,7 +1248,7 @@ function drawBullets(G, g) {
     const k = b.t < 6 ? 1 + (6 - b.t) * 0.15 : 1; // 발사 순간 살짝 크게
     const c = Math.cos(a) * k, sn = Math.sin(a) * k;
     g.setTransform(base.a * c, base.a * sn, -base.a * sn, base.a * c, base.e + b.x * base.a, base.f + b.y * base.a);
-    g.globalAlpha = b.alpha;
+    g.globalAlpha = b.off ? 0.1 : b.alpha;   // 꺼진 탄은 자리만 아주 흐리게
     g.drawImage(img, -s / 2, -s / 2, s, s);
   }
   g.setTransform(base); g.globalAlpha = 1;

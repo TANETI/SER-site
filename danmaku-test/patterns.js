@@ -897,36 +897,38 @@ const SPELLS = [
     },
   },
   {
-    name: '「알레프」(가칭)',
-    type: 'spell', boss: '고태웅', bossColor: '#ffcf6b', hp: 3000, time: 52, start: [192, 90],
+    name: '「점멸」(가칭)',
+    type: 'spell', boss: '고태웅', bossColor: '#ffcf6b', hp: 3000, time: 52, start: [192, 80],
     *run(s) {
-      // 알레프(힘·최초의·신): 첫 글자 א 모양으로 늘어선 금빛 탄이 플레이어 쪽으로 천천히 다가오다가
-      // 글자 획마다 바깥으로 흩어짐. 글자 사이 틈으로 빠져나감. 그사이 조준탄
+      // 변신 벨트 불빛처럼 깜빡이는 격자. 엇갈린 세로 줄들이 고정 간격(가로 40px, 세로 dy, 이웃 줄은 반 칸 엇갈림)을 지키며
+      // 왼쪽에서 오른쪽으로 함께 진행하고, 격자 전체가 같은 박자로 켜졌다 꺼짐. 꺼진 동안은 자리만 아주 흐리게 보이고
+      // 판정이 없음. 처음엔 느리게 깜빡이다가 점점 빨라짐. 켜진 동안은 탄 사이 틈에 머무르며 격자와 함께 흘러가고,
+      // 꺼진 동안 자리를 옮김. 보스는 가끔 느린 조준 별탄만 쏨
       siyeonWatch(s);
-      // 획: 대각선(왼쪽 위→오른쪽 아래), 오른쪽 위 짧은 획, 왼쪽 아래 짧은 획. 단위 크기 1 기준
-      const strokes = [[-0.5, -0.55, 0.5, 0.55], [0.1, -0.05, 0.35, -0.55], [-0.1, 0.05, -0.35, 0.55]];
-      for (let w = 0; ; w++) {
-        const size = 120, cx = s.boss.x, cy = s.boss.y + 60, a0 = Math.atan2(s.player.y - cy, s.player.x - cx);
-        const list = [];
-        for (const [x1, y1, x2, y2] of strokes) {
-          const len = Math.hypot(x2 - x1, y2 - y1) * size, n = Math.max(3, Math.round(len / 13));
-          for (let i = 0; i <= n; i++) {
-            const x = cx + (x1 + (x2 - x1) * i / n) * size, y = cy + (y1 + (y2 - y1) * i / n) * size;
-            list.push(s.fire({ x, y, ang: a0, spd: s.sp(0.9), shape: 'orb', color: 'gold' }));
-          }
+      const dx = 40, dy = s.lv(46, 42, 40, 38, 38), v = s.sp(0.9), top = 130, grid = { on: true };
+      // 깜빡임: 켜짐 약 1.6초·꺼짐 1초에서 시작해 14번에 걸쳐 켜짐 약 0.5초·꺼짐 0.35초까지 빨라짐. 켜질 때 높은 틱, 꺼질 때 낮은 틱
+      s.task(function* () {
+        for (let k = 0; ; k++) {
+          const p = Math.min(1, k / 14);
+          const on = Math.round(s.lv(100, 96, 92, 90, 88) * (1 - p) + s.lv(40, 34, 30, 28, 26) * p);
+          const off = Math.round(60 * (1 - p) + s.lv(28, 24, 22, 20, 20) * p);
+          grid.on = true; s.sound('beep', 0.9);
+          yield on;
+          grid.on = false; s.sound('beep', 0.2);
+          yield off;
         }
-        s.title('א', '#ffcf6b');
-        for (let t = 0; t < 70; t += 14) { s.spread(s.lv(1, 1, 3, 3, 3), s.aim(), 0.2, { spd: s.sp(2.6), shape: 'rice', color: 'white' }); yield 14; }
-        // 흩어짐: 글자 중심에서 바깥으로
-        s.impact(4);
-        const cxNow = list.reduce((m, q) => m + q.x, 0) / list.length, cyNow = list.reduce((m, q) => m + q.y, 0) / list.length;
-        for (const b of list) {
-          if (b.dead) continue;
-          b.ang = Math.atan2(b.y - cyNow, b.x - cxNow); b.spd = 0.4; b.accel = 0.03; b.maxSpd = s.sp(2);
+      }());
+      // 격자 줄: 왼쪽 밖에서 dx/v 프레임마다 한 줄씩 들어옴. 모두 같은 속도라 줄 사이 간격이 그대로 유지됨
+      s.task(function* () {
+        for (let c = 0; ; c++) {
+          const off = (c % 2) * dy / 2;
+          for (let y = top + off; y < s.H + 10; y += dy) s.fire({ x: -10, y, ang: 0, spd: v, shape: 'orb', color: 'yellow', margin: 20, fn: b => { b.off = !grid.on; } });
+          yield Math.round(dx / v);
         }
-        s.ring(s.cnt(16), { offset: s.rand(0, s.TAU), spd: s.sp(1.6), shape: 'star', color: 'yellow' });
-        yield s.wait(60);
-        if (w % 2 === 1) yield* s.wander(50, 50);
+      }());
+      for (;;) {
+        yield s.wait(70);
+        s.spread(s.lv(1, 1, 3, 3, 3), s.aim(), 0.25, { spd: s.sp(1.8), shape: 'star', color: 'orange' });
       }
     },
   },
@@ -2209,7 +2211,7 @@ const BOSS_RUNS = [
       spellOf('논스펠 · 고태웅 1'),
       spellOf('「히어로 킥」(가칭)'),
       spellOf('논스펠 · 고태웅 2'),
-      spellOf('「알레프」(가칭)'),
+      spellOf('「점멸」(가칭)'),
     ],
   },
   {
