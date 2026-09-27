@@ -426,7 +426,8 @@ class Game {
     this.moveBoss(sp.start?.[0] ?? W / 2, sp.start?.[1] ?? 110, 45);
     // 같은 체력바의 논스펠 → 스펠은 짧게 이어짐
     const sameBar = cont && this.run.idx > 0 && this.run.bars && this.run.bars[this.run.idx] === this.run.bars[this.run.idx - 1];
-    this.frame = 0; this.phase = 'intro'; this.phaseT = sameBar ? 45 : cont ? 100 : 70;
+    const samePrev = cont && this.run.idx > 0 && this.run.seq[this.run.idx - 1].boss === sp.boss;   // 같은 보스의 다음 페이즈
+    this.frame = 0; this.phase = 'intro'; this.phaseT = sameBar ? 45 : samePrev ? 60 : cont ? 100 : 70;
     // 제한시간도 난이도별 체력 배율을 따라가 난이도와 상관없이 '필요 시간/제한시간' 비율이 같게 함
     this.timer = this.timerMax = Math.round((sp.time || 30) * 60 * k * (scaled ? HP_MUL[this.effDiff()] : 1));
     // 앞 패턴에 이어지는 뒤 단계(follow)는 다시 선언하지 않음
@@ -504,6 +505,17 @@ class Game {
     const bars = this.run && this.run.bars;
     if (bars && bars[this.run.idx + 1] === bars[this.run.idx]) { this.result.quiet = true; this.phaseT = 30; }
     if (this.run && this.run.idx < 0) { this.result.quiet = true; this.phaseT = 50; }   // 도중이 끝나면 결과 화면 없이 보스 등장
+    // 페이즈 전환: 같은 보스의 다음 페이즈(pages의 다음 칸)로 넘어가면 결과 화면 없이 큰 전환 연출(탄 지움·번쩍임·PHASE n)
+    const nextSp = this.run && this.run.idx >= 0 ? this.run.seq[this.run.idx + 1] : null;
+    if (bars && nextSp && nextSp.boss === sp.boss && bars[this.run.idx + 1] !== bars[this.run.idx]) {
+      this.result.quiet = true; this.phaseT = 80;
+      const mine = [...new Set(this.run.seq.map((x, i) => (x.boss === sp.boss ? bars[i] : null)).filter(v => v !== null))];
+      const n = mine.indexOf(bars[this.run.idx + 1]) + 1;
+      this.fx.push({ kind: 'phase', text: `PHASE ${n}`, sub: sp.boss, x: this.boss.x, y: this.boss.y, t: 0, life: 150 });
+      this.boss.glow = 120; this.shake(10); SFX.boom(); SFX.spell();
+    }
+    // 결과 화면 없이 넘어가도 스펠카드 획득은 짧게 알림
+    if (this.result.quiet && this.result.captured) this.fx.push({ kind: 'text', text: '스펠카드 획득!', x: W / 2, y: 70, t: 0, life: 70 });
     // 보스전 마지막 패턴을 격파(내구 스펠은 버팀)하면 배경음악이 자연스럽게 줄어들며 끝남
     if (this.run && this.run.idx >= this.run.seq.length - 1 && (reason === 'defeat' || sp.survival)) BGM.fadeOut(3);
   }
@@ -1583,6 +1595,26 @@ function drawFx(G, g) {
       if (f.top) { g.fillStyle = '#c8c8d8'; g.font = `13px ${CHANT_FONT}`; g.fillText(f.top, W / 2, cy - 24); }
       g.shadowColor = '#f5c542'; g.shadowBlur = 14; g.fillStyle = '#fff'; g.font = `bold 26px ${CHANT_FONT}`; g.fillText(f.text, W / 2, cy + 2);
       g.restore(); g.textAlign = 'left'; g.textBaseline = 'top';
+    } else if (f.kind === 'phase') {
+      // 페이즈 전환: 화면 번쩍임 → 보스에서 퍼지는 금빛 고리 두 겹 → 가운데 큰 PHASE n(위에 보스 이름)
+      g.save();
+      if (f.t < 24) { g.globalAlpha = 0.55 * (1 - f.t / 24); g.fillStyle = '#fff'; g.fillRect(0, 0, W, H); }
+      for (const [d, col] of [[0, '#f5c542'], [10, '#ffffff']]) {
+        const tt = f.t - d; if (tt < 0 || tt > 60) continue;
+        g.globalAlpha = 1 - tt / 60; g.strokeStyle = col; g.lineWidth = 4 * (1 - tt / 60) + 1;
+        g.beginPath(); g.arc(f.x, f.y, 10 + tt * 9, 0, TAU); g.stroke();
+      }
+      const inK = Math.min(1, Math.max(0, f.t - 10) / 16), outK = Math.min(1, (f.life - f.t) / 30);
+      g.globalAlpha = Math.min(inK, outK); g.translate(W / 2, H * 0.4);
+      const sc = 1 + (1 - inK) * 0.5; g.scale(sc, sc);
+      g.textAlign = 'center'; g.textBaseline = 'middle';
+      g.fillStyle = 'rgba(0,0,0,0.45)'; g.fillRect(-W / 2, -34, W, 62);
+      g.fillStyle = '#c8c8d8'; g.font = `13px ${CHANT_FONT}`; g.fillText(f.sub, 0, -18);
+      g.shadowColor = '#f5c542'; g.shadowBlur = 20; g.fillStyle = '#fff'; g.font = `bold 32px ${CHANT_FONT}`;
+      if ('letterSpacing' in g) g.letterSpacing = `${6 + (1 - outK) * 10}px`;
+      g.fillText(f.text, 0, 8);
+      if ('letterSpacing' in g) g.letterSpacing = '0px';
+      g.restore(); g.textAlign = 'left'; g.textBaseline = 'top';
     } else if (f.kind === 'title') {
       // 큰 제목: 살짝 크게 나타났다가 제자리로 줄고, 글자 간격이 벌어지며 사라짐
       const inK = Math.min(1, f.t / 14), outK = Math.min(1, (f.life - f.t) / 30);
@@ -1770,18 +1802,22 @@ function drawFieldUI(G, g) {
   const run = G.run, bars = run && run.bars, bw = W - 60;
   if (!b.hidden && !sp.survival) {
     let fill = b.hp / b.maxHp, marks = [];
-    if (bars) {
-      const idxs = run.seq.map((_, i) => i).filter(i => bars[i] === bars[run.idx]);
+    if (bars && run.idx >= 0) {
+      // 보스 하나가 체력바 하나: 지금 보스가 이어서 나오는 패턴 전부. 표시선은 페이즈(pages) 경계에만
+      let i0 = run.idx, i1 = run.idx;
+      while (i0 > 0 && run.seq[i0 - 1].boss === sp.boss) i0--;
+      while (i1 < run.seq.length - 1 && run.seq[i1 + 1].boss === sp.boss) i1++;
+      const idxs = []; for (let i = i0; i <= i1; i++) idxs.push(i);
       const hp = idxs.map(i => (run.seq[i].survival ? 0 : i === run.idx ? b.maxHp : G.hpFor(run.seq[i])));
       const total = hp.reduce((a2, c) => a2 + c, 0) || 1, k = idxs.indexOf(run.idx);
       const later = hp.slice(k + 1).reduce((a2, c) => a2 + c, 0);
       fill = (later + b.hp) / total;
-      // 경계선: 각 패턴 뒤에 남는 몫의 위치
-      for (let j = 0; j < idxs.length - 1; j++) marks.push(hp.slice(j + 1).reduce((a2, c) => a2 + c, 0) / total);
+      // 경계선: 페이즈가 바뀌는 자리에만(그 뒤에 남는 몫의 위치)
+      for (let j = 0; j < idxs.length - 1; j++) if (bars[idxs[j]] !== bars[idxs[j + 1]]) marks.push(hp.slice(j + 1).reduce((a2, c) => a2 + c, 0) / total);
     }
     g.fillStyle = 'rgba(0,0,0,0.4)'; g.fillRect(8, 6, bw, 4);
     g.fillStyle = sp.type === 'spell' ? '#ffd0dc' : '#fff'; g.fillRect(8, 6, bw * fill, 4);
-    g.fillStyle = '#ff5e7a'; for (const m of marks) g.fillRect(8 + bw * m - 1, 4, 2, 8);
+    g.fillStyle = '#f5c542'; for (const m of marks) { g.fillRect(8 + bw * m - 1, 2, 3, 12); }
   }
   if (!(run && bars) && !b.hidden) {
     g.fillStyle = '#f5c542'; g.font = 'bold 10px system-ui, "Malgun Gothic", sans-serif'; g.textBaseline = 'top'; g.textAlign = 'left';
@@ -1792,7 +1828,7 @@ function drawFieldUI(G, g) {
     const pageBoss = pg => { let last = -1; bars.forEach((v, i) => { if (v === pg) last = i; }); return run.seq[last].boss; };
     const cur = bars[run.idx], boss = pageBoss(cur), all = [...new Set(bars)].filter(pg => pageBoss(pg) === boss);
     g.fillStyle = '#f5c542'; g.font = 'bold 10px system-ui, "Malgun Gothic", sans-serif'; g.textBaseline = 'top'; g.textAlign = 'left';
-    g.fillText(`PAGE ${all.indexOf(cur) + 1}/${all.length} · 격화 ${['I', 'II', 'III'][G.surgeLevel()]}`, 8, 12);
+    g.fillText(`PHASE ${all.indexOf(cur) + 1}/${all.length} · 격화 ${['I', 'II', 'III'][G.surgeLevel()]}`, 8, 16);
   }
   // 시간
   const sec = Math.max(0, G.timer) / 60;
@@ -1906,7 +1942,7 @@ function drawHUD(G, g) {
     // 본게임: 개발 정보 대신 이번 판 스펠카드 획득 수와 남은 체력바
     const sc = G.story.cards || { got: 0, tried: 0 }, bars = G.run && G.run.bars;
     const left = bars ? bars[bars.length - 1] - (G.run.idx < 0 ? 0 : bars[G.run.idx]) + 1 : 0;
-    g.font = font(12); g.fillStyle = '#8e8ea6'; g.fillText('스펠카드', x, y); g.fillText('남은 체력바', x, y + 20);
+    g.font = font(12); g.fillStyle = '#8e8ea6'; g.fillText('스펠카드', x, y); g.fillText('남은 페이즈', x, y + 20);
     g.fillStyle = '#fff'; g.font = font(13, true); g.textAlign = 'right';
     g.fillText(`${sc.got} / ${sc.tried}`, x + w, y); g.fillText(String(left), x + w, y + 20); g.textAlign = 'left';
   } else {
