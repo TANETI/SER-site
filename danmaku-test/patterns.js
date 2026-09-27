@@ -1350,7 +1350,7 @@ const SPELLS = [
           const o = edge(), t = past(), warn = s.lv(36, 32, 28, 26, 25);
           s.chain({ x: o.x, y: o.y, ang: Math.atan2(t.y - o.y, t.x - o.x), len: 760, warn, shoot: 8, hold: 8, retract: 28 });
         }
-        yield Math.max(20, s.wait(s.lv(36, 32, 28, 26, 24)));
+        yield Math.max(24, s.wait(s.lv(36, 32, 30, 30, 30)));   // 사슬 사이 간격(최소 0.4초)
       }
     },
   },
@@ -1492,7 +1492,7 @@ const SPELLS = [
     name: '논스펠 · 예로니모 2',
     type: 'nonspell', extra: true, boss: '예로니모(진심)', bossColor: '#e8e0c8', hp: 3000, time: 42, start: [192, 100],
     *run(s) {
-      // 쌍둥이 나선: 보스 양옆 두 점에서 서로 반대로 도는 사슬 나선. 가운데에서 두 나선이 엇갈림. 가끔 조준 칼날
+      // 쌍둥이 나선: 보스 양옆 두 점에서 서로 반대로 도는 사슬 나선. 가운데에서 두 나선이 엇갈림(베리하드 이상은 가끔 조준 칼날)
       let a = 0;
       for (let f = 0; ; f++) {
         a += 0.07;
@@ -1500,9 +1500,9 @@ const SPELLS = [
           const x = s.boss.x + side * 70, y = s.boss.y + 10;
           for (let i = 0; i < 3; i++) s.fire({ x, y, ang: side * a + i * s.TAU / 3, spd: s.sp(2.2), shape: 'link', color: side < 0 ? 'gold' : 'yellow' });
         }
-        if (f % 6 === 0) s.spread(s.lv(1, 3, 3, 3, 5), s.aim(), 0.14, { spd: s.sp(3.8), shape: 'knife', color: 'white' });
+        if (s.diff >= 3 && f % 6 === 0) s.spread(s.lv(1, 3, 3, 3, 5), s.aim(), 0.14, { spd: s.sp(3.8), shape: 'knife', color: 'white' });
         if (f % 60 === 59) yield* s.wander(30, 40);
-        yield s.lv(8, 7, 6, 6, 5);
+        yield s.lv(10, 9, 8, 8, 6);   // 나선 고리 사이 간격(약 25% 넓힘)
       }
     },
   },
@@ -1583,8 +1583,10 @@ const SPELLS = [
     name: '파테르 제2식 — 능히 일어나지 못하게 하리니',
     type: 'spell', extra: true, boss: '예로니모(진심)', bossColor: '#e8e0c8', hp: 3200, time: 52, start: [192, 100],
     *run(s) {
-      // 연속 돌진: 제자리로 돌아가지 않고 세 번 이어 달려듦. 멈출 때마다 사슬을 사방으로 뻗고,
+      // 연속 돌진: 제자리로 돌아가지 않고 1초 전 플레이어 자리로 세 번 이어 끝까지 달려듦. 멈출 때마다 사슬을 사방으로 뻗고,
       // 마지막 돌진 뒤에는 사슬을 두 겹(엇갈린 각도)으로 뻗음
+      const hist = [];   // 플레이어 자리 기록(최근 1.5초)
+      s.task(function* () { for (;;) { hist.push({ x: s.player.x, y: s.player.y }); if (hist.length > 90) hist.shift(); yield 1; } }());
       for (;;) {
         const light = s.task(function* () {
           for (let k = 0; ; k++) { s.ring(s.cnt(14), { offset: k * 0.27, spd: s.sp(1.5), shape: 'small', color: 'white' }); yield s.wait(32); }
@@ -1594,9 +1596,9 @@ const SPELLS = [
         light.return();
         const dashes = 3;
         for (let k = 0; k < dashes; k++) {
-          const px = s.player.x, py = s.player.y, d = Math.hypot(px - s.boss.x, py - s.boss.y) || 1;
-          const stop = Math.max(0, d - 110);
-          const tx = Math.max(30, Math.min(s.W - 30, s.boss.x + (px - s.boss.x) / d * stop)), ty = Math.max(60, Math.min(s.boss.y + (py - s.boss.y) / d * stop, s.H - 160));
+          // 목표는 1초 전 플레이어 자리. 멈추지 않고 끝까지 달려듦
+          const back = hist[Math.max(0, hist.length - 61)] || s.player;
+          const tx = Math.max(30, Math.min(s.W - 30, back.x)), ty = Math.max(60, Math.min(s.H - 40, back.y));
           const warn = s.lv(40, 36, 32, 30, 28);
           s.warnLine({ x: s.boss.x, y: s.boss.y, x2: tx, y2: ty, band: 32, dur: warn });
           yield* hardAim(s, warn, 'yellow');
@@ -1618,7 +1620,7 @@ const SPELLS = [
   },
   {
     name: 'Clavis Collata — NUNC DIMITTIS',
-    type: 'spell', extra: true, boss: '예로니모(진심)', bossColor: '#e8e0c8', hp: 3600, time: 60, start: [192, 100],
+    type: 'spell', extra: true, boss: '예로니모(진심)', bossColor: '#e8e0c8', hp: 3000, time: 52, start: [192, 100],
     *run(s) {
       // 사슬이 걷힌 자리에 고리가 남아 양옆으로 천천히 흩어짐. 사슬이 늘어날수록 남는 고리도 늘어 화면이 조여듦
       const light = s.task(function* () {
@@ -1653,6 +1655,56 @@ const SPELLS = [
         }
         yield 30;
         if (w % 3 === 2) yield* s.wander();
+      }
+    },
+  },
+  {
+    name: 'Clavis Collata — NUNC DIMITTIS · 후반',
+    type: 'spell', follow: true, extra: true, boss: '예로니모(진심)', bossColor: '#e8e0c8', hp: 2800, time: 50, start: [192, 90],
+    *run(s) {
+      // 진심 NUNC DIMITTIS 뒤 단계(앞 단계와 한 체력바, 다시 선언하지 않음). 6스테이지 뒤 단계에 # 모양 사슬 우리를 더함. 쇄도하는 쇠사슬: 화면 가장자리(위·왼쪽·오른쪽) 여기저기서 황금 사슬이 기체의 0.5초 전 자리를 향해 짧은 예고선 뒤 연달아 뻗음.
+      // 계속 움직이지 않으면 걸림(으아악! 도망쳐!). 가끔 사슬 머리 한두 개가 뱀처럼 기체를 쫓아오며 고리를 흘림(기체보다 느려 떼어 놓을 수 있음).
+      // 사슬 사이 간격은 스펠이 진행될수록 짧아지다가 한계에서 멈춤(s.wait의 압박 곡선)
+      const hist = [];
+      s.task(function* () { for (;;) { hist.push({ x: s.player.x, y: s.player.y }); if (hist.length > 60) hist.shift(); yield 1; } }());
+      const past = () => hist[Math.max(0, hist.length - 31)] || s.player;
+      const edge = () => {
+        const side = s.randInt(0, 2);
+        return side === 0 ? { x: -8, y: s.rand(20, s.H * 0.7) } : side === 1 ? { x: s.W + 8, y: s.rand(20, s.H * 0.7) } : { x: s.rand(20, s.W - 20), y: -8 };
+      };
+      // 추적 사슬: 머리가 기체를 향해 조금씩 꺾으며 달려오고, 지나간 자리에 잠깐 남는 고리를 흘림
+      const snake = () => {
+        const o = edge(), head = s.fire({ x: o.x, y: o.y, ang: Math.atan2(s.player.y - o.y, s.player.x - o.x), spd: s.sp(2.1), shape: 'big', color: 'gold', margin: 40,
+          fn: (b, s) => {
+            const want = Math.atan2(s.player.y - b.y, s.player.x - b.x), da = ((want - b.ang + Math.PI * 3) % s.TAU) - Math.PI;
+            b.ang += Math.max(-0.035, Math.min(0.035, da));
+            if (b.t % 5 === 0) s.fire({ x: b.x, y: b.y, ang: b.ang, spd: 0, shape: 'link', color: 'gold', fn: c => { if (c.t > 45) c.dead = true; } });
+            if (b.t > 170) b.dead = true;
+          } });
+        return head;
+      };
+      s.task(function* () {
+        yield 180;
+        for (;;) { snake(); if (s.diff >= 2 && Math.random() < 0.5) { yield 20; snake(); } yield s.wait(240); }
+      }());
+      yield 30;
+      for (let k = 0; ; k++) {
+        const n = k % 4 === 3 ? 2 : 1;
+        // 진심: 여섯 번에 한 번은 0.5초 전 자리를 둘러싼 # 모양 사슬 우리도 함께(세로 둘·가로 둘, 약 110px 옆)
+        if (k % 6 === 3) {
+          const t = past(), off = s.lv(120, 115, 110, 105, 100), warn = s.lv(44, 40, 36, 34, 33);
+          const cage = (x0, y0, px, py) => s.chain({ x: x0, y: y0, ang: Math.atan2(py - y0, px - x0), len: 800, warn, shoot: 8, hold: 8, retract: 28 });
+          for (const d of [-1, 1]) {
+            const px = t.x + d * off, py = t.y + d * off;
+            if (px > 4 && px < s.W - 4) cage(px + s.rand(-0.2, 0.2) * (t.y + 8), -8, px, t.y);
+            if (py > 4 && py < s.H - 4) { const x0 = Math.random() < 0.5 ? -8 : s.W + 8; cage(x0, py + s.rand(-0.2, 0.2) * Math.abs(t.x - x0), t.x, py); }
+          }
+        }
+        for (let j = 0; j < n; j++) {
+          const o = edge(), t = past(), warn = s.lv(36, 32, 28, 26, 25);
+          s.chain({ x: o.x, y: o.y, ang: Math.atan2(t.y - o.y, t.x - o.x), len: 760, warn, shoot: 8, hold: 8, retract: 28 });
+        }
+        yield Math.max(24, s.wait(s.lv(36, 32, 30, 30, 30)));   // 사슬 사이 간격(최소 0.4초)
       }
     },
   },
@@ -2568,6 +2620,7 @@ const BOSS_RUNS = [
       spellOf('논스펠 · 예로니모 3', '예로니모(진심)'),
       spellOf('파테르 제2식 — 능히 일어나지 못하게 하리니', '예로니모(진심)'),
       spellOf('Clavis Collata — NUNC DIMITTIS', '예로니모(진심)'),
+      spellOf('Clavis Collata — NUNC DIMITTIS · 후반', '예로니모(진심)'),
       spellOf('Clavis Communis, 스피리투스 제10식 — CONFITEOR. 내 죄가 항상 내 앞에 있나이다'),
     ],
   },
