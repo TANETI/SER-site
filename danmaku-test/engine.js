@@ -7,10 +7,13 @@ const FX = 32, FY = 16;          // 화면(640×480) 안 플레이 영역 위치
 const SC = 2;                    // 캔버스 내부 배율
 const HIT_R = 2.4, GRAZE_R = 18;
 const START_LIVES = 3, START_BOMBS = 3;
+// 노말 이하는 목숨 하나 더
+const livesFor = diff => diff <= 1 ? 4 : START_LIVES;
 // 파워 0.00~4.00. 정수 부분이 탄 단계. 작은 P +0.02, 큰 P +0.25, 죽으면 -0.5
 const MAX_POWER = 4, P_SMALL = 0.02, P_BIG = 0.25, DEATH_POWER_LOSS = 0.5;
 // 난이도별 보스 체력 배율. 엑스트라는 한 단계 위
-const HP_MUL = [0.7, 0.85, 1, 1.1, 1.2, 1.3];
+// 기준을 한 칸 내림: 예전 이지 값이 지금 노말, 예전 노말 값이 지금 하드
+const HP_MUL = [0.6, 0.7, 0.85, 1, 1.1, 1.2];
 // 보스 체력 전체 배율(제한시간에는 영향 없음)
 const BOSS_HP = 0.9;
 // 패턴에 적힌 체력·제한시간에 곱하는 배율(내구 스펠·잡몹 구간·허수아비 제외).
@@ -263,7 +266,7 @@ class Game {
   resetLives(power = 0) {
     this.player = this.player || {};
     // 파워 고정이면 보스전에서도 연습 파워를 씀
-    this.player.lives = START_LIVES; this.player.bombs = START_BOMBS; this.player.power = this.powerLock ? this.practicePower : power;
+    this.player.lives = livesFor(this.difficulty); this.player.bombs = START_BOMBS; this.player.power = this.powerLock ? this.practicePower : power;
     this.items = [];
   }
 
@@ -271,7 +274,7 @@ class Game {
     this.spellIndex = (i + this.spells.length) % this.spells.length;
     const sp = this.spell = this.spells[this.spellIndex];
     this.bullets = []; this.lasers = []; this.enemies = []; this.shots = []; this.fx = [];
-    this.partners = []; this.chants = []; this.zones = []; this.areas = []; this.slow = null;
+    this.partners = []; this.chants = []; this.zones = []; this.areas = []; this.slow = null; this.safes = [];
     this.items = this.items || [];
     this.tasks.clear(); this.error = '';
     this.player = this.player || {};
@@ -408,6 +411,8 @@ class Game {
     }
     this.shakeMag = this.shakeMag < 0.3 ? 0 : this.shakeMag * 0.86;
     this.chants = this.chants.filter(c => c.t < c.end + c.fade);
+    for (const z of this.safes) z.t++;
+    this.safes = this.safes.filter(z => z.t < z.dur);
     for (const z of this.zones) z.t++;
     this.zones = this.zones.filter(z => z.t < z.dur);
 
@@ -705,6 +710,16 @@ function makeAPI(G) {
     // 화면 흔들림(세기 2~12 정도)과 충격음
     shake(mag = 4) { G.shake(mag); },
     impact(mag = 6) { G.shake(mag); SFX.impact(); },
+    sound(name, ...args) { SFX[name]?.(...args); },
+    // 초록 안전지대 표시(판정 없음). 돌려받은 객체의 x·y를 바꾸면 따라 움직임 {x,y,r,dur,label}
+    safeZone(o) { const z = { x: o.x, y: o.y, r: o.r ?? 40, dur: o.dur ?? 90, label: o.label ?? '', t: 0 }; G.safes.push(z); return z; },
+    // 탄 여러 개를 한꺼번에 터뜨려 지움. loud면 '빰!' 소리와 흔들림
+    pop(list, loud = true) {
+      for (const b of list) if (!b.dead) { b.dead = true; if (Math.random() < 0.3) G.fx.push({ kind: 'spark', x: b.x, y: b.y, t: 0, life: 18, color: b.color }); }
+      if (loud) { SFX.bam(); G.shake(5); }
+    },
+    // (x,y)에서 r 안에 shape 모양 적탄이 있는지(탄이 뭉치지 않게 놓을 때 씀)
+    near(x, y, r, shape) { for (const b of G.bullets) if (!b.dead && (!shape || b.shape === shape) && (b.x - x) ** 2 + (b.y - y) ** 2 < r * r) return true; return false; },
     ghost(x, y, color) { G.fx.push({ kind: 'ghost', x, y, color, t: 0, life: 20 }); },
     // 판정 없는 조준 표시(빨간 십자선) {x,y,dur}
     mark(o) { G.fx.push({ kind: 'mark', x: o.x, y: o.y, t: 0, life: o.dur ?? 30 }); },
@@ -856,6 +871,7 @@ function render(G) {
   drawAreas(G, g);
   drawLasers(G, g);
   drawBullets(G, g);
+  drawSafes(G, g);
   drawFx(G, g);
   drawBomb(G, g);
   drawHitbox(G, g);
@@ -1125,6 +1141,25 @@ function drawLasers(G, g) {
   g.globalAlpha = 1;
 }
 
+// 안전지대: 초록 원이 숨 쉬듯 밝아졌다 어두워지고, 번호가 있으면 가운데에 표시. 막 나타날 때 크게 줄어들며 자리 잡음
+function drawSafes(G, g) {
+  for (const z of G.safes) {
+    const inK = Math.min(1, z.t / 12), outK = Math.min(1, (z.dur - z.t) / 12), a = Math.min(inK, outK);
+    const r = z.r * (1 + (1 - inK) * 0.8), pulse = 0.5 + 0.5 * Math.sin(z.t * 0.25);
+    g.globalAlpha = (0.12 + 0.08 * pulse) * a; g.fillStyle = '#3dff7a';
+    g.beginPath(); g.arc(z.x, z.y, r, 0, TAU); g.fill();
+    g.globalAlpha = 0.9 * a; g.strokeStyle = 'rgba(0,0,0,0.8)'; g.lineWidth = 5; g.stroke();
+    g.strokeStyle = '#6dff9a'; g.lineWidth = 2.5; g.setLineDash([10, 6]); g.lineDashOffset = -z.t; g.stroke(); g.setLineDash([]);
+    if (z.label !== '') {
+      g.font = 'bold 20px Consolas, monospace'; g.textAlign = 'center'; g.textBaseline = 'middle';
+      g.fillStyle = 'rgba(0,0,0,0.7)'; g.fillText(String(z.label), z.x + 1, z.y + 1);
+      g.fillStyle = '#b8ffcc'; g.fillText(String(z.label), z.x, z.y);
+      g.textAlign = 'left'; g.textBaseline = 'top';
+    }
+  }
+  g.globalAlpha = 1; g.lineWidth = 1;
+}
+
 function drawAreas(G, g) {
   g.textAlign = 'center'; g.textBaseline = 'middle';
   for (const a of G.areas) {
@@ -1388,7 +1423,7 @@ function drawHUD(G, g) {
   g.font = font(12); g.fillStyle = '#8e8ea6';
   g.fillText('목숨', x, y); g.fillText('폭탄', x, y + 22); g.fillText('파워', x, y + 44);
   g.font = '15px system-ui, "Segoe UI Symbol", sans-serif';
-  for (let i = 0; i < Math.max(p.lives, START_LIVES); i++) { g.fillStyle = i < p.lives ? '#ff6b9a' : '#3a3a4a'; g.fillText('♥', x + 44 + i * 17, y - 2); }
+  for (let i = 0; i < Math.max(p.lives, livesFor(G.difficulty)); i++) { g.fillStyle = i < p.lives ? '#ff6b9a' : '#3a3a4a'; g.fillText('♥', x + 44 + i * 17, y - 2); }
   for (let i = 0; i < Math.max(p.bombs, START_BOMBS); i++) { g.fillStyle = i < p.bombs ? '#7fe0a0' : '#3a3a4a'; g.fillText('✦', x + 44 + i * 17, y + 20); }
   g.fillStyle = '#2a2a3a'; g.fillRect(x + 44, y + 48, 90, 8);
   g.fillStyle = p.power >= MAX_POWER ? '#ffd23a' : '#e8403a'; g.fillRect(x + 44, y + 48, 90 * p.power / MAX_POWER, 8);

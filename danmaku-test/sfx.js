@@ -71,6 +71,10 @@ const SFX = {
     if (big) { this.tone('sine', this.jitter(260), 160, 0.12, 0.05); this.hiss(0.06, 0.03, 'lowpass', 1200, 400); }
     else this.tone('square', this.jitter(620, 0.08), 480, 0.03, 0.012);
   },
+  // 조준 경고음: p(0~1)가 커질수록 높아짐. 짧은 간격으로 이어 불러 삐비비빅을 만듦
+  bam()     { if (this.ok('bam', 0.1)) { this.tone('sine', 220, 45, 0.35, 0.3); this.hiss(0.25, 0.3, 'lowpass', 3000, 200, 1, 0, true); this.tone('square', 900, 300, 0.06, 0.05); } },
+  fillIn()  { if (this.ok('fillIn', 0.1)) { this.hiss(0.2, 0.18, 'highpass', 800, 5000); this.tone('sawtooth', 120, 240, 0.15, 0.05); } },
+  beep(p = 0) { if (this.ok('beep', 0.02)) this.tone('square', 1300 + p * 1100, 1300 + p * 1100, 0.035, 0.03 + p * 0.02); },
   laser()   { if (this.ok('laser', 0.1)) { this.tone('sawtooth', 180, 900, 0.12, 0.035); this.hiss(0.3, 0.08, 'bandpass', 1500, 3000, 2); } },
   chain()   { if (this.ok('chain', 0.08)) { this.hiss(0.25, 0.18, 'highpass', 1500, 6000); this.tone('square', 1700, 800, 0.05, 0.035); this.tone('triangle', 3200, 3100, 0.12, 0.02, 0.03); } },
   strike()  { if (this.ok('strike', 0.06)) { this.hiss(0.22, 0.28, 'lowpass', 2200, 150); this.tone('sine', 140, 50, 0.18, 0.14); } },

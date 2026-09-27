@@ -34,6 +34,10 @@
 //   yield* s.chant('PATER1', {by, step})     화면 상단 구석에 영창을 한 줄씩 띄움. 호명 줄이 뜰 때까지 기다림(전조)
 //   s.shield(대상, 프레임)                    보호막. 통상탄은 막고 봄은 통과
 //   s.zone({x, y, r, dur})                    고정 구역 보호막. 들어온 자기 탄을 지움
+//   s.sound('beep', 0~1)                       효과음 직접 재생(beep=조준 경고음, 인자는 높낮이)
+//   s.safeZone({x, y, r, dur, label})          초록 안전지대 표시(판정 없음). 돌려받은 객체의 x·y를 바꾸면 따라 움직임
+//   fillField(s, {holes, motion, pad, spacing, color})   안전지대만 빼고 화면을 탄으로 채움. motion.vx·vy로 통째로 이동
+//   s.pop(탄 목록)                            한꺼번에 터뜨려 지움(빰!)
 //   s.warnLine({x, y, x2, y2, dur, band})     판정 없는 빨간 예고선. band=덮을 폭을 옅은 띠로(돌진이면 몸통 폭 32)
 //   s.extendTime(초)                          제한시간 연장
 //   s.area({x, y, w, h, warn, dur, label, color})   사각 구역 공격. 번호(label)를 붙여 순서를 보여 줌
@@ -91,20 +95,26 @@ function* mariRings(s, mari, every = 60) {
 }
 
 // ── 리크니스: 담쟁이 덩굴 ──
-// 잎: stay 프레임 동안 제자리에 붙어 있다가 흔들리며 떨어짐
-function ivyLeaf(s, x, y, ang, stay) {
+// 잎: 한 덩굴에 붙은 잎은 같은 무리(group). 덩굴이 다 자란 뒤 무리 전체가 같은 순간에 같은 속도·같은 흔들림으로
+// 떨어져, 붙어 있던 위치와 간격을 그대로 지킴(뭉치지 않음). 무리가 없으면 자기 stay 뒤에 떨어짐
+function ivyLeaf(s, x, y, ang, stay, group) {
+  const born = s.frame;
   return s.fire({
     x, y, ang, spd: 0, shape: 'leaf', color: 'ivy', margin: 40,
     fn: b => {
-      if (b.t < stay) return;
-      if (b.t === stay) { b.ang = Math.PI / 2; b.accel = 0.02; b.maxSpd = s.sp(1.6); }
-      b.x += Math.sin(b.t * 0.08 + b.y * 0.01) * 0.5;
+      const fallAt = group ? group.fallAt : born + stay;
+      if (s.frame < fallAt) return;
+      const ft = s.frame - fallAt;
+      if (ft === 0) b.ang = Math.PI / 2;
+      b.spd = Math.min(s.sp(1.6), ft * 0.02);
+      b.x += Math.sin(ft * 0.08 + (group ? group.phase : 0)) * 0.5;
     },
   });
 }
 // 덩굴 줄기: 머리(초록 큰 탄)가 굽이치며 자라고 지나간 자리에 잎을 남김
-// o: {x, y, ang, spd, len, gapPx, stay, turn, wave, phase, curl, seek, seekFor, margin, step(x, y, t)}
+// o: {x, y, ang, spd, len, gapPx, stay, turn, wave, phase, curl, seek, seekFor, seekOffX, seekOffY, margin, step(x, y, t)}
 // curl=매 프레임 일정하게 도는 양(spd / 반지름이면 원을 그림), step=머리가 움직일 때마다 불림
+// 잎은 gapPx 간격으로 붙고, 덩굴이 다 자란 뒤 한꺼번에 모양을 유지하며 떨어짐. skip=출발점 근처 잎 생략 거리.
 // 잎은 gapPx 간격으로 붙음. 잎 판정(3)+기체 판정(2.4)이 양쪽에서 약 11px를 막으므로
 // 간격을 17px 이상으로 둬 어느 난이도에서도 잎 사이로 빠져나갈 틈을 남긴다(벽처럼 닫힌 덩굴 금지)
 // seek은 처음 seekFor 프레임(기본 70)만 쫓음. 계속 쫓으면 플레이어 둘레를 돌며 가둬 버림
@@ -112,11 +122,13 @@ function* ivyVine(s, o) {
   let { x, y, ang } = o;
   const spd = o.spd ?? 2.4, gapPx = o.gapPx ?? s.lv(26, 22, 19, 18, 17), m = o.margin ?? 20, seekFor = o.seekFor ?? 70;
   const head = s.fire({ x, y, spd: 0, shape: 'orb', color: 'green', margin: m + 20 });
-  let run = gapPx, side = 0;
+  // 출발점 근처(skip px)에는 잎을 두지 않음: 한 점에서 여러 덩굴이 나갈 때 잎이 뭉치지 않게
+  const group = { fallAt: Infinity, phase: Math.random() * 6 };
+  let run = -(o.skip ?? 18), side = 0;
   for (let t = 0; t < o.len && !head.dead; t++) {
     ang += (o.curl ?? 0) + Math.sin(t * (o.wave ?? 0.08) + (o.phase ?? 0)) * (o.turn ?? 0.03);
     if (o.seek && t < seekFor) {
-      const want = Math.atan2(s.player.y - y, s.player.x - x);
+      const want = Math.atan2(s.player.y + (o.seekOffY ?? 0) - y, s.player.x + (o.seekOffX ?? 0) - x);
       const da = ((want - ang + Math.PI * 3) % s.TAU) - Math.PI;
       ang += Math.max(-o.seek, Math.min(o.seek, da));
     }
@@ -126,10 +138,13 @@ function* ivyVine(s, o) {
     if (o.step) o.step(x, y, t);
     if (x < -m || x > s.W + m || y < -m || y > s.H + m) break;
     run += spd;
-    if (run >= gapPx) { run -= gapPx; ivyLeaf(s, x, y, ang + (side++ % 2 ? 0.9 : -0.9), (o.stay ?? 150) + t % 7); }
+    // 12px 안에 이미 잎이 있으면 건너뜀(덩굴이 휘거나 겹치는 곳에서 잎이 뭉치지 않게)
+    if (run >= gapPx) { run -= gapPx; if (!s.near(x, y, 12, 'leaf')) ivyLeaf(s, x, y, ang + (side++ % 2 ? 0.9 : -0.9), 0, group); }
     yield 1;
   }
   head.dead = true;
+  // 다 자란 뒤 stay의 60%가 지나면 잎이 무리째 떨어짐
+  group.fallAt = s.frame + Math.round((o.stay ?? 150) * 0.6);
 }
 
 const SPELLS = [
@@ -458,15 +473,15 @@ const SPELLS = [
     name: '논스펠 · 예로니모 2',
     type: 'nonspell', boss: '예로니모', bossColor: '#e8e0c8', hp: 3000, time: 42, start: [192, 110],
     *run(s) {
-      // 느리게 도는 사슬 팔 셋 + 반대로 도는 가는 팔 셋(노말 이상) + 가끔 조준 칼날
+      // 느리게 도는 사슬 팔 셋(고리 사이 간격을 넓혀 팔을 가로지를 수 있음) + 하드 이상에서 반대로 도는 가는 팔 셋 + 가끔 조준 칼날
       let a = 0;
       for (let f = 0; ; f++) {
-        a += 0.035;
+        a += 0.05;
         for (let i = 0; i < 3; i++) s.fire({ ang: a + i * s.TAU / 3, spd: s.sp(2.4), shape: 'link', color: 'gold' });
-        if (s.diff > 0 && f % s.lv(2, 4, 2) === 0) for (let i = 0; i < 3; i++) s.fire({ ang: -a * 1.3 + i * s.TAU / 3 + Math.PI / 3, spd: s.sp(1.8), shape: 'small', color: 'yellow' });
-        if (f % 30 === 0) s.spread(s.lv(1, 3, 3), s.aim(), 0.15, { spd: s.sp(4), shape: 'knife', color: 'white' });
-        if (f % 240 === 239) yield* s.wander(40, 50);
-        yield s.lv(7, 5, 4);
+        if (s.diff >= 2 && f % 2 === 0) for (let i = 0; i < 3; i++) s.fire({ ang: -a * 1.2 + i * s.TAU / 3 + Math.PI / 3, spd: s.sp(1.8), shape: 'small', color: 'yellow' });
+        if (f % 5 === 0) s.spread(s.lv(1, 3, 3, 3, 5), s.aim(), 0.15, { spd: s.sp(4), shape: 'knife', color: 'white' });
+        if (f % 40 === 39) yield* s.wander(40, 50);
+        yield s.lv(9, 8, 7, 7, 6);
       }
     },
   },
@@ -690,7 +705,7 @@ const SPELLS = [
             const head = s.fire({ x: x0, y, spd: 0, shape: 'orb', color: 'green' });
             for (let t = 0; y > -10 && !head.dead; t++) {
               y -= s.sp(2.4); head.y = y;
-              if (t % 5 === 0) ivyLeaf(s, x0 + s.rand(-3, 3), y, -Math.PI / 2 + s.rand(-0.8, 0.8), s.lv(150, 190, 220));
+              if (t % 5 === 0 && !s.near(x0, y, 12, 'leaf')) ivyLeaf(s, x0 + s.rand(-3, 3), y, -Math.PI / 2 + s.rand(-0.8, 0.8), s.lv(150, 190, 220));
               if (t % 50 === (side < 0 ? 0 : 25) && y < s.H - 40 && y > 60) {
                 const reach = s.W * s.lv(0.35, 0.45, 0.55);
                 s.task(ivyVine(s, { x: x0, y, ang: side < 0 ? 0 : Math.PI, spd: s.sp(2.6), len: Math.round(reach / s.sp(2.6)), turn: 0.02, wave: 0.12, stay: s.lv(110, 140, 170) }));
@@ -746,6 +761,7 @@ const SPELLS = [
         for (let i = 0; i < n; i++) s.task(ivyVine(s, {
           x: s.boss.x + (i - (n - 1) / 2) * 40, y: s.boss.y, ang: Math.PI / 2 + (i - (n - 1) / 2) * 0.8,
           spd: s.sp(2.4), len: 200, seek: s.lv(0.012, 0.018, 0.024), turn: 0.02, stay: s.lv(50, 70, 90),
+          seekOffX: (i - (n - 1) / 2) * 80 + s.rand(-15, 15),   // 덩굴마다 플레이어 좌우로 어긋난 곳을 노려 한곳에 모이지 않게
         }));
         yield s.wait(150);
       }
@@ -796,21 +812,29 @@ const SPELLS = [
     name: '「휘감는 덩굴」(가칭)',
     type: 'spell', boss: '리크니스', bossColor: '#e8b4c8', hp: 3600, time: 55, start: [192, 80],
     *run(s) {
-      // 플레이어를 둘러싸는 원을 따라 덩굴 둘이 틈의 양 끝에서 출발해 반대쪽에서 만남. 한쪽이 트여 있음.
-      // 원 위쪽 잎이 떨어지면 원 안으로 쏟아지므로 트인 곳으로 빠져나가거나 안에서 피함
+      // 플레이어를 둘러싸는 원을 덩굴 둘이 틈의 양 끝에서 그려 나가 반대쪽에서 만남. 원이 닫히면 둘레에서
+      // 가운데를 향해 가시가 조여 옴. 트인 쪽으로 빠져나가거나, 둘레 쪽 넓은 틈에서 가시를 흘려보냄.
+      // 원 윗부분 잎은 모양을 유지한 채 원 안으로 떨어짐
       for (;;) {
-        const cx = s.player.x, cy = s.player.y, R = s.lv(130, 120, 110, 100, 95);
-        const gapAt = s.rand(0, s.TAU), gap = s.lv(1.4, 1.2, 1.0, 0.9, 0.8);
-        const pts = [];
+        const cx = Math.max(90, Math.min(s.W - 90, s.player.x)), cy = Math.max(170, Math.min(s.H - 90, s.player.y));
+        const R = s.lv(120, 110, 100, 95, 90), gapAt = s.rand(0, s.TAU), gap = s.lv(1.2, 1.0, 0.85, 0.75, 0.7);
+        const pts = [], warn = s.lv(50, 45, 40, 38, 36);
         for (let k = 0; k <= 16; k++) { const a = gapAt + gap / 2 + (s.TAU - gap) * k / 16; pts.push([cx + Math.cos(a) * R, cy + Math.sin(a) * R]); }
-        for (let k = 0; k < 16; k++) s.warnLine({ x: pts[k][0], y: pts[k][1], x2: pts[k + 1][0], y2: pts[k + 1][1], dur: s.lv(50, 45, 40) });
-        yield s.lv(50, 45, 40);
-        const spd = s.sp(3.2), len = Math.round((s.TAU - gap) / 2 * R / spd), stay = s.lv(100, 120, 140);
-        const a0 = gapAt + gap / 2, a1 = gapAt - gap / 2;
-        s.task(ivyVine(s, { x: cx + Math.cos(a0) * R, y: cy + Math.sin(a0) * R, ang: a0 + Math.PI / 2, spd, len, curl: spd / R, turn: 0, stay, margin: 200 }));
-        s.task(ivyVine(s, { x: cx + Math.cos(a1) * R, y: cy + Math.sin(a1) * R, ang: a1 - Math.PI / 2, spd, len, curl: -spd / R, turn: 0, stay, margin: 200 }));
-        for (let k = 0; k < 4; k++) { yield s.wait(40); s.spread(s.lv(1, 3, 3, 5), s.aim(), 0.25, { spd: s.sp(2.4), shape: 'leaf', color: 'ivy' }); }
-        yield s.wait(120);
+        for (let k = 0; k < 16; k++) s.warnLine({ x: pts[k][0], y: pts[k][1], x2: pts[k + 1][0], y2: pts[k + 1][1], dur: warn });
+        yield warn;
+        const spd = s.sp(3.4), len = Math.round((s.TAU - gap) / 2 * R / spd), stay = s.lv(110, 120, 130);
+        const a0 = gapAt + gap / 2, a1 = gapAt - gap / 2, gapPx = s.lv(24, 21, 19, 18, 17);
+        s.task(ivyVine(s, { x: cx + Math.cos(a0) * R, y: cy + Math.sin(a0) * R, ang: a0 + Math.PI / 2, spd, len, curl: spd / R, turn: 0, gapPx, skip: 0, stay, margin: 200 }));
+        s.task(ivyVine(s, { x: cx + Math.cos(a1) * R, y: cy + Math.sin(a1) * R, ang: a1 - Math.PI / 2, spd, len, curl: -spd / R, turn: 0, gapPx, skip: 0, stay, margin: 200 }));
+        yield len;
+        // 조임: 둘레(틈 제외)에서 가운데로 가시
+        const n = s.lv(10, 14, 18, 22, 26);
+        for (let i = 0; i < n; i++) {
+          const a = gapAt + gap / 2 + (s.TAU - gap) * (i + 0.5) / n;
+          s.fire({ x: cx + Math.cos(a) * R, y: cy + Math.sin(a) * R, ang: a + Math.PI, spd: 0.3, accel: 0.03, maxSpd: s.sp(2.2), shape: 'rice', color: 'pink' });
+        }
+        for (let k = 0; k < 3; k++) { yield s.wait(40); s.spread(s.lv(1, 3, 3, 5, 5), s.aim(), 0.25, { spd: s.sp(2.4), shape: 'leaf', color: 'ivy' }); }
+        yield s.wait(60);
       }
     },
   },
@@ -818,11 +842,12 @@ const SPELLS = [
     name: '「담쟁이 정원」(가칭)',
     type: 'spell', boss: '리크니스', bossColor: '#e8b4c8', hp: 3800, time: 55, start: [192, 90],
     *run(s) {
-      // 예고선을 따라 덩굴이 빠르게 뻗어 사선 줄무늬(하드는 격자)를 만들고, 잎이 한꺼번에 떨어짐
+      // 예고선을 따라 덩굴이 빠르게 뻗어 사선 격자(이지는 한 방향 줄무늬)를 만들고,
+      // 격자는 모양을 유지한 채 통째로 내려옴. 칸 안에서 함께 내려가다 잎 사이 틈으로 빠져나감
       const tilt = 0.6, span = s.H * Math.tan(tilt);
       for (let w = 0; ; w++) {
-        const gap = s.lv(130, 115, 100, 100, 100), warn = s.lv(60, 50, 45), lines = [];
-        const dirs = s.diff >= 2 ? [1, -1] : [w % 2 ? 1 : -1];
+        const gap = s.lv(130, 118, 105, 100, 95), warn = s.lv(56, 48, 42, 40, 38), lines = [];
+        const dirs = s.diff >= 1 ? [1, -1] : [w % 2 ? 1 : -1];
         for (const dir of dirs) {
           const ang = Math.PI / 2 - dir * tilt, off = s.rand(0, gap);
           for (let x0 = (dir > 0 ? -span : 0) + off; x0 < (dir > 0 ? s.W : s.W + span); x0 += gap) {
@@ -831,9 +856,9 @@ const SPELLS = [
           }
         }
         yield warn;
-        for (const [x0, ang] of lines) s.task(ivyVine(s, { x: x0, y: -5, ang, spd: 6, len: 150, turn: 0, gapPx: s.lv(28, 24, 22), stay: s.lv(90, 110, 130), margin: 400 }));
-        for (let k = 0; k < 4; k++) { yield s.wait(40); if (s.diff > 0) s.spread(3, s.aim(), 0.3, { spd: s.sp(3), shape: 'small', color: 'pink' }); }
-        yield s.wait(120);
+        for (const [x0, ang] of lines) s.task(ivyVine(s, { x: x0, y: -5, ang, spd: 6, len: 150, turn: 0, gapPx: s.lv(26, 22, 20, 19, 18), skip: 0, stay: s.lv(80, 90, 100), margin: 400 }));
+        for (let k = 0; k < 4; k++) { yield s.wait(36); s.spread(s.lv(1, 3, 3, 5, 5), s.aim(), 0.3, { spd: s.sp(3), shape: 'small', color: 'pink' }); }
+        yield s.wait(110);
       }
     },
   },
@@ -847,8 +872,8 @@ const SPELLS = [
         for (let i = 0; i < n; i++) for (let j = 0; j < n; j++) {
           s.fire({ x: s.boss.x + (i - (n - 1) / 2) * 10, y: s.boss.y + (j - (n - 1) / 2) * 10, ang: a, spd: s.sp(3), shape: 'small', color: 'cyan' });
         }
-        yield s.wait(20);
-        if (w % 4 === 0) s.ring(s.cnt(24), { offset: s.rand(0, s.TAU), spd: s.sp(1.6), shape: 'rice', color: 'white' });
+        yield s.wait(26);
+        if (w % 4 === 0) s.ring(s.cnt(22), { offset: s.rand(0, s.TAU), spd: s.sp(1.6), shape: 'rice', color: 'white' });
         if (w % 8 === 0) yield* s.wander();
       }
     },
@@ -857,27 +882,19 @@ const SPELLS = [
     name: '「순차 격자 타격」(가칭)',
     type: 'spell', boss: '이즘', bossColor: '#8fe8ff', hp: 3200, time: 45, start: [192, 60],
     *run(s) {
-      // 여러 칸에 번호 붙은 경고를 한꺼번에 띄우고 번호 순서대로 타격. 친 칸은 곧바로 다시 안전해짐
+      // 화면 전체 칸(4×5=20)에 번호를 한꺼번에 띄우고 번호 순서대로 터뜨림. 이미 터진 칸은 곧바로 안전.
+      // 1번 칸이 터지기 전에 그 옆에서 기다렸다가 터진 뒤 들어가는 식으로 피함. 난이도가 오를수록 터지는 간격이 짧아짐
       const cols = 4, rows = 5, cw = s.W / cols, ch = s.H / rows;
-      const first = s.lv(90, 75, 60), step = s.lv(40, 30, 22);
+      const first = s.lv(100, 85, 70, 62, 56), step = s.lv(24, 18, 14, 12, 10);
       for (let w = 0; ; w++) {
-        const n = s.lv(4, 6, 8), cells = [];
-        // 플레이어가 서 있는 칸을 반드시 포함해 움직이게 함
-        cells.push(Math.min(cols - 1, Math.floor(s.player.x / cw)) + Math.min(rows - 1, Math.floor(s.player.y / ch)) * cols);
-        while (cells.length < n) { const c = s.randInt(0, cols * rows - 1); if (!cells.includes(c)) cells.push(c); }
-        cells.sort(() => Math.random() - 0.5);
-        cells.forEach((c, i) => s.area({ x: (c % cols) * cw, y: Math.floor(c / cols) * ch, w: cw, h: ch, warn: first + i * step, dur: 18, label: i + 1, color: '#35d6ff' }));
-        const total = first + n * step + 30;
-        for (let t = 0; t < total; t += s.wait(40)) {
-          if (s.diff > 0) s.spread(3, s.aim(), 0.3, { spd: s.sp(2.6), shape: 'small', color: 'white' });
-          yield s.wait(40);
+        const order = [...Array(cols * rows).keys()].sort(() => Math.random() - 0.5);
+        order.forEach((c, i) => s.area({ x: (c % cols) * cw, y: Math.floor(c / cols) * ch, w: cw, h: ch, warn: first + i * step, dur: 16, label: i + 1, color: w % 2 ? '#ffd23a' : '#35d6ff' }));
+        const total = first + order.length * step + 20;
+        for (let t = 0; t < total; t += s.wait(45)) {
+          if (s.diff >= 2) s.spread(3, s.aim(), 0.3, { spd: s.sp(2.4), shape: 'small', color: 'white' });
+          yield s.wait(45);
         }
-        // 한 번 걸러 가로줄 단위 타격
-        if (w % 2 === 1) {
-          const order = [...Array(rows).keys()].sort(() => Math.random() - 0.5).slice(0, s.lv(2, 3, 4));
-          order.forEach((r, i) => s.area({ x: 0, y: r * ch, w: s.W, h: ch, warn: first + Math.round(i * step * 1.5), dur: 18, label: i + 1, color: '#ffd23a' }));
-          yield first + Math.round(order.length * step * 1.5) + 30;
-        }
+        yield s.wait(60);
       }
     },
   },
@@ -885,10 +902,12 @@ const SPELLS = [
     name: '논스펠 · 이즘 2',
     type: 'nonspell', boss: '이즘', bossColor: '#8fe8ff', hp: 2800, time: 36, start: [192, 80],
     *run(s) {
-      // 스캔: 세로 레이저가 한쪽 끝에서 반대쪽으로 차례로 훑음. 이미 훑고 지나간 쪽으로 피하거나 레이저 사이 틈(약 21px)에 섬
+      // 스캔: 세로 레이저가 한쪽 끝에서 반대쪽으로 차례로 훑음. 이미 훑고 지나간 쪽으로 피하거나 레이저 사이 틈(약 21px)에 섬.
+      // 훑는 동안 느린 조준탄이 섞임(노말 이상)
       for (let w = 0; ; w++) {
         const col = 40, dir = w % 2 ? 1 : -1;
         for (let i = 0; i < s.W / col; i++) {
+          if (s.diff > 0 && i % 3 === 0) s.spread(3, s.aim(), 0.3, { spd: s.sp(2), shape: 'small', color: 'white' });
           const x = dir > 0 ? i * col + col / 2 : s.W - i * col - col / 2;
           s.laser({ x, y: 0, ang: Math.PI / 2, len: s.H, w: 20, warn: s.lv(50, 42, 36), dur: 14, color: 'cyan' });
           yield s.lv(12, 10, 8, 7, 6);
@@ -902,18 +921,25 @@ const SPELLS = [
     name: '「예측 사격」(가칭)',
     type: 'spell', boss: '이즘', bossColor: '#8fe8ff', hp: 3000, time: 45, start: [192, 70],
     *run(s) {
-      // 움직이는 방향을 읽어 도착할 자리에 조준 표시를 먼저 띄우고, 표시가 사라질 즈음 그 자리에 닿도록 쏨.
-      // 멈추거나 방향을 틀면 빗나감
+      // 저격: 가는 방향을 읽어 도착할 자리에 십자선과 조준선을 띄우고, 점점 빨라지는 경고음(삐비비빅) 뒤
+      // 그 줄을 따라 칼날을 한 줄로 주르륵 쏨. 멈추거나 방향을 틀면 빗나감. 한 줄이니 옆으로 비키면 됨
+      const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
       for (let w = 0; ; w++) {
-        for (let k = 0; k < s.lv(3, 4, 5, 6); k++) {
-          const p = s.player, delay = s.lv(20, 16, 12, 10), travel = s.lv(22, 18, 16, 14), lead = delay + travel;
-          const tx = Math.max(10, Math.min(s.W - 10, p.x + (p.vx || 0) * lead));
-          const ty = Math.max(10, Math.min(s.H - 10, p.y + (p.vy || 0) * lead));
-          s.mark({ x: tx, y: ty, dur: lead });
-          yield delay;
+        for (let k = 0; k < s.lv(3, 4, 5, 6, 6); k++) {
+          const p = s.player, delay = s.lv(48, 42, 36, 32, 28), travel = s.lv(20, 18, 16, 14, 13), lead = delay + travel;
+          const tx = clamp(p.x + (p.vx || 0) * lead, 10, s.W - 10), ty = clamp(p.y + (p.vy || 0) * lead, 10, s.H - 10);
           const a = Math.atan2(ty - s.boss.y, tx - s.boss.x), dist = Math.hypot(tx - s.boss.x, ty - s.boss.y);
-          s.spread(s.lv(3, 3, 5, 5), a, 0.06, { spd: Math.max(4, dist / travel), shape: 'knife', color: 'red' });
-          yield s.lv(20, 16, 14, 12);
+          s.mark({ x: tx, y: ty, dur: lead });
+          s.warnLine({ x: s.boss.x, y: s.boss.y, x2: s.boss.x + Math.cos(a) * 700, y2: s.boss.y + Math.sin(a) * 700, dur: delay, band: 10 });
+          // 삐… 삐… 삐비비빅: 간격이 점점 짧아지는 경고음
+          for (let t = 0, gap = 12; t < delay;) {
+            s.sound('beep', t / delay);
+            const g = Math.max(2, Math.min(delay - t, Math.round(gap)));
+            yield g; t += g; gap *= 0.78;
+          }
+          const spd = Math.max(5, dist / travel), n = s.lv(6, 8, 10, 12, 14);
+          for (let i = 0; i < n; i++) { s.fire({ ang: a, spd, shape: 'knife', color: 'red' }); yield 2; }
+          yield s.lv(24, 20, 16, 14, 12);
         }
         s.ring(s.cnt(24), { offset: s.rand(0, s.TAU), spd: s.sp(1.6), shape: 'small', color: 'cyan' });
         yield s.wait(60);
@@ -935,9 +961,9 @@ const SPELLS = [
         }
       };
       for (let w = 1; ; w++) {
-        const off = s.rand(0, s.TAU), n = s.cnt(22);
+        const off = s.rand(0, s.TAU), n = s.cnt(26);
         for (let i = 0; i < n; i++) s.fire({ ang: off + i * s.TAU / n, spd: s.sp(2.2), shape: 'small', color: 'cyan', fn: skip });
-        yield s.wait(28);
+        yield s.wait(24);
         if (w % 2 === 0) s.spread(s.lv(1, 3, 3, 5), s.aim(), 0.2, { spd: s.sp(3), shape: 'rice', color: 'white', fn: skip });
         if (w % 8 === 0) yield* s.wander();
       }
@@ -958,7 +984,8 @@ const SPELLS = [
             const real = src === s.boss, delay = real ? 1 : 1 + (clones.indexOf(src) + 1) * s.lv(10, 8, 6, 5);
             s.task(function* () {
               yield delay;
-              s.spread(s.lv(3, 3, 5, 5), s.aim(src.x, src.y), 0.22, { x: src.x, y: src.y, spd: s.sp(2.6), shape: real ? 'rice' : 'small', color: real ? 'white' : 'cyan' });
+              s.spread(s.lv(3, 5, 5, 7, 7), s.aim(src.x, src.y), 0.2, { x: src.x, y: src.y, spd: s.sp(2.6), shape: real ? 'rice' : 'small', color: real ? 'white' : 'cyan' });
+              if (!real && k % 2) s.ring(s.cnt(10), { x: src.x, y: src.y, offset: s.rand(0, s.TAU), spd: s.sp(1.5), shape: 'small', color: 'cyan' });
             }());
           }
           yield s.wait(36);
@@ -982,7 +1009,7 @@ const SPELLS = [
         for (const i of pick) s.area({ x: i * lw + 2, y: 0, w: lw - 4, h: s.H, warn, dur: 0, label: '1', color: '#35d6ff' });
         yield warn;
         for (let t = 0; t < 120; t += 3) {
-          for (const i of pick) if (Math.random() < s.lv(0.35, 0.5, 0.6, 0.7, 0.8)) {
+          for (const i of pick) if (Math.random() < s.lv(0.45, 0.6, 0.7, 0.8, 0.9)) {
             s.fire({ x: i * lw + s.rand(6, lw - 6), y: -6, ang: Math.PI / 2, spd: s.sp(s.rand(3, 4.5)), shape: 'small', color: 'cyan' });
           }
           yield 3;
@@ -1016,8 +1043,8 @@ const SPELLS = [
           const tx = (b + 0.5) * bw;
           s.spread(s.lv(5, 7, 7, 9, 9), Math.atan2(ty - s.boss.y, tx - s.boss.x), 0.045, { spd: s.sp(4.5), shape: 'knife', color: 'pink' });
         }
-        s.ring(s.cnt(24), { offset: s.rand(0, s.TAU), spd: s.sp(1.5), shape: 'small', color: 'cyan' });
-        yield s.wait(50);
+        s.ring(s.cnt(28), { offset: s.rand(0, s.TAU), spd: s.sp(1.5), shape: 'small', color: 'cyan' });
+        yield s.wait(44);
         if (w % 4 === 3) yield* s.wander();
       }
     },
@@ -1029,14 +1056,48 @@ const SPELLS = [
       // 불렛타임의 반대: 경고 뒤 잠깐 적 탄 시계만 빨라짐. 평소엔 느긋한 탄을 깔아 두었다가 한꺼번에 몰아침
       for (;;) {
         for (let k = 0; k < 7; k++) {
-          s.ring(s.cnt(18), { offset: s.rand(0, s.TAU), spd: s.sp(1.1), shape: 'orb', color: 'cyan' });
-          if (s.diff > 0) s.spread(3, s.aim(), 0.25, { spd: s.sp(1.5), shape: 'rice', color: 'white' });
+          s.ring(s.cnt(22), { offset: s.rand(0, s.TAU), spd: s.sp(1.1), shape: 'orb', color: 'cyan' });
+          s.spread(s.lv(1, 3, 3, 5, 5), s.aim(), 0.25, { spd: s.sp(1.5), shape: 'rice', color: 'white' });
           yield s.wait(32);
         }
         s.say(s.boss, 'OVERCLOCK', 50);
         yield 45;
         s.bulletTime(s.lv(1.5, 1.7, 1.9, 2, 2.1), 120);
         yield 150;
+      }
+    },
+  },
+  {
+    name: '「세이브 포인트」(가칭)',
+    type: 'spell', boss: '이즘', bossColor: '#8fe8ff', hp: 3000, time: 50, start: [192, 60],
+    *run(s) {
+      // 안전지대 셋에 1·2·3 번호를 차례로 미리 보여 준 뒤, 빰! 1번만 남기고 화면이 탄막으로 찼다가 터져 사라지고,
+      // 빰! 2번만 남기고 … 번호 순서대로 옮겨 다니면 됨. 안전지대는 한 번에 옮길 수 있는 거리로만 이어짐
+      const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+      const R = s.lv(50, 44, 40, 36, 34), hold = s.lv(34, 30, 26, 24, 22), move = s.lv(52, 46, 40, 36, 34);
+      for (let w = 0; ; w++) {
+        const pts = [];
+        let px = clamp(s.player.x, 60, s.W - 60), py = clamp(s.player.y, 190, s.H - 60);
+        for (let k = 0; k < 3; k++) {
+          const a = s.rand(0, s.TAU), d = s.rand(90, 140);
+          px = clamp(px + Math.cos(a) * d, 60, s.W - 60); py = clamp(py + Math.sin(a) * d, 190, s.H - 60);
+          pts.push({ x: px, y: py, r: R });
+        }
+        const preview = s.lv(110, 96, 86, 78, 72), stagger = 22, gap = hold + move;
+        pts.forEach((p, k) => s.task(function* () {
+          yield k * stagger;
+          s.safeZone({ x: p.x, y: p.y, r: R, label: k + 1, dur: preview - k * stagger + k * gap + hold + 6 });
+          s.sound('beep', k / 3);
+        }()));
+        yield preview;
+        for (let k = 0; k < 3; k++) {
+          const list = fillField(s, { holes: [pts[k]], spacing: s.lv(20, 19, 18, 17, 16), color: k % 2 ? 'cyan' : 'blue' });
+          yield hold;
+          s.pop(list);
+          yield move;
+        }
+        for (let k = 0; k < 2; k++) { s.spread(s.lv(1, 3, 3, 5, 5), s.aim(), 0.25, { spd: s.sp(2.2), shape: 'small', color: 'white' }); yield s.wait(40); }
+        yield s.wait(50);
       }
     },
   },
@@ -1063,9 +1124,14 @@ const SPELLS = [
         }
         yield dur;
         s.clear();
-        yield 60;
-        for (let i = 0; i < 4; i++) { s.ring(s.cnt(20), { offset: i * 0.2, spd: s.sp(2), shape: 'rice', color: 'white' }); yield s.wait(30); }
-        yield 60;
+        yield 90;   // 미로를 빠져나온 뒤 숨 돌릴 틈
+        // 재동기화: 세로 줄(32px 간격)에 맞춰 성긴 데이터 비가 잠깐 내림. 줄 사이로 피함
+        for (let t = 0; t < 150; t += 5) {
+          if (Math.random() < s.lv(0.5, 0.6, 0.7, 0.8, 0.9)) s.fire({ x: s.randInt(0, 11) * 32 + 16, y: -6, ang: Math.PI / 2, spd: s.sp(2.6), shape: 'small', color: 'cyan' });
+          yield 5;
+        }
+        s.spread(s.lv(1, 3, 3, 5, 5), s.aim(), 0.25, { spd: s.sp(2.4), shape: 'rice', color: 'white' });
+        yield 90;
       }
     },
   },
@@ -1079,69 +1145,47 @@ function exOf(sp) {
   return c;
 }
 
-// CONFITEOR에서 부르는 일곱 죄의 탄막
+// ── 화면 채우기(발악·안전지대 패턴) ──
+// 안전지대(holes: [{x, y, r}])만 비우고 화면 전체를 엇갈린 격자로 탄을 깖. motion을 주면 모든 탄이 motion.vx·vy로
+// 함께 움직여 모양(=안전지대 자리)을 그대로 유지함. 움직일 만큼(pad) 화면 밖까지 미리 깔아 둠.
+// 안전지대 안에서 기체 중심이 r - 2.4까지는 닿지 않음. 돌려받은 탄 목록은 s.pop으로 한꺼번에 지움
+function fillField(s, o) {
+  const sp = o.spacing ?? 18, pad = o.pad ?? 0, holes = o.holes || [], motion = o.motion;
+  const out = [];
+  let row = 0;
+  for (let y = -pad + sp / 2; y < s.H + pad; y += sp, row++) {
+    for (let x = -pad + (row % 2 ? sp : sp / 2); x < s.W + pad; x += sp) {
+      if (holes.some(h => (x - h.x) ** 2 + (y - h.y) ** 2 < (h.r + 3) ** 2)) continue;
+      out.push(s.fire({
+        x, y, vx: 0, vy: 0, shape: o.shape ?? 'small', color: o.color ?? 'red', margin: pad + 40,
+        fn: motion ? (b => { b.vx = motion.vx; b.vy = motion.vy; }) : undefined,
+      }));
+    }
+  }
+  s.sound('fillIn');
+  return out;
+}
+
+// CONFITEOR에서 부르는 일곱 죄: 안전지대가 어디서 시작하고(hx, hy) 탄막 전체가 어떻게 움직이는지(v(t)),
+// 본체가 안전지대 안에서도 피할 수 있게 쏘는 간단한 탄(shot)
 const SINS = [
-  // Superbia 교만: 위에서 내려다보며 내려오는 큰 탄 줄 + 조준 칼날
-  function* (s) {
-    for (let k = 0; ; k++) {
-      const n = s.lv(5, 6, 7, 8), gap = s.W / n;
-      for (let i = 0; i < n; i++) s.fire({ x: gap * (i + (k % 2 ? 0.75 : 0.25)), y: -10, ang: Math.PI / 2, spd: s.sp(1.3), shape: 'big', color: 'purple' });
-      for (let j = 0; j < 3; j++) { s.spread(s.lv(1, 3, 3, 5), s.aim(), 0.2, { spd: s.sp(3.2), shape: 'knife', color: 'white' }); yield s.wait(25); }
-      yield s.wait(20);
-    }
-  },
-  // Avaritia 탐욕: 흩어졌던 금화가 다시 보스에게 모여듦
-  function* (s) {
-    for (;;) {
-      s.ring(s.cnt(24), { offset: s.rand(0, s.TAU), spd: s.sp(3), accel: -0.06, minSpd: -s.sp(2.4), shape: 'orb', color: 'gold' });
-      yield s.wait(50);
-    }
-  },
-  // Luxuria 색욕: 번갈아 휘어 도는 분홍 꽃잎
-  function* (s) {
-    for (let k = 0; ; k++) {
-      const n = s.cnt(16), dir = k % 2 ? 1 : -1;
-      for (let i = 0; i < n; i++) s.fire({ ang: i * s.TAU / n + k * 0.2, spd: s.sp(2.2), angVel: dir * 0.012, shape: 'rice', color: 'pink' });
-      yield s.wait(22);
-    }
-  },
-  // Invidia 질투: 좌우를 뒤집은 자리의 나를 노리는 탄과 진짜 나를 노리는 탄
-  function* (s) {
-    for (;;) {
-      const mx = s.W - s.player.x;
-      s.spread(s.lv(3, 5, 5, 7), Math.atan2(s.player.y - s.boss.y, mx - s.boss.x), 0.12, { spd: s.sp(3), shape: 'orb', color: 'green' });
-      yield s.wait(18);
-      s.spread(s.lv(1, 3, 3, 3), s.aim(), 0.2, { spd: s.sp(3.4), shape: 'small', color: 'green' });
-      yield s.wait(18);
-    }
-  },
-  // Gula 탐식: 솟구쳤다 떨어지는 덩어리들
-  function* (s) {
-    for (;;) {
-      s.fire({ vx: s.rand(-2.4, 2.4), vy: s.rand(-5, -3), ay: 0.06, shape: s.pick(['orb', 'small', 'big']), color: 'orange', marginTop: 200 });
-      yield s.lv(8, 6, 4, 3);
-    }
-  },
-  // Ira 분노: 빠른 붉은 칼날 연사 + 원형 폭발
-  function* (s) {
-    for (;;) {
-      const a = s.aim();
-      for (let k = 0; k < s.lv(4, 6, 8, 10); k++) { s.spread(s.lv(1, 1, 3, 3), a, 0.12, { spd: s.sp(6.5), shape: 'knife', color: 'red' }); yield 3; }
-      s.ring(s.cnt(28), { offset: s.rand(0, s.TAU), spd: s.sp(2.6), shape: 'rice', color: 'red' });
-      yield s.wait(45);
-    }
-  },
-  // Acedia 나태: 멈춰 버린 탄이 한참 뒤에야 느릿느릿 다가옴
-  function* (s) {
-    for (;;) {
-      const n = s.cnt(18), off = s.rand(0, s.TAU);
-      for (let i = 0; i < n; i++) s.fire({
-        ang: off + i * s.TAU / n, spd: s.sp(3), accel: -0.1, minSpd: 0, shape: 'orb', color: 'blue',
-        fn: b => { if (b.t === 120) { b.accel = 0.01; b.maxSpd = s.sp(1.2); b.ang = Math.atan2(s.player.y - b.y, s.player.x - b.x); } },
-      });
-      yield s.wait(40);
-    }
-  },
+  { name: '교만', color: 'purple', hx: 192, hy: 190, v: t => [0, 0.5],
+    shot: s => s.spread(s.lv(1, 1, 3, 3, 3, 3), s.aim(), 0.12, { spd: s.sp(2.2), shape: 'knife', color: 'white' }) },
+  { name: '탐욕', color: 'gold', hx: 192, hy: 370, v: t => [0, -0.45],
+    shot: s => s.spread(s.lv(1, 1, 3, 3, 3, 3), s.aim(), 0.3, { spd: s.sp(1.8), shape: 'orb', color: 'gold' }) },
+  { name: '색욕', color: 'pink', hx: 192, hy: 300, v: t => [Math.cos(t * 0.021) * 1.1, 0],
+    shot: s => s.spread(s.lv(1, 1, 3, 3, 3, 3), s.aim(), 0.25, { spd: s.sp(2), shape: 'rice', color: 'pink' }) },
+  { name: '질투', color: 'green', hx: 192, hy: 310, holes: 2, v: t => [t < 150 ? 0.45 : -0.45, 0],
+    shot: s => s.spread(s.lv(1, 1, 3, 3, 3, 3), s.aim(), 0.25, { spd: s.sp(2), shape: 'small', color: 'green' }) },
+  { name: '탐식', color: 'orange', hx: 192, hy: 290, v: t => [-Math.sin(t * 0.021) * 1.0, Math.cos(t * 0.021) * 1.0 - 0],
+    shot: s => s.spread(s.lv(1, 1, 3, 3, 3, 3), s.aim(), 0.25, { spd: s.sp(2), shape: 'orb', color: 'orange' }) },
+  // 분노: 1초마다 빰! 하고 한 방향으로 확 끌려감(끌리기 전 삐 소리)
+  { name: '분노', color: 'red', hx: 192, hy: 290, v: t => {
+      const k = t % 60, dirs = [[1, 0], [0, 1], [-1, 0], [0, -1], [-1, 0]], d = dirs[Math.floor(t / 60) % 5];
+      return k >= 40 ? [d[0] * 1.6, d[1] * 1.6] : [0, 0];
+    }, shot: s => s.spread(s.lv(1, 1, 3, 3, 3, 3), s.aim(), 0.15, { spd: s.sp(2.6), shape: 'knife', color: 'red' }) },
+  { name: '나태', color: 'blue', hx: 230, hy: 250, small: 6, v: t => [-0.15, 0.2],
+    shot: s => s.ring(s.lv(6, 8, 10, 10, 12, 12), { offset: s.rand(0, s.TAU), spd: s.sp(1.2), shape: 'small', color: 'blue' }) },
 ];
 
 SPELLS.push({
@@ -1149,31 +1193,40 @@ SPELLS.push({
   type: 'spell', survival: true, extra: true, boss: '예로니모(진심)', bossColor: '#e8e0c8', hp: 1, time: 75, start: [192, 110],
   *run(s) {
     const C = CHANTS.CONFITEOR;
-    // 제10식은 입회 성직자 과반수의 동의 없이는 열 수 없음(술자 포함 둘 이상) → 마리·마르코가 입회해 동의
+    // 발악: 마리·마르코, 예로니모가 차례로 쓰러진 뒤의 비상 상황이라 입회·승인 절차 없이 곧바로 개방(시험판 연출)
     s.boss.chantColor = '#ffe6a0';
-    const mari = s.partner({ name: '마리', x: -30, y: 60, to: [60, 80], color: '#cfe8ff' });
-    const marco = s.partner({ name: '마르코', x: s.W + 30, y: 60, to: [324, 80], color: '#e0c89a' });
-    mari.chantColor = '#cfe8ff'; marco.chantColor = '#ffe6a0';
-    yield 50;
-    s.say(s.boss, '개방 요청', 90); yield 80;
-    s.say(marco, '동의', 80); yield 45;
-    s.say(mari, '동의', 80); yield 70;
-    s.say(s.boss, '과반수 동의 — 개방', 90); yield 70;
-    // 여는 영창
-    yield* s.chant(C.slice(0, 6), { by: s.boss, step: 36 });
-    // 일곱 죄의 이름을 하나씩 부르며 그 죄의 탄막
+    s.impact(8);
+    yield 30;
+    yield* s.chant(C.slice(0, 6), { by: s.boss, step: 28 });
+    const R = s.lv(48, 44, 40, 36, 34, 32), preview = s.lv(100, 90, 80, 72, 66, 60), hold = 300;
+    // 일곱 죄: 이름 → 초록 안전지대 미리 보기 → 안전지대만 빼고 화면을 채움 → 탄막 전체가 천천히 움직임 → 빰! 지움
     for (let i = 0; i < 7; i++) {
-      s.clear();
+      const sin = SINS[i];
       yield* s.chant([C[6 + i]], { by: s.boss, step: 30, hold: 0 });
-      const t = s.task(SINS[i](s));
-      yield 400;
-      t.return();
+      s.shake(6);
+      const r = R - (sin.small || 0);
+      const holes = sin.holes === 2 ? [{ x: sin.hx - 90, y: sin.hy, r }, { x: sin.hx + 90, y: sin.hy, r }] : [{ x: sin.hx, y: sin.hy, r }];
+      const zones = holes.map(h => s.safeZone({ x: h.x, y: h.y, r, dur: preview + hold + 10 }));
+      yield preview;
+      const motion = { vx: 0, vy: 0 };
+      const list = fillField(s, { holes, motion, pad: 160, spacing: s.lv(20, 19, 18, 17, 16, 16), color: sin.color });
+      for (let t = 0; t < hold; t++) {
+        const [vx, vy] = sin.v(t);
+        motion.vx = vx; motion.vy = vy;
+        for (const z of zones) { z.x += vx; z.y += vy; }
+        if (i === 5 && t % 60 === 36) s.sound('beep', 0.8);
+        if (t % s.lv(70, 64, 56, 50, 46, 42) === 30) sin.shot(s);
+        yield 1;
+      }
+      s.pop(list);
+      yield 50;
     }
     s.clear();
     // 대답하라 ~ 호명: 응답한 이름에 못박혀 잠시 둔해진 채 일곱 색의 탄을 버팀
-    yield* s.chant(C.slice(13, 17), { by: s.boss, step: 40, hold: 0 });
+    yield* s.chant(C.slice(13, 17), { by: s.boss, step: 36, hold: 0 });
     s.player.stun = 150;
-    const t = s.task(function* () {
+    s.impact(10);
+    s.task(function* () {
       const colors = ['purple', 'gold', 'pink', 'green', 'orange', 'red', 'blue'];
       for (let k = 0; ; k++) { s.ring(s.cnt(21), { offset: k * 0.15, spd: s.sp(1.5), shape: 'small', color: colors[k % 7] }); yield s.wait(26); }
     }());
@@ -1242,6 +1295,7 @@ const BOSS_RUNS = [
       spellOf('논스펠 · 이즘 4'),
       spellOf('「감정 학습」(가칭)'),
       spellOf('「오버클럭」(가칭)'),
+      spellOf('「세이브 포인트」(가칭)'),
       spellOf('「열흘 같은 하루」(가칭)'),
     ],
   },
