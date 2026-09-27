@@ -2154,7 +2154,7 @@ SPELLS.push({
 
 // 보스전: 목숨·폭탄·파워를 이어 가며 패턴을 순서대로. name은 오른쪽 표시용 짧은 이름, power는 시작 파워,
 // hpScale은 체력·제한시간 배율. 목록은 스테이지 순서. 1스테이지는 홍마향처럼 중간 보스(윤도연) 뒤에 보스(고현성)
-// 3스테이지는 세 보스전(3-1·3-2·3-3)으로 나눔. 세 보스전의 체력 합(체력×hpScale)=6스테이지 예로니모 보스전의 약 1.3배
+// 3스테이지는 세 보스전(3-1·3-2·3-3)으로 나눔. 각각 노말에서 약 4분(회피 봇·아리엘 실측으로 맞춘 hpScale)
 // 보스전은 잡몹 구간 없이 보스부터 시작한다. 시작 파워는 그 스테이지에 닿았을 때쯤의 값이고, 패턴이 끝날 때 떨어지는 P로 오른다
 function spellOf(name, boss) {
   const sp = SPELLS.find(x => x.name === name && (!boss || x.boss === boss));
@@ -2188,7 +2188,7 @@ const BOSS_RUNS = [
     ],
   },
   {
-    title: '3스테이지-1 · 김예나', name: '김예나', power: 2, hpScale: 2.3,
+    title: '3스테이지-1 · 김예나', name: '김예나', power: 2, hpScale: 3.75,
     seq: [
       spellOf('논스펠 · 김예나 1'),
       spellOf('「셔터 찬스」(가칭)'),
@@ -2197,7 +2197,7 @@ const BOSS_RUNS = [
     ],
   },
   {
-    title: '3스테이지-2 · 차서린', name: '차서린', power: 2.25, hpScale: 2.3,
+    title: '3스테이지-2 · 차서린', name: '차서린', power: 2.25, hpScale: 3.5,
     seq: [
       spellOf('논스펠 · 차서린 1'),
       spellOf('「리프」(가칭)'),
@@ -2206,7 +2206,7 @@ const BOSS_RUNS = [
     ],
   },
   {
-    title: '3스테이지-3 · 고태웅', name: '고태웅', power: 2.5, hpScale: 2.3,
+    title: '3스테이지-3 · 고태웅', name: '고태웅', power: 2.5, hpScale: 2.9,
     seq: [
       spellOf('논스펠 · 고태웅 1'),
       spellOf('「히어로 킥」(가칭)'),

@@ -261,16 +261,13 @@ class Game {
 
   // ── 패턴 수명주기 ──
   // 단일 패턴 연습: 목숨·폭탄을 채우고 시작
-  startSingle(i = this.spellIndex) { this.run = null; this.resetLives(this.practicePower); this.start(i); BGM.play(this.runOf(this.spell)?.bgm); }
+  startSingle(i = this.spellIndex) { this.run = null; this.resetLives(this.practicePower); this.start(i); }
   // 보스전: 여러 패턴을 이어서, 목숨·폭탄을 이어 가며 진행
   startRun(run) {
     this.run = { ...run, idx: 0 };
     this.resetLives(run.power ?? 0);
     this.start(this.spells.indexOf(run.seq[0]));
-    BGM.play(run.bgm);   // 같은 곡이 이미 나오고 있으면 이어 감
   }
-  // 이 패턴이 들어 있는 보스전(단일 패턴 연습의 배경음악을 고를 때)
-  runOf(sp) { return typeof BOSS_RUNS === 'undefined' ? null : BOSS_RUNS.find(r => r.seq.includes(sp)); }
   restart() { this.run ? this.startRun(this.run) : this.startSingle(); }
   resetLives(power = 0) {
     this.player = this.player || {};
@@ -297,6 +294,8 @@ class Game {
     const b = this.boss = { x: W / 2, y: -40, hp, maxHp: hp, move: null, hidden: sp.type === 'stage', t: 0,
       name: sp.boss || '', color: sp.bossColor || '#d8d0ff', shield: 0, glow: 0, contact: false };
     if (cont && prev && !prev.hidden) { b.x = prev.x; b.y = prev.y; }
+    // 배경음악: 이 보스의 폴더 곡. 보스전 도중 곡이 없는 보스면 앞 곡을 이어 감. 같은 곡이면 처음으로 돌리지 않음
+    BGM.playBoss(sp.boss, cont);
     // 보스전 시작이나 보스가 바뀔 때(중간 보스 → 보스) 가운데에 소개
     if (this.run && sp.boss && (!cont || !prev || prev.name !== sp.boss)) {
       this.fx.push({ kind: 'intro', top: cont ? '' : this.run.title, text: sp.boss, t: 0, life: 130 });
