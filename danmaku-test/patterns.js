@@ -891,27 +891,38 @@ const SPELLS = [
     name: '「히어로 킥」(가칭)',
     type: 'spell', boss: '고태웅', bossColor: '#ffcf6b', hp: 2700, time: 48, start: [192, 100],
     *run(s) {
-      // 뛰어올라(화면 위로 사라짐) 비스듬히 내리꽂는 발차기. 예고선 끝(플레이어 70px 앞)에서 멈추고 착지 충격파 두 겹.
-      // 돌진 중에는 몸에 닿아도 피격
+      // 화면 안쪽 위 구석으로 뛰어올라 자세를 잡고(이때도 맞힐 수 있음), 비스듬히 내리꽂는 발차기.
+      // 날아오는 동안 궤적 양옆으로 작은 탄을 흘리고, 예고선 끝(플레이어 70px 앞)에 착지하며 충격파 세 겹.
+      // 돌진 중에는 몸에 닿아도 피격. 킥 사이에는 쉬는 시간을 넉넉히 둠
       for (let w = 0; ; w++) {
+        const sx = s.player.x < s.W / 2 ? s.W - 40 : 40, sy = 40;
         s.boss.glow = 40;
-        yield* s.moveTo(s.boss.x, -40, 24);
-        const sx = s.player.x < s.W / 2 ? s.W - 40 : 40, sy = -30;
-        s.boss.x = sx; s.boss.y = sy;
+        yield* s.moveTo(sx, sy, 30);
         const px = s.player.x, py = s.player.y, d = Math.hypot(px - sx, py - sy) || 1, stop = Math.max(0, d - 70);
         const tx = sx + (px - sx) / d * stop, ty = Math.min(sy + (py - sy) / d * stop, s.H - 110);
         const warn = s.lv(50, 44, 38, 36, 34);
         s.warnLine({ x: sx, y: sy, x2: tx, y2: ty, band: 32, dur: warn });
         yield* hardAim(s, warn, 'yellow');
         s.boss.contact = true;
-        yield* s.moveTo(tx, ty, 16);
+        const ang = Math.atan2(ty - sy, tx - sx);
+        const trail = s.task(function* () {
+          for (;;) {
+            for (const dd of [-1, 1]) s.fire({ x: s.boss.x, y: s.boss.y, ang: ang + dd * Math.PI / 2, spd: 0.4, accel: 0.02, maxSpd: s.sp(1.5), shape: 'small', color: 'orange' });
+            yield 3;
+          }
+        }());
+        yield* s.moveTo(tx, ty, 18);
+        trail.return();
         s.boss.contact = false;
         s.impact(7);
-        s.ring(s.cnt(20), { spd: 0.6, accel: 0.04, maxSpd: s.sp(2.2), shape: 'star', color: 'yellow' });
-        yield 36;
-        s.move(s.rand(140, 244), s.rand(80, 110), 40);
+        // 충격파 세 겹: 빠른 별탄, 중간 쌀알탄, 느린 작은 탄(겹마다 반 칸씩 엇갈림)
+        const off = s.rand(0, s.TAU), n = s.cnt(18);
+        s.ring(n, { offset: off, spd: 0.6, accel: 0.045, maxSpd: s.sp(2.4), shape: 'star', color: 'yellow' });
+        s.ring(n, { offset: off + Math.PI / n, spd: 0.5, accel: 0.035, maxSpd: s.sp(1.8), shape: 'rice', color: 'orange' });
+        s.ring(n, { offset: off, spd: 0.4, accel: 0.025, maxSpd: s.sp(1.3), shape: 'small', color: 'yellow' });
         yield 40;
-        yield s.wait(30);
+        s.move(s.rand(140, 244), s.rand(80, 110), 44);
+        yield 44 + s.wait(70);
       }
     },
   },
