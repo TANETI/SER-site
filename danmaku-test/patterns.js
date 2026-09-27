@@ -1810,7 +1810,7 @@ const SPELLS = [
       // 순서 기억: 화면을 큰 칸으로 나눔(이지·노말 3칸, 하드 9칸, 베리하드·헬 12칸). 칸이 하나씩 번호와 함께 빛나며
       // 순서를 알려 주고(번호가 높을수록 높은 효과음), 곧바로 그 순서대로 한 칸씩 터짐. 터진 칸은 그 판 동안 안전하므로
       // 다음에 터질 칸을 기억해 미리 비킴. 끝나면 바로 새 순서를 알려 주고, 이렇게 4판. 판마다 약 10%씩 빨라짐.
-      // 칸 하나를 벗어나는 데 고속 이동으로 약 20프레임이 드므로 터지는 간격은 22프레임 아래로 내리지 않음
+      // 칸 하나를 벗어나는 데 고속 이동으로 약 20프레임이 드므로 터지는 간격은 22프레임 아래로 내리지 않음. 터지기 전 예고는 약 0.5~0.7초
       const [cols, rows] = s.lv([3, 1], [3, 1], [3, 3], [3, 4], [3, 4]), n = cols * rows, cw = s.W / cols, ch = s.H / rows;
       const cell = c => ({ x: (c % cols) * cw, y: Math.floor(c / cols) * ch, w: cw, h: ch });
       for (;;) {
@@ -1825,13 +1825,18 @@ const SPELLS = [
             yield show;
           }
           yield Math.round(24 * f);
-          // 순서대로 터짐(터지기 직전 10프레임 동안 노란 테두리가 번쩍임)
-          const step = Math.max(22, Math.round(s.lv(46, 40, 32, 30, 28) * f));
+          // 순서대로 터짐. 칸마다 터지기 warn프레임 전부터 번호와 노란 테두리로 예고하고 효과음(판이 빨라져도 예고 길이는 그대로).
+          // 예고가 터지는 간격보다 길어서, 한 칸이 터지기 전에 다음 칸 예고가 먼저 떠 늘 다음 칸이 보임
+          const step = Math.max(22, Math.round(s.lv(46, 40, 32, 30, 28) * f)), warn = s.lv(42, 38, 34, 32, 30);
           for (let i = 0; i < n; i++) {
-            s.area({ ...cell(order[i]), warn: 10, dur: 16, color: '#ffd23a' });
-            yield step;
+            const c = cell(order[i]);
+            s.task(function* () {
+              yield i * step;
+              s.area({ ...c, warn, dur: 16, label: i + 1, color: '#ffd23a' });
+              s.sound('beep', 0.9);
+            }());
           }
-          yield 10;
+          yield (n - 1) * step + warn + 16;
         }
         // 4판이 끝나면 잠깐 쉬며 조준탄
         for (let k = 0; k < 3; k++) { s.spread(s.lv(1, 3, 3, 5, 5), s.aim(), 0.25, { spd: s.sp(2.4), shape: 'small', color: 'white' }); yield s.wait(40); }
