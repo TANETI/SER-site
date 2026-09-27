@@ -1554,7 +1554,7 @@ const SPELLS = [
     name: '논스펠 · 예로니모 3',
     type: 'nonspell', extra: true, boss: '예로니모(진심)', bossColor: '#e8e0c8', hp: 2900, time: 42, start: [192, 90],
     *run(s) {
-      // 교차 사슬: 위쪽 두 모서리에서 플레이어 자리를 지나는 사슬이 X자로 뻗음(예고선 뒤). 옆으로 비키고,
+      // 교차 사슬: 위쪽 두 모서리에서 플레이어 자리를 지나는 사슬이 X자로 뻗고(예고선 뒤), 기체를 둘러싼 # 모양 사슬이 함께 뻗음. 칸 안에서 비키고,
       // 그사이 보스가 고리 원형탄을 천천히 깖
       s.task(function* () {
         for (let k = 0; ; k++) { s.ring(s.cnt(14), { offset: k * 0.17, spd: s.sp(1.5), shape: 'link', color: 'yellow' }); yield s.wait(54); }
@@ -1565,8 +1565,16 @@ const SPELLS = [
           const y = s.rand(-8, 60);
           s.chain({ x, y, ang: Math.atan2(ty - y, tx - x), len: 760, warn, shoot: 10, hold: 12, retract: 60 });
         }
+        // 우리: 기체 좌우 off 옆을 지나는 세로 사슬 둘(위에서), 위아래 off를 지나는 가로 사슬 둘(좌우 가장자리에서).
+        // 모두 조금씩 기울어 기체를 가운데 둔 # 모양 칸을 만들고, 칸 안에서 X자 사슬을 피해 비킴
+        const off = s.lv(120, 115, 110, 105, 100), chain = (x0, y0, px, py) => s.chain({ x: x0, y: y0, ang: Math.atan2(py - y0, px - x0), len: 800, warn, shoot: 10, hold: 12, retract: 60 });
+        for (const d of [-1, 1]) {
+          const px = tx + d * off;
+          if (px > 4 && px < s.W - 4) chain(px + s.rand(-0.2, 0.2) * (ty + 8), -8, px, ty);
+          const py = ty + d * off;
+          if (py > 4 && py < s.H - 4) { const left = Math.random() < 0.5, x0 = left ? -8 : s.W + 8; chain(x0, py + s.rand(-0.2, 0.2) * Math.abs(tx - x0), tx, py); }
+        }
         yield warn + 20;
-        s.spread(s.lv(3, 3, 5, 5, 7), s.aim(), 0.18, { spd: s.sp(3.4), shape: 'knife', color: 'white' });
         yield s.wait(40);
       }
     },
