@@ -29,6 +29,7 @@ const COLORS = {
   ivy: '#3fae5a', red: '#ff3b4a', orange: '#ff8a2a', yellow: '#ffd23a', green: '#3ddc6a', cyan: '#35d6ff',
   blue: '#3a6bff', purple: '#a64dff', pink: '#ff5ec8', white: '#e8e8f4', gold: '#f5c542',
   brown: '#9a5420', black: '#30303c',
+  // void: 흰 광채를 두른 검은 탄(sprite에서 따로 그림)
 };
 
 // r=판정 반지름, size=그리기 크기, oriented=진행 방향으로 회전
@@ -89,7 +90,13 @@ function sprite(shape, color) {
     s = document.createElement('canvas');
     s.width = s.height = def.size * SC;
     const g = s.getContext('2d'); g.scale(SC, SC);
-    def.draw(g, COLORS[color] || color);
+    if (color === 'void') {
+      // 빛나는 검은 탄(아즈라엘): 흰 광채를 먼저 깔고 그 위에 검은 몸체
+      const h = def.size / 2, gr = g.createRadialGradient(h, h, h * 0.3, h, h, h);
+      gr.addColorStop(0, '#ffffffcc'); gr.addColorStop(0.55, '#ffffff55'); gr.addColorStop(1, '#ffffff00');
+      g.fillStyle = gr; g.beginPath(); g.arc(h, h, h, 0, TAU); g.fill();
+      def.draw(g, '#0c0c14');
+    } else def.draw(g, COLORS[color] || color);
     spriteCache.set(key, s);
   }
   return s;

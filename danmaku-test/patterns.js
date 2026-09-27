@@ -60,6 +60,12 @@
 // shape: small orb big rice knife star link leaf
 // color: red orange yellow green ivy cyan blue purple pink white gold brown black
 
+// ── 세라피안 공통 ──
+// 3-3: 구석에서 시연이 구경만 함(공격하지 않음, 엑스트라 2 복선)
+function siyeonWatch(s) {
+  s.partner({ name: '시연', x: s.W - 36, y: 40, color: '#c9b8f0' });
+}
+
 // ── 성당교회 공통 ──
 // 2스테이지 가운데 구간: 마르코가 합류해 마리와 함께 싸움. 마르코가 보스, 마리는 동료. 영창 색은 마르코=금빛, 마리=하늘빛
 function churchDuo(s, at = [80, 70]) {
@@ -633,6 +639,342 @@ const SPELLS = [
           s.ring(s.cnt(16), { offset: s.rand(0, s.TAU), spd: s.sp(1.4), shape: 'small', color: 'yellow' });
         }
         yield 30;
+      }
+    },
+  },
+  // ── 3스테이지 · 세라피안들: 3-1 김예나, 3-2 차서린, 3-3 고태웅 ──
+  // 변신 외형·능력은 미정. 확정된 사실(매개물·好·염원·모티브 문자)만 재료로 쓴 임시 패턴이며 기술명은 전부 가칭.
+  // 대사는 확정된 것만 쓰므로 넣지 않음
+  {
+    name: '논스펠 · 김예나 1',
+    type: 'nonspell', boss: '김예나', bossColor: '#ffb3d9', hp: 1900, time: 36, start: [192, 100],
+    *run(s) {
+      // 생방송: 머리 위 시청자 수가 오를수록 별 탄이 한 발씩 늘어남(재미·자극). 원형 별탄과 조준 3점사를 번갈아
+      for (let w = 0; ; w++) {
+        const viewers = Math.min(8, w);
+        s.say(s.boss, `시청자 ${(1.2 + w * 0.7).toFixed(1)}만`, 50);
+        s.ring(s.cnt(14 + viewers), { offset: w * 0.17, spd: s.sp(1.7), shape: 'star', color: 'pink' });
+        yield s.wait(26);
+        for (let k = 0; k < 3; k++) { s.spread(s.lv(1, 3, 3, 3, 5), s.aim(), 0.16, { spd: s.sp(3.2), shape: 'rice', color: 'white' }); yield 7; }
+        yield s.wait(26);
+        if (w % 4 === 3) yield* s.wander(60, 50);
+      }
+    },
+  },
+  {
+    name: '「셔터 찬스」(가칭)',
+    type: 'spell', boss: '김예나', bossColor: '#ffb3d9', hp: 2300, time: 42, start: [192, 90],
+    *run(s) {
+      // 촬영: 플레이어 자리에 뷰파인더(십자선)가 잡히고, 찰칵(경고음) 하는 순간의 자리로 부채꼴 연사가 날아감.
+      // 세 장을 연달아 찍으므로 찍힌 자리에서 계속 비켜야 함. 뒤로는 느린 별 원형탄
+      s.task(function* () {
+        for (let k = 0; ; k++) { s.ring(s.cnt(16), { offset: k * 0.21, spd: s.sp(1.4), shape: 'star', color: 'pink' }); yield s.wait(44); }
+      }());
+      for (let w = 0; ; w++) {
+        for (let k = 0; k < s.lv(3, 3, 4, 4, 5); k++) {
+          const tx = s.player.x, ty = s.player.y, lead = s.lv(40, 34, 30, 28, 26);
+          s.mark({ x: tx, y: ty, dur: lead });
+          s.task(function* () {
+            yield lead;
+            s.sound('beep', 1);
+            s.shake(1);
+            const a = Math.atan2(ty - s.boss.y, tx - s.boss.x);
+            for (let i = 0; i < 4; i++) { s.spread(s.lv(3, 5, 5, 7, 7), a, 0.13, { spd: s.sp(3.6 + i * 0.3), shape: 'rice', color: 'white' }); yield 3; }
+          }());
+          yield s.lv(22, 20, 18, 16, 15);
+        }
+        yield s.wait(60);
+        if (w % 2 === 1) yield* s.wander(50, 50);
+      }
+    },
+  },
+  {
+    name: '논스펠 · 김예나 2',
+    type: 'nonspell', boss: '김예나', bossColor: '#ffb3d9', hp: 2000, time: 36, start: [192, 100],
+    *run(s) {
+      // 텐션 업: 세 갈래 별 나선이 돌다가 약 1.5초마다 갑자기 반대로 꺾임(자극). 꺾일 때마다 조준 부채꼴
+      let a = 0, dir = 1;
+      for (let f = 0; ; f++) {
+        if (f % 18 === 17) { dir = -dir; s.spread(s.lv(3, 3, 5, 5, 7), s.aim(), 0.2, { spd: s.sp(3), shape: 'rice', color: 'white' }); }
+        a += dir * 0.13;
+        for (let i = 0; i < 3; i++) s.fire({ ang: a + i * s.TAU / 3, spd: s.sp(2.2), shape: 'star', color: i % 2 ? 'pink' : 'yellow' });
+        if (f % 12 === 6) s.fire({ ang: s.aim(), spd: s.sp(3), shape: 'rice', color: 'white' });
+        if (f % 90 === 89) yield* s.wander(40, 40);
+        yield s.lv(7, 6, 5, 5, 4);
+      }
+    },
+  },
+  {
+    name: '「스펙타클」(가칭)',
+    type: 'spell', boss: '김예나', bossColor: '#ffb3d9', hp: 2600, time: 48, start: [192, 80],
+    *run(s) {
+      // 불꽃놀이: 폭죽이 화면 위쪽 여기저기로 날아가(터질 자리에 십자선) 별 원형탄으로 터지고, 불똥이 흩날려 떨어짐.
+      // 터지는 자리는 플레이어에게서 90px 넘게 떨어진 곳만
+      for (let w = 0; ; w++) {
+        for (let k = 0; k < s.lv(3, 4, 5, 5, 6); k++) {
+          let tx, ty, tries = 0;
+          do { tx = s.rand(50, s.W - 50); ty = s.rand(70, 230); } while (Math.hypot(tx - s.player.x, ty - s.player.y) < 90 && ++tries < 20);
+          const T = 36;
+          s.mark({ x: tx, y: ty, dur: T });
+          const col = s.pick(['pink', 'yellow', 'cyan', 'purple']);
+          s.fire({ x: s.boss.x, y: s.boss.y, vx: (tx - s.boss.x) / T, vy: (ty - s.boss.y) / T, shape: 'big', color: col,
+            fn: (b, s) => {
+              if (b.t < T) return;
+              b.dead = true;
+              s.shake(2);
+              s.ring(s.cnt(18), { x: b.x, y: b.y, offset: s.rand(0, s.TAU), spd: s.sp(1.9), shape: 'star', color: col });
+              for (let i = 0; i < s.lv(4, 6, 8, 8, 10); i++) s.fire({ x: b.x, y: b.y, vx: s.rand(-1.2, 1.2), vy: s.rand(-1.4, -0.2), ay: 0.03, shape: 'small', color: 'orange', marginTop: 120,
+                fn: c => { if (c.vy > 1.8) c.vy = 1.8; } });
+            } });
+          yield s.lv(20, 18, 16, 15, 14);
+        }
+        s.spread(s.lv(3, 3, 5, 5, 7), s.aim(), 0.18, { spd: s.sp(2.8), shape: 'rice', color: 'white' });
+        yield s.wait(50);
+        if (w % 3 === 2) yield* s.wander(60, 50);
+      }
+    },
+  },
+  {
+    name: '논스펠 · 차서린 1',
+    type: 'nonspell', boss: '차서린', bossColor: '#9fc8ff', hp: 1900, time: 36, start: [192, 100],
+    *run(s) {
+      // 4박: 박자(24프레임)마다 틱 소리와 작은 원형탄, 강박(1박)에는 큰 탄 조준 부채꼴
+      for (let beat = 0; ; beat++) {
+        const strong = beat % 4 === 0;
+        s.sound('beep', strong ? 0.9 : 0.3);
+        if (strong) s.spread(s.lv(3, 3, 5, 5, 5), s.aim(), 0.3, { spd: s.sp(2.6), shape: 'big', color: 'blue' });
+        else {
+          s.ring(s.cnt(14), { offset: beat * 0.26, spd: s.sp(1.8), shape: 'small', color: 'cyan' });
+          s.fire({ ang: s.aim(), spd: s.sp(3), shape: 'rice', color: 'white' });
+        }
+        if (beat % 32 === 31) yield* s.wander(50, 48);
+        else yield 24;
+      }
+    },
+  },
+  {
+    name: '「리프」(가칭)',
+    type: 'spell', boss: '차서린', bossColor: '#9fc8ff', hp: 2300, time: 42, start: [192, 90],
+    *run(s) {
+      // 기타 리프: 같은 네 마디를 되풀이. 박자마다 칼날(피크) 부채꼴이 왼쪽→오른쪽→왼쪽으로 한 칸씩 옮겨 가고,
+      // 마디 끝 강박에 원형탄. 되풀이되므로 박자를 익히면 틈이 보임
+      const riff = [-0.5, -0.25, 0, 0.25, 0.5, 0.25, 0, -0.25];
+      for (let bar = 0; ; bar++) {
+        for (let i = 0; i < riff.length; i++) {
+          s.sound('beep', 0.4 + (i % 4 === 0 ? 0.5 : 0));
+          const a = Math.PI / 2 + riff[i] * (bar % 2 ? -1 : 1);
+          s.spread(s.lv(3, 5, 5, 7, 7), a, 0.09, { spd: s.sp(2.6), shape: 'knife', color: 'cyan' });
+          if (i % 4 === 3) s.spread(s.lv(1, 1, 3, 3, 3), s.aim(), 0.2, { spd: s.sp(3), shape: 'rice', color: 'white' });
+          yield s.lv(20, 17, 15, 14, 13);
+        }
+        s.ring(s.cnt(20), { offset: s.rand(0, s.TAU), spd: s.sp(1.6), shape: 'orb', color: 'blue' });
+        s.shake(2);
+        yield s.wait(30);
+        if (bar % 3 === 2) yield* s.wander(40, 40);
+      }
+    },
+  },
+  {
+    name: '논스펠 · 차서린 2',
+    type: 'nonspell', boss: '차서린', bossColor: '#9fc8ff', hp: 2000, time: 36, start: [192, 80],
+    *run(s) {
+      // 음파: 물결 모양으로 늘어선 탄 줄이 화면 아래로 퍼져 내려감. 물결의 골(가장 높은 곳)에 한 칸 틈.
+      // 박자마다 틱 소리, 줄 사이로 조준탄
+      for (let w = 0; ; w++) {
+        const ph = s.rand(0, s.TAU), gapX = s.rand(50, s.W - 50), n = 24;
+        s.sound('beep', 0.6);
+        for (let i = 0; i < n; i++) {
+          const x = (i + 0.5) * s.W / n;
+          if (Math.abs(x - gapX) < s.lv(34, 28, 24, 22, 20)) continue;
+          s.fire({ x, y: s.boss.y + 20 + Math.sin(x * 0.03 + ph) * 26, ang: Math.PI / 2, spd: s.sp(1.5), shape: 'small', color: 'cyan' });
+        }
+        yield s.wait(24);
+        s.spread(s.lv(1, 3, 3, 3, 5), s.aim(), 0.2, { spd: s.sp(2.8), shape: 'rice', color: 'white' });
+        yield s.wait(24);
+        if (w % 6 === 5) yield* s.wander(40, 40);
+      }
+    },
+  },
+  {
+    name: '「시선」(가칭)',
+    type: 'spell', boss: '차서린', bossColor: '#9fc8ff', hp: 2600, time: 48, start: [192, 90],
+    *run(s) {
+      // 아인(눈·보다·빛): 화면 양옆 높이에 눈 표식 둘이 뜨고 플레이어를 바라봄 → 예고선 뒤 그 시선을 따라 빛줄기.
+      // 두 눈이 번갈아 보므로 한쪽을 피한 자리를 다른 쪽이 노림. 박자에 맞춘 원형탄이 함께
+      s.task(function* () {
+        for (let beat = 0; ; beat++) {
+          s.sound('beep', beat % 4 ? 0.3 : 0.8);
+          s.ring(s.cnt(beat % 2 ? 10 : 16), { offset: beat * 0.2, spd: s.sp(1.5), shape: 'small', color: beat % 2 ? 'cyan' : 'blue' });
+          yield 24;
+        }
+      }());
+      for (let w = 0; ; w++) {
+        for (const side of [-1, 1]) {
+          const ex = side < 0 ? 24 : s.W - 24, ey = s.rand(120, 260), warn = s.lv(50, 44, 40, 38, 36);
+          s.mark({ x: ex, y: ey, dur: warn + 30 });
+          const a = Math.atan2(s.player.y - ey, s.player.x - ex);
+          s.laser({ x: ex, y: ey, ang: a, len: 700, w: s.lv(12, 14, 16, 16, 18), warn, dur: 30, color: 'cyan' });
+          yield s.lv(40, 34, 30, 28, 26);
+        }
+        s.spread(s.lv(3, 3, 5, 5, 7), s.aim(), 0.2, { spd: s.sp(2.6), shape: 'rice', color: 'white' });
+        yield s.wait(40);
+        if (w % 3 === 2) yield* s.wander(40, 40);
+      }
+    },
+  },
+  {
+    name: '논스펠 · 고태웅 1',
+    type: 'nonspell', boss: '고태웅', bossColor: '#ffcf6b', hp: 2200, time: 38, start: [192, 100],
+    *run(s) {
+      // 변신 포즈: 포즈를 잡는 동안(약 1초) 멈춰서 아무것도 쏘지 않음 = 공격 기회. 포즈가 끝나면 번쩍이며
+      // 별 원형탄 두 겹과 조준 연사. 구석에서 시연이 구경함
+      siyeonWatch(s);
+      for (let w = 0; ; w++) {
+        s.say(s.boss, 'POSE', 50);
+        s.boss.glow = 60;
+        yield 60;
+        s.impact(3);
+        s.ring(s.cnt(20), { offset: s.rand(0, s.TAU), spd: s.sp(2), shape: 'star', color: 'yellow' });
+        s.ring(s.cnt(20), { offset: s.rand(0, s.TAU), spd: s.sp(1.4), shape: 'star', color: 'orange' });
+        for (let k = 0; k < 5; k++) { s.spread(s.lv(1, 3, 3, 3, 5), s.aim(), 0.15, { spd: s.sp(3.2), shape: 'rice', color: 'white' }); yield 10; }
+        s.ring(s.cnt(18), { offset: s.rand(0, s.TAU), spd: s.sp(1.8), shape: 'small', color: 'yellow' });
+        yield s.wait(40);
+        if (w % 2 === 1) yield* s.wander(60, 50);
+      }
+    },
+  },
+  {
+    name: '「히어로 킥」(가칭)',
+    type: 'spell', boss: '고태웅', bossColor: '#ffcf6b', hp: 2700, time: 48, start: [192, 100],
+    *run(s) {
+      // 뛰어올라(화면 위로 사라짐) 비스듬히 내리꽂는 발차기. 예고선 끝(플레이어 70px 앞)에서 멈추고 착지 충격파 두 겹.
+      // 뛰어오르는 동안 떨어지는 별 탄. 돌진 중에는 몸에 닿아도 피격
+      siyeonWatch(s);
+      for (let w = 0; ; w++) {
+        s.boss.glow = 40;
+        yield* s.moveTo(s.boss.x, -40, 24);
+        for (let k = 0; k < 6; k++) { s.fire({ x: s.rand(20, s.W - 20), y: -8, ang: Math.PI / 2, spd: s.sp(2.2), shape: 'star', color: 'yellow' }); yield 4; }
+        const sx = s.player.x < s.W / 2 ? s.W - 40 : 40, sy = -30;
+        s.boss.x = sx; s.boss.y = sy;
+        const px = s.player.x, py = s.player.y, d = Math.hypot(px - sx, py - sy) || 1, stop = Math.max(0, d - 70);
+        const tx = sx + (px - sx) / d * stop, ty = Math.min(sy + (py - sy) / d * stop, s.H - 110);
+        const warn = s.lv(50, 44, 38, 36, 34);
+        s.warnLine({ x: sx, y: sy, x2: tx, y2: ty, band: 32, dur: warn });
+        yield* aimWhile(s, warn, 'yellow');
+        s.boss.contact = true;
+        yield* s.moveTo(tx, ty, 16);
+        s.boss.contact = false;
+        s.impact(7);
+        s.ring(s.cnt(20), { spd: 0.6, accel: 0.04, maxSpd: s.sp(2.2), shape: 'star', color: 'yellow' });
+        if (s.diff > 0) s.ring(s.cnt(20), { offset: Math.PI / 20, spd: 0.4, accel: 0.03, maxSpd: s.sp(1.5), shape: 'small', color: 'orange' });
+        yield 36;
+        s.move(s.rand(140, 244), s.rand(80, 110), 40);
+        for (let t = 0; t < 40; t += 10) { s.spread(s.lv(1, 3, 3, 5, 5), s.aim(), 0.2, { spd: s.sp(2.6), shape: 'rice', color: 'white' }); yield 10; }
+        yield s.wait(30);
+      }
+    },
+  },
+  {
+    name: '논스펠 · 고태웅 2',
+    type: 'nonspell', boss: '고태웅', bossColor: '#ffcf6b', hp: 2300, time: 38, start: [192, 100],
+    *run(s) {
+      // 형 따라 하기: 1스테이지 형(고현성)의 관통탄 칼날 줄기를 흉내 냄. 흉내라 줄기가 조금씩 삐뚤빼뚤 흔들림.
+      // 줄기 사이로 별 원형탄
+      siyeonWatch(s);
+      for (let w = 0; ; w++) {
+        const base = s.aim();
+        for (let k = 0; k < s.lv(2, 3, 3, 4, 4); k++) {
+          const a = base + (k - (s.lv(2, 3, 3, 4, 4) - 1) / 2) * 0.35;
+          s.task(function* () {
+            for (let i = 0; i < 8; i++) { s.fire({ ang: a + Math.sin(i * 0.9) * 0.05, spd: s.sp(4), shape: 'knife', color: 'yellow' }); yield 3; }
+          }());
+        }
+        yield s.wait(30);
+        s.ring(s.cnt(18), { offset: w * 0.3, spd: s.sp(1.6), shape: 'star', color: 'orange' });
+        yield s.wait(30);
+        if (w % 4 === 3) yield* s.wander(50, 50);
+      }
+    },
+  },
+  {
+    name: '「알레프」(가칭)',
+    type: 'spell', boss: '고태웅', bossColor: '#ffcf6b', hp: 3000, time: 52, start: [192, 90],
+    *run(s) {
+      // 알레프(힘·최초의·신): 첫 글자 א 모양으로 늘어선 금빛 탄이 플레이어 쪽으로 천천히 다가오다가
+      // 글자 획마다 바깥으로 흩어짐. 글자 사이 틈으로 빠져나감. 그사이 조준탄
+      siyeonWatch(s);
+      // 획: 대각선(왼쪽 위→오른쪽 아래), 오른쪽 위 짧은 획, 왼쪽 아래 짧은 획. 단위 크기 1 기준
+      const strokes = [[-0.5, -0.55, 0.5, 0.55], [0.1, -0.05, 0.35, -0.55], [-0.1, 0.05, -0.35, 0.55]];
+      for (let w = 0; ; w++) {
+        const size = 120, cx = s.boss.x, cy = s.boss.y + 60, a0 = Math.atan2(s.player.y - cy, s.player.x - cx);
+        const list = [];
+        for (const [x1, y1, x2, y2] of strokes) {
+          const len = Math.hypot(x2 - x1, y2 - y1) * size, n = Math.max(3, Math.round(len / 13));
+          for (let i = 0; i <= n; i++) {
+            const x = cx + (x1 + (x2 - x1) * i / n) * size, y = cy + (y1 + (y2 - y1) * i / n) * size;
+            list.push(s.fire({ x, y, ang: a0, spd: s.sp(0.9), shape: 'orb', color: 'gold' }));
+          }
+        }
+        s.title('א', '#ffcf6b');
+        for (let t = 0; t < 70; t += 14) { s.spread(s.lv(1, 1, 3, 3, 3), s.aim(), 0.2, { spd: s.sp(2.6), shape: 'rice', color: 'white' }); yield 14; }
+        // 흩어짐: 글자 중심에서 바깥으로
+        s.impact(4);
+        const cxNow = list.reduce((m, q) => m + q.x, 0) / list.length, cyNow = list.reduce((m, q) => m + q.y, 0) / list.length;
+        for (const b of list) {
+          if (b.dead) continue;
+          b.ang = Math.atan2(b.y - cyNow, b.x - cxNow); b.spd = 0.4; b.accel = 0.03; b.maxSpd = s.sp(2);
+        }
+        s.ring(s.cnt(16), { offset: s.rand(0, s.TAU), spd: s.sp(1.6), shape: 'star', color: 'yellow' });
+        yield s.wait(60);
+        if (w % 2 === 1) yield* s.wander(50, 50);
+      }
+    },
+  },
+  // ── 5스테이지 · 세라프: 아즈라엘(보스). 이즘의 시뮬레이션이 불러낸 사본이라 실루엣과 모티브 문자만, 대사 없음 ──
+  // 모티브 문자 아인(ע): 눈·보다·빛. 탄은 빛나는 검은색(void)과 흰색 위주
+  {
+    name: '「아인」(가칭)',
+    type: 'spell', boss: '아즈라엘', bossColor: '#e8e8f4', hp: 3400, time: 60, start: [192, 70],
+    *run(s) {
+      // 엇갈린 격자(0-0-0 / -0-0- / 0-0-0)가 세 줄씩 묶여 천천히 내려옴. 한 줄 안의 틈과 엇갈린 이웃 줄의 틈을 이어
+      // 비스듬히 빠져나감. 동시에 표적(시선)이 약 4초 동안 기체를 천천히 따라오다가 멈춰 조여든 뒤 그 자리에서 좁게
+      // 폭발하고 탄이 적당히 퍼짐. 표적은 기체보다 느려서 떼어 놓을 수 있지만 격자 사이를 누비며 떼어 놓아야 함
+      s.title('ע', '#e8e8f4');
+      // 한 줄 탄 수: 이지 11 … 헬 13. 한 줄 안 기체가 지날 틈 = 간격 - 2×(탄 반지름 6 + 판정 2.4) = 헬에서도 약 12.7px
+      const cols = s.lv(11, 12, 12, 13, 13), gap = s.W / cols, fall = s.sp(0.6);
+      const rowGap = s.lv(34, 32, 30, 28, 28), bandGap = s.lv(110, 96, 86, 80, 74);
+      // 격자: 세 줄 묶음을 이어서 내려보냄. 이웃 줄은 반 칸 엇갈림
+      s.task(function* () {
+        for (;;) {
+          for (let r = 0; r < 3; r++) {
+            const off = (r % 2 ? gap / 2 : 0) + gap / 4;
+            for (let i = 0; i < cols; i++) s.fire({ x: off + i * gap, y: -8, ang: Math.PI / 2, spd: fall, shape: 'orb', color: 'void', marginTop: 20 });
+            yield Math.round(rowGap / fall);
+          }
+          yield Math.round((bandGap - rowGap) / fall);
+        }
+      }());
+      yield 90;
+      for (;;) {
+        // 표적: 3.5초 동안 기체를 천천히 따라오고, 마지막 0.5초는 멈춰서 경고음이 빨라짐(폭발 예고)
+        let mx = s.boss.x, my = s.boss.y + 40;
+        const follow = 210, lock = 30, chase = s.lv(0.6, 0.7, 0.8, 0.85, 0.9);
+        for (let t = 0; t < follow + lock; t++) {
+          if (t < follow) {
+            const dx = s.player.x - mx, dy = s.player.y - my, d = Math.hypot(dx, dy);
+            if (d > 1) { mx += dx / d * Math.min(chase, d); my += dy / d * Math.min(chase, d); }
+          }
+          if (t % 4 === 0) s.mark({ x: mx, y: my, dur: 5 });
+          if (t >= follow && t % 6 === 0) s.sound('beep', (t - follow) / lock);
+          yield 1;
+        }
+        // 좁은 폭발: 반지름 약 36px까지만 번지고 사라지는 흰 탄 원 + 적당한 양의 흩어지는 탄
+        s.impact(4);
+        const R = 36;
+        for (let i = 0; i < 20; i++) s.fire({ x: mx, y: my, ang: i * s.TAU / 20, spd: 3, shape: 'small', color: 'white', fn: b => { if (b.t * 3 > R) b.dead = true; } });
+        s.ring(s.cnt(s.lv(8, 10, 12, 12, 14)), { x: mx, y: my, offset: s.rand(0, s.TAU), spd: s.sp(1.6), shape: 'rice', color: 'white' });
+        s.ring(s.cnt(s.lv(6, 6, 8, 8, 10)), { x: mx, y: my, offset: s.rand(0, s.TAU), spd: s.sp(1.1), shape: 'orb', color: 'void' });
+        yield s.wait(40);
       }
     },
   },
@@ -1810,6 +2152,7 @@ SPELLS.push({
 
 // 보스전: 목숨·폭탄·파워를 이어 가며 패턴을 순서대로. name은 오른쪽 표시용 짧은 이름, power는 시작 파워,
 // hpScale은 체력·제한시간 배율. 목록은 스테이지 순서. 1스테이지는 홍마향처럼 중간 보스(윤도연) 뒤에 보스(고현성)
+// 3스테이지는 세 보스전(3-1·3-2·3-3)으로 나눔. 세 보스전의 체력 합(체력×hpScale)=6스테이지 예로니모 보스전의 약 1.3배
 // 보스전은 잡몹 구간 없이 보스부터 시작한다. 시작 파워는 그 스테이지에 닿았을 때쯤의 값이고, 패턴이 끝날 때 떨어지는 P로 오른다
 function spellOf(name, boss) {
   const sp = SPELLS.find(x => x.name === name && (!boss || x.boss === boss));
@@ -1840,6 +2183,33 @@ const BOSS_RUNS = [
       spellOf('파테르 제1식 — 나의 의로운 오른손으로 너를 붙들리라', '마르코'),
       spellOf('논스펠 · 마르코 2 (폭주)'),
       spellOf('파테르 제2식 — 능히 일어나지 못하게 하리니', '마르코'),
+    ],
+  },
+  {
+    title: '3스테이지-1 · 김예나', name: '김예나', power: 2, hpScale: 2.3,
+    seq: [
+      spellOf('논스펠 · 김예나 1'),
+      spellOf('「셔터 찬스」(가칭)'),
+      spellOf('논스펠 · 김예나 2'),
+      spellOf('「스펙타클」(가칭)'),
+    ],
+  },
+  {
+    title: '3스테이지-2 · 차서린', name: '차서린', power: 2.25, hpScale: 2.3,
+    seq: [
+      spellOf('논스펠 · 차서린 1'),
+      spellOf('「리프」(가칭)'),
+      spellOf('논스펠 · 차서린 2'),
+      spellOf('「시선」(가칭)'),
+    ],
+  },
+  {
+    title: '3스테이지-3 · 고태웅', name: '고태웅', power: 2.5, hpScale: 2.3,
+    seq: [
+      spellOf('논스펠 · 고태웅 1'),
+      spellOf('「히어로 킥」(가칭)'),
+      spellOf('논스펠 · 고태웅 2'),
+      spellOf('「알레프」(가칭)'),
     ],
   },
   {
