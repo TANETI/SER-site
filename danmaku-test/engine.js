@@ -1607,19 +1607,20 @@ function cookCutinStrong(img, top) {
   return c;
 }
 
-// 강스펠 컷인: 잔상을 달고 빠르게 들어와 섬광, 머무는 동안 천천히 확대되며 빛줄기가 흐르고, 오른쪽으로 빠르게 빠져나감(약 1.7초)
+// 강스펠 컷인(약 2.2초): 잔상을 달고 빠르게 들어와 섬광, 머무는 동안 천천히 확대되며 빛줄기가 흐르고, 중간에 흰 사선 섬광이 띠를 가르고,
+// 둘레로 불똥이 흩날림. 테두리는 맥박처럼 두께가 바뀌고, 112프레임부터 긴 잔상을 남기며 오른쪽으로 빠르게 빠져나감
 function drawCutinStrong(G, g, c) {
   const band = CUTIN_STRONG_BAND[c.code + '/' + c.shot] ?? CUTIN_BAND[c.code] ?? 0.1;
   const strip = charSprite(c.code, c.shot, img => cookCutinStrong(img, band), 'strong');
   if (!strip) return;
-  const t = c.t, y = 104, h = 96, inK = Math.min(1, t / 9), e = 1 - Math.pow(1 - inK, 3), out = Math.max(0, (t - 82) / 18);
+  const t = c.t, y = 104, h = 96, inK = Math.min(1, t / 9), e = 1 - Math.pow(1 - inK, 3), out = Math.max(0, (t - 112) / 18);
   const x = -W * (1 - e) + out * W * 1.1, col = G.boss.color || '#fff';
   // 배경 어둡게
   g.globalAlpha = 0.35 * Math.min(1, t / 6) * (1 - out); g.fillStyle = '#000'; g.fillRect(0, 0, W, H);
   // 잔상(들어올 때·나갈 때)
-  if (t < 9 || out > 0) for (const k of [2, 1]) { g.globalAlpha = 0.18 * k * (1 - out * 0.5); g.drawImage(strip, x - (out > 0 ? -1 : 1) * k * 26, y, W, h); }
+  if (t < 9 || out > 0) for (const k of [3, 2, 1]) { g.globalAlpha = 0.14 * k * (1 - out * 0.5); g.drawImage(strip, x - (out > 0 ? -1 : 1) * k * 24, y, W, h); }
   // 본체: 천천히 확대
-  const z = 1 + 0.05 * Math.min(1, t / 90);
+  const z = 1 + 0.06 * Math.min(1, t / 120);
   g.save(); g.beginPath(); g.rect(0, y, W, h); g.clip();
   g.globalAlpha = 1 - out;
   g.drawImage(strip, x - W * (z - 1) / 2, y - h * (z - 1) / 2, W * z, h * z);
@@ -1629,29 +1630,61 @@ function drawCutinStrong(G, g, c) {
     const sy = y + 8 + ((i * 37 + t * 3) % (h - 16)), sx = ((i * 97 - t * 14) % (W + 120) + W + 120) % (W + 120) - 60;
     g.globalAlpha = 0.25 * (1 - out); g.fillStyle = '#fff'; g.fillRect(x + sx, sy, 60, 1.5);
   }
+  // 흰 사선 섬광이 띠를 한 번 가름(40~62프레임)
+  if (t >= 40 && t < 62) {
+    const k = (t - 40) / 22, sx = x - 60 + (W + 120) * k;
+    g.globalAlpha = 0.8 * (1 - Math.abs(k - 0.5) * 1.2); g.fillStyle = '#fff';
+    g.beginPath(); g.moveTo(sx, y); g.lineTo(sx + 14, y); g.lineTo(sx - 26, y + h); g.lineTo(sx - 40, y + h); g.closePath(); g.fill();
+  }
   g.globalCompositeOperation = 'source-over';
   g.restore();
-  // 위아래 테두리(보스 색으로 빛남)
+  // 둘레로 흩날리는 불똥(보스 색·흰색)
+  for (let i = 0; i < 14; i++) {
+    const seed = i * 97.13, life = (t * 2 + seed) % 60, px = ((seed * 7.7) % W) + x * 0.2 - life * 1.2, py = y + (i % 2 ? -6 - life * 0.5 : h + 6 + life * 0.5);
+    g.globalAlpha = Math.max(0, 0.7 * (1 - life / 60)) * (1 - out) * Math.min(1, t / 10); g.fillStyle = i % 3 ? col : '#fff';
+    g.fillRect(px, py, 2, 2);
+  }
+  // 위아래 테두리(보스 색, 맥박처럼 두께가 바뀜)
+  const th = 3 + 1.5 * Math.sin(t * 0.25);
   g.globalAlpha = (0.9 - 0.3 * Math.sin(t * 0.3)) * (1 - out); g.fillStyle = col;
-  g.fillRect(x, y - 3, W, 3); g.fillRect(x, y + h, W, 3);
+  g.fillRect(x, y - th, W, th); g.fillRect(x, y + h, W, th);
   g.globalAlpha = 0.6 * (1 - out); g.fillStyle = '#fff'; g.fillRect(x, y - 1, W, 1); g.fillRect(x, y + h + 1, W, 1);
   // 들어온 순간 섬광
   if (t >= 8 && t < 22) { g.globalAlpha = 0.45 * (1 - (t - 8) / 14); g.fillStyle = '#fff'; g.fillRect(0, 0, W, H); }
   g.globalAlpha = 1;
 }
 
+// 약스펠 컷인(약 1.7초): 왼쪽에서 살짝 지나쳤다 튕겨 들어오고, 머무는 동안 이미지가 조금씩 흐르며 빛 한 줄기가 비스듬히 훑고,
+// 뒤로 속도선이 지나감. 보스 색 테두리. 80프레임부터 오른쪽으로 밀리며 사라짐
 function drawCutin(G, g) {
   const c = G.cutin;
   if (!c) return;
-  if (c.strong) { if (c.t <= 100) drawCutinStrong(G, g, c); return; }
-  if (c.t > 70) return;
+  if (c.strong) { if (c.t <= 130) drawCutinStrong(G, g, c); return; }
+  if (c.t > 100) return;
   const strip = charSprite(c.code, '102', img => cookCutin(img, CUTIN_BAND[c.code]), 'weak');
   if (!strip) return;
-  // 0~10프레임 왼쪽에서 슉 들어오고, 50프레임부터 오른쪽으로 조금 밀리며 사라짐
-  const t = c.t, inK = Math.min(1, t / 10), e = 1 - Math.pow(1 - inK, 3), out = Math.max(0, (t - 50) / 20);
-  const x = -250 + (250 + 8) * e + out * 30, y = 118;
-  g.globalAlpha = 0.85 * (1 - out); g.drawImage(strip, x, y, 250, 58);
-  g.fillStyle = '#ffffff'; g.globalAlpha = 0.5 * (1 - out); g.fillRect(x, y, 250 * (1 - out), 1); g.fillRect(x, y + 57, 250 * (1 - out), 1);
+  const t = c.t, inK = Math.min(1, t / 12), out = Math.max(0, (t - 80) / 20);
+  // 살짝 지나쳤다 돌아오는 들어오기(back-out)
+  const bo = inK === 1 ? 1 : 1 + 2.2 * Math.pow(inK - 1, 3) + 1.2 * Math.pow(inK - 1, 2);
+  const x = -250 + (250 + 8) * bo + out * 40, y = 118, w = 250, h = 58, col = G.boss.color || '#fff', a = 1 - out;
+  // 뒤 속도선
+  g.globalAlpha = 0.35 * a; g.fillStyle = '#fff';
+  for (let i = 0; i < 5; i++) { const sy = y + 6 + i * 11, sx = ((t * 18 + i * 70) % (w + 80)) - 40; g.fillRect(x + w - sx, sy, 30, 1); }
+  // 본체(머무는 동안 조금씩 흐름)
+  g.save(); g.beginPath(); g.rect(x, y, w, h); g.clip();
+  g.globalAlpha = 0.88 * a; g.drawImage(strip, x - Math.min(1, t / 80) * 10, y, w + 10, h);
+  // 비스듬히 훑는 빛
+  if (t > 14 && t < 60) {
+    const k = (t - 14) / 46, gx = x - 40 + (w + 80) * k;
+    const gr = g.createLinearGradient(gx - 24, 0, gx + 24, 0);
+    gr.addColorStop(0, 'rgba(255,255,255,0)'); gr.addColorStop(0.5, 'rgba(255,255,255,0.55)'); gr.addColorStop(1, 'rgba(255,255,255,0)');
+    g.globalAlpha = a; g.fillStyle = gr;
+    g.beginPath(); g.moveTo(gx - 10, y); g.lineTo(gx + 26, y); g.lineTo(gx + 10, y + h); g.lineTo(gx - 26, y + h); g.closePath(); g.fill();
+  }
+  g.restore();
+  // 테두리(보스 색 + 흰 선)
+  g.globalAlpha = 0.7 * a; g.fillStyle = col; g.fillRect(x, y - 2, w, 2); g.fillRect(x, y + h, w, 2);
+  g.globalAlpha = 0.6 * a; g.fillStyle = '#fff'; g.fillRect(x, y, w * (1 - out), 1); g.fillRect(x, y + h - 1, w * (1 - out), 1);
   g.globalAlpha = 1;
 }
 
