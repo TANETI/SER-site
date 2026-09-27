@@ -747,23 +747,32 @@ const SPELLS = [
     name: '「셔터 찬스」(가칭)',
     type: 'spell', boss: '김예나', bossColor: '#ffb3d9', bgmRate: yenaRate, hp: 2300, time: 42, start: [192, 90],
     *run(s) {
-      // 촬영: 플레이어 자리에 뷰파인더(십자선)가 잡히고, 찰칵(경고음) 하는 순간의 자리로 부채꼴 연사가 날아감.
-      // 두 장에 한 장은 찍히는 자리를 지나는 가로·세로 레이저도 함께 나가므로 찍힌 자리의 가로줄·세로줄을 모두 벗어나야 함.
-      // 한 판에 두세 장을 찍으므로 계속 비켜야 함. 레이저는 판마다 첫 장에만. 김예나가 직접 쏘는 탄(찍힌 자리로 가는 부채꼴)은 가볍게
+      // 촬영: 찰칵 할 때마다 십자 레이저(사진 프레임) 여러 개가 한꺼번에 깔림(예고선 → 찰칵 순간 발사). 하나는 플레이어 자리,
+      // 나머지는 화면 여기저기(가로줄·세로줄끼리 64px 넘게 떨어져 줄 사이로 설 자리가 남음). 모든 가로줄·세로줄을 벗어나야 함.
+      // 하드부터는 두 장에 한 장이 X자(대각선) 프레임. 찰칵 뒤에는 찍힌 자리로 가벼운 부채꼴. 다음 장은 앞 장 레이저가 걷힌 뒤에 깔림
       yenaLive(s);
       if (s.diff >= 3) s.task(function* () {
         for (let k = 0; ; k++) { s.ring(s.cnt(8), { offset: k * 0.21, spd: s.sp(1.2), shape: 'star', color: 'pink' }); yield s.wait(110); }
       }());
+      const cross = (x, y, diag, lead) => {
+        const angs = diag ? [Math.PI / 4, -Math.PI / 4] : [0, Math.PI / 2];
+        for (const ang of angs) s.laser({ x: x - Math.cos(ang) * 800, y: y - Math.sin(ang) * 800, ang, len: 1600, w: 12, warn: lead, dur: 16, color: 'pink' });
+        s.mark({ x, y, dur: lead });
+      };
       for (let w = 0; ; w++) {
         for (let k = 0; k < s.lv(2, 3, 3, 3, 4); k++) {
-          const tx = s.player.x, ty = s.player.y, lead = s.lv(44, 40, 36, 34, 32);
-          s.mark({ x: tx, y: ty, dur: lead });
-          // 사진 프레임: 판마다 첫 장은 찍히는 자리를 지나는 가로·세로 긴 레이저(예고선이 함께 깔렸다가 찰칵 순간 발사).
-          // 매 장 레이저를 깔면 지나온 가로줄에 계속 걸려 쉬지 않고 대각선으로만 움직여야 해서 첫 장에만
-          if (k === 0) {
-            s.laser({ x: 0, y: ty, ang: 0, len: s.W, w: 12, warn: lead, dur: 18, color: 'pink' });
-            s.laser({ x: tx, y: 0, ang: Math.PI / 2, len: s.H, w: 12, warn: lead, dur: 18, color: 'pink' });
+          const lead = s.lv(46, 42, 38, 36, 34), diag = s.diff >= 2 && k % 2 === 1;
+          const n = s.lv(2, 3, 3, 4, 4) + (s.surge >= 2 ? 1 : 0);   // 격화 III에서 하나 더
+          const pts = [{ x: s.player.x, y: s.player.y }];
+          // 나머지 프레임 자리: 이미 고른 자리와 가로·세로(X자면 두 대각선) 모두 64px 넘게 떨어진 곳
+          const apart = (p, q) => diag ? Math.abs((p.x + p.y) - (q.x + q.y)) > 90 && Math.abs((p.x - p.y) - (q.x - q.y)) > 90
+                                       : Math.abs(p.x - q.x) > 64 && Math.abs(p.y - q.y) > 64;
+          for (let tries = 0; pts.length < n && tries < 200; tries++) {
+            const p = { x: s.rand(30, s.W - 30), y: s.rand(120, s.H - 30) };
+            if (pts.every(q => apart(p, q))) pts.push(p);
           }
+          for (const p of pts) cross(p.x, p.y, diag, lead);
+          const tx = pts[0].x, ty = pts[0].y;
           s.task(function* () {
             yield lead;
             s.sound('beep', 1);
@@ -771,9 +780,9 @@ const SPELLS = [
             const a = Math.atan2(ty - s.boss.y, tx - s.boss.x);
             for (let i = 0; i < 2; i++) { s.spread(s.lv(3, 3, 3, 3, 5), a, 0.16, { spd: s.sp(2.6 + i * 0.3), shape: 'rice', color: 'white', fixed: true }); yield 4; }
           }());
-          yield s.lv(32, 30, 28, 26, 24);   // 찍는 간격은 시청자 수로 빨라지지 않음(레이저 가로줄 사이가 너무 좁아지지 않게)
+          yield lead + 30;   // 앞 장 레이저가 걷힌 뒤 다음 장(시청자 수로 빨라지지 않음)
         }
-        yield s.wait(100);
+        yield s.wait(90);
         if (w % 2 === 1) yield* s.wander(50, 50);
       }
     },
@@ -2691,7 +2700,7 @@ const MOB_PLAN = [['line', -1], ['line', 1], ['vee'], ['medium'], ['pincer'], ['
 function mobStage(run, o) {
   const [label] = run.title.split(' · ');
   return {
-    name: `${label} 도중 · 날개 달린 오르트로스`, type: 'stage', time: o.time ?? 30, bgm: label.replace(/-\d$/, ''),
+    name: `${label} 도중 · 날개 달린 오르트로스`, type: 'stage', time: o.time ?? 30, bgm: '잡몹전',   // 도중 곡: bgm/잡몹전/ 폴더(모든 스테이지 공통)
     *run(s) {
       const end = (o.time ?? 30) * 60 - 300;
       let med = o.kind ?? 0;
