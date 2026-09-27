@@ -263,14 +263,14 @@ function bodyShots(p, out, focus, L, b) {
 }
 const BODY = {
   // 아리엘(질서 선): 가장 빠르고 곧은 좁은 바늘 다발
-  AR: { n: [2, 3, 3, 4, 5], iv: [6, 5, 4, 3, 3], dmg: [1.6, 1.65, 2.5, 1.5, 1.2], spd: 15.5, spread: 0.03, focusSpread: () => 0, gapX: 8, shape: 'needle', color: 'gold' },
+  AR: { n: [2, 3, 3, 4, 5], iv: [6, 5, 4, 3, 3], dmg: [1.6, 1.88, 2.81, 1.63, 1.2], spd: 15.5, spread: 0.03, focusSpread: () => 0, gapX: 8, shape: 'needle', color: 'gold' },
   // 유리엘(혼돈 선): 가장 많은 가시를 부채꼴로. 멀리 갈수록 약해지고 흐려짐(사거리 약 360px)
-  UR: { n: [3, 4, 5, 6, 8], iv: [5, 4, 3, 2, 2], dmg: [1.41, 1.37, 1.2, 0.9, 0.68], spd: 12, spread: 0.07, focusSpread: n => Math.min(0.035, 0.16 / Math.max(n - 1, 1)),
+  UR: { n: [3, 4, 5, 6, 8], iv: [5, 4, 3, 2, 2], dmg: [1.41, 1.53, 1.34, 0.9, 0.68], spd: 12, spread: 0.07, focusSpread: n => Math.min(0.035, 0.16 / Math.max(n - 1, 1)),
         gapX: 3, wob: 0.03, wideDmg: 0.9, shape: 'thorn', color: 'red', falloff: true, life: 29 },
   // 루미엘(중립 선): 적고 느린 바늘. 대신 유도탄 비중이 가장 큼
-  LM: { n: [1, 2, 2, 2, 3], iv: [6, 4, 3, 3, 3], dmg: [2.2, 2.2, 1.8, 1.9, 1.25], spd: 12.5, spread: 0, focusSpread: () => 0, gapX: 8, shape: 'needle', color: 'pink' },
+  LM: { n: [1, 2, 2, 2, 3], iv: [6, 4, 3, 3, 3], dmg: [2.2, 2.5, 2.06, 1.9, 1.25], spd: 12.5, spread: 0, focusSpread: () => 0, gapX: 8, shape: 'needle', color: 'pink' },
   // 라티엘(진 중립): 중간 퍼짐의 바늘. 옵션 둘이 유도 별을 쏨
-  RH: { n: [1, 2, 3, 3, 4], iv: [6, 5, 4, 3, 3], dmg: [3.6, 2.7, 2.8, 2.57, 1.8], spd: 14, spread: 0.05, focusSpread: () => 0.012, gapX: 6, shape: 'needle', color: 'cyan' },
+  RH: { n: [1, 2, 3, 3, 4], iv: [6, 5, 4, 3, 3], dmg: [3.6, 3.04, 3.12, 2.57, 1.8], spd: 14, spread: 0.05, focusSpread: () => 0.012, gapX: 6, shape: 'needle', color: 'cyan' },
 };
 const SHOT_TYPES = Object.fromEntries(['AR', 'UR', 'LM', 'RH'].map(code => [code, (p, out, focus, L) => {
   bodyShots(p, out, focus, L, BODY[code]);
