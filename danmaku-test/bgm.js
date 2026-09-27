@@ -13,6 +13,8 @@ const BGM_LOOPS = {
 };
 const BGM_EXT = /\.(mp3|wav|ogg|m4a|opus)$/i;
 const BGM_FADE_IN = 1, BGM_FADE_OUT = 2;   // 곡 끝에서 반복할 때의 페이드(초)
+// 다른 보스의 폴더 곡을 함께 쓰는 보스(마리는 마르코 곡). 속도는 패턴의 bgmRate(폭주 마르코 1.2배속)
+const BGM_SHARE = { '마리': '마르코' };
 
 const BGM = {
   volume: 0.5, want: null, cur: null, src: null, gain: null, out: null,
@@ -20,10 +22,12 @@ const BGM = {
 
   // 보스 이름으로 곡을 고름. 폴더가 비어 있으면 keep=true일 때 지금 곡을 그대로 두고(중간에 곡 없는 보스),
   // 아니면 지금 곡을 줄이고 멈춤. 같은 곡이 이미 나오고 있으면 처음으로 돌리지 않고 이어 감
-  playBoss(boss, keep = false) {
+  // rate: 재생 속도(1.2면 1.2배속, 음높이도 함께 오름). 같은 곡이면 이어서 속도만 바꿈
+  playBoss(boss, keep = false, rate = 1) {
     const token = this.token = (this.token || 0) + 1;
-    this.listFor(boss).then(files => {
+    this.listFor(BGM_SHARE[boss] || boss).then(files => {
       if (token !== this.token) return;   // 그사이 다른 보스로 바뀜
+      this.wantRate = rate;
       if (files.length) this.play(files[0]);
       else if (!keep) this.play(null);
     });
@@ -69,32 +73,50 @@ const BGM = {
     const c = SFX.ctx;
     if (!c) return;
     if (!this.out) { this.out = c.createGain(); this.out.connect(c.destination); this.apply(); }
+    if (this.want && this.want === this.cur) { this.setRate(this.wantRate || 1); return; }
     if (this.want === this.cur) return;
     if (this.cur) this.fade(1);   // 다른 곡으로 바뀔 때는 1초에 걸쳐 줄이고 넘어감
     const name = this.want;
     if (!name) return;
     const buf = this.buffers[name];
     if (!buf) { this.load(name); return; }
-    this.startTrack(name, buf, false);
+    this.startTrack(name, buf, false, 0, this.wantRate || 1);
+  },
+
+  // 재생 중인 곡의 속도를 바꿈. 곡 안 위치를 셈해서 끝 페이드 시점을 새 속도에 맞춰 다시 잡음
+  setRate(rate) {
+    const c = SFX.ctx;
+    if (!c || !this.src || rate === this.rate) return;
+    const now = c.currentTime, pos = this.pos0 + (now - this.t0) * this.rate;
+    this.pos0 = pos; this.t0 = now; this.rate = rate;
+    this.src.playbackRate.setValueAtTime(rate, now);
+    if (this.src.loop) return;
+    const g = this.gain.gain, end = now + Math.max(0, this.src.buffer.duration - pos) / rate;
+    g.cancelScheduledValues(now);
+    g.setValueAtTime(g.value, now);
+    g.linearRampToValueAtTime(1, Math.min(end, now + 0.3));
+    g.setValueAtTime(1, Math.max(now + 0.3, end - BGM_FADE_OUT));
+    g.linearRampToValueAtTime(0.0001, end);
   },
 
   // 한 번 재생. 반복 구간이 없으면 끝 BGM_FADE_OUT초를 줄이고, 끝나면 페이드인으로 처음부터 다시
-  startTrack(name, buf, fadeIn) {
+  startTrack(name, buf, fadeIn, offset = 0, rate = 1) {
     const c = SFX.ctx, t = BGM_LOOPS[name], src = c.createBufferSource(), g = c.createGain(), now = c.currentTime;
-    src.buffer = buf;
+    src.buffer = buf; src.playbackRate.value = rate;
     if (t && t.loopStart !== undefined) {
       src.loop = true; src.loopStart = t.loopStart; src.loopEnd = t.loopEnd || buf.duration;
     } else {
-      const end = now + buf.duration;
+      const end = now + (buf.duration - offset) / rate;
       g.gain.setValueAtTime(fadeIn ? 0.0001 : 1, now);
       if (fadeIn) g.gain.linearRampToValueAtTime(1, now + BGM_FADE_IN);
       g.gain.setValueAtTime(1, Math.max(now + BGM_FADE_IN, end - BGM_FADE_OUT));
       g.gain.linearRampToValueAtTime(0.0001, end);
-      src.onended = () => { if (this.src === src) this.startTrack(name, buf, true); };
+      src.onended = () => { if (this.src === src) this.startTrack(name, buf, true, 0, this.rate); };
     }
     src.connect(g).connect(this.out);
-    src.start();
+    src.start(now, offset);
     this.src = src; this.gain = g; this.cur = name;
+    this.pos0 = offset; this.t0 = now; this.rate = rate;
   },
 
   fade(sec) {

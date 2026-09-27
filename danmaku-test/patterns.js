@@ -8,6 +8,7 @@
 //   hp: 3000, time: 40,                      // 보스 체력, 제한시간(초)
 //   survival: false,                         // true면 보스 무적, 시간까지 버티면 획득
 //   start: [192, 110],                       // 보스 시작 위치
+//   bgmRate: 1.2,                            // 선택. 배경음악 재생 속도(폭주 마르코처럼 같은 곡을 빠르게)
 //   *run(s) { ... }                          // 제너레이터. yield n = n프레임 대기
 // }
 //
@@ -536,7 +537,7 @@ const SPELLS = [
   },
   {
     name: '논스펠 · 마르코 (폭주)',
-    type: 'nonspell', boss: '마르코', bossColor: '#e0c89a', hp: 1800, time: 36, start: [192, 100],
+    type: 'nonspell', boss: '마르코', bossColor: '#e0c89a', bgmRate: 1.2, hp: 1800, time: 36, start: [192, 100],
     *run(s) {
       // 마리가 쓰러지자 마르코 폭주. 성큼성큼 다가서며 묵직한 조준탄을 연달아 쏘고 발을 구름
       marcoRage(s);
@@ -551,7 +552,7 @@ const SPELLS = [
   },
   {
     name: '파테르 제1식 — 나의 의로운 오른손으로 너를 붙들리라',
-    type: 'spell', boss: '마르코', bossColor: '#e0c89a', hp: 2100, time: 50, start: [192, 100],
+    type: 'spell', boss: '마르코', bossColor: '#e0c89a', bgmRate: 1.2, hp: 2100, time: 50, start: [192, 100],
     *run(s) {
       marcoRage(s);
       for (;;) {
@@ -584,7 +585,7 @@ const SPELLS = [
   },
   {
     name: '논스펠 · 마르코 2 (폭주)',
-    type: 'nonspell', boss: '마르코', bossColor: '#e0c89a', hp: 2000, time: 36, start: [192, 100],
+    type: 'nonspell', boss: '마르코', bossColor: '#e0c89a', bgmRate: 1.2, hp: 2000, time: 36, start: [192, 100],
     *run(s) {
       // 뛰어올랐다 내리찍는 발구름: 착지 자리에서 처음엔 느린 충격파가 두 겹 퍼지고, 그 사이로 조준탄
       marcoRage(s);
@@ -603,7 +604,7 @@ const SPELLS = [
   },
   {
     name: '파테르 제2식 — 능히 일어나지 못하게 하리니',
-    type: 'spell', boss: '마르코', bossColor: '#e0c89a', hp: 2500, time: 58, start: [192, 100],
+    type: 'spell', boss: '마르코', bossColor: '#e0c89a', bgmRate: 1.2, hp: 2500, time: 58, start: [192, 100],
     *run(s) {
       // 폭주한 마르코의 마지막 스펠: 달려드는 제압. 돌진 횟수가 늘고 멈춘 자리에서 충격파가 두 겹
       marcoRage(s);
