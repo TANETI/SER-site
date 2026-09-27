@@ -554,12 +554,6 @@ class Game {
       if (b.x < -m || b.x > W + m || b.y < -m - b.marginTop || b.y > H + m) b.dead = true;
       if (b.dead) continue;
       const d = dist2(b.x, b.y, p.x, p.y), r = b.r + HIT_R, gr = b.r + GRAZE_R;
-      if (d < r * r && b.soft) {
-        // 딱밤: 별로 아프지 않음. 목숨 대신 잠깐 움직임이 둔해짐
-        b.dead = true;
-        if (p.inv <= 0 && !(p.stun > 0)) { p.stun = 45; this.fx.push({ kind: 'text', text: '딱!', x: p.x, y: p.y - 14, t: 0, life: 40 }); SFX.flick(); }
-        continue;
-      }
       if (d < r * r) { this.hitPlayer(); if (!this.invincible) break; }
       else if (d < gr * gr && !b.grazed) { b.grazed = true; this.graze++; this.score += 500; this.fx.push({ kind: 'graze', x: p.x, y: p.y, t: 0, life: 12 }); SFX.graze(); }
     }
@@ -752,7 +746,7 @@ function makeAPI(G) {
         maxSpd: o.maxSpd, minSpd: o.minSpd,
         cart: o.vx !== undefined || o.vy !== undefined || o.ax !== undefined || o.ay !== undefined,
         vx: o.vx ?? 0, vy: o.vy ?? 0, ax: o.ax ?? 0, ay: o.ay ?? 0,
-        shape: o.shape || 'small', color: o.color || 'red', r: o.r ?? def.r, alpha: o.alpha ?? 1, soft: !!o.soft,
+        shape: o.shape || 'small', color: o.color || 'red', r: o.r ?? def.r, alpha: o.alpha ?? 1,
         fn: o.fn, margin: o.margin ?? 32, marginTop: o.marginTop ?? 0, data: o.data || {},
       };
       G.bullets.push(b);

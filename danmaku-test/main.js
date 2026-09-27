@@ -63,7 +63,7 @@ function fillSpells() {
   });
   for (const [key, opts] of groups) {
     if (!opts.length) continue;
-    group(key ? `${STAGE_OF[key]} · ${key}${key === '윤도연' || key === '마리' ? ' (중간 보스)' : key === '마르코' ? ' (폭주)' : ''}` : '시험 패턴 (보스전에 쓰지 않음)').append(...opts);
+    group(key ? `${STAGE_OF[key]} · ${key}${key === '윤도연' || key === '마리' ? ' (중간 보스)' : key === '마르코' ? ' (합류 · 폭주)' : ''}` : '시험 패턴 (보스전에 쓰지 않음)').append(...opts);
   }
 }
 fillSpells();
