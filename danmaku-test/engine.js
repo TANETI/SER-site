@@ -109,25 +109,28 @@ function sprite(shape, color) {
 const IMG_BASE = 'https://srp.issssm.com/';
 const PORTRAIT_CODE = { '윤도연': 'YD', '고현성': 'KS', '마리': 'MR', '마르코': 'MC', '김예나': 'KY', '차서린': 'CS', '고태웅': 'KT',
   '아즈라엘': 'AZ', '예로니모': 'JR', '리크니스': 'LY', '이즘': 'IZ', '시연': 'SY' };
-// 전투(102) 이미지가 있는 인물과, 컷인으로 자를 가로 띠(높이 34%)의 시작 위치(이미지 위에서부터 비율, 얼굴이 들어오게)
+// 전투 이미지가 있는 인물과, 컷인으로 자를 가로 띠의 시작 위치(이미지 위에서부터 비율, 얼굴이 들어오게).
+// 약스펠은 102(전투), 강스펠은 103(필살기)·120(고유 클라비스) 등. 인물별로 가진 이미지만 적음(없으면 102를 씀)
 const CUTIN_BAND = { KY: 0.08, CS: 0.03, KT: 0.08, KS: 0.13, JR: 0.2, SY: 0.12 };
+const CUTIN_STRONG_BAND = { 'KY/103': 0, 'CS/103': 0, 'KT/103': 0.04, 'KS/103': 0.07, 'JR/103': 0.14, 'JR/120': 0.07 };
 const CUTIN_CODES = new Set(Object.keys(CUTIN_BAND));
 // '예로니모(진심)', '마리 (기절)'처럼 괄호가 붙은 이름도 본래 인물로
 function codeOf(name) { return name ? PORTRAIT_CODE[name] || PORTRAIT_CODE[name.replace(/\s*\(.*\)$/, '')] || null : null; }
 const imgCache = new Map();
 // cook(img)로 한 번만 가공한 캔버스를 돌려줌. 아직 못 불러왔거나 실패면 null
-function charSprite(code, shot, cook) {
+// 같은 이미지를 다르게 가공할 때는 variant로 구분(약스펠 띠·강스펠 띠)
+function charSprite(code, shot, cook, variant = '') {
   const key = code + '/' + shot;
   let e = imgCache.get(key);
   if (!e) {
-    e = { img: new Image(), ok: false, out: null };
+    e = { img: new Image(), ok: false, out: {} };
     e.img.crossOrigin = 'anonymous';   // 화면을 이미지로 저장할 수 있게(이미지 서버가 CORS 허용)
     e.img.onload = () => { e.ok = true; };
     e.img.src = `${IMG_BASE}${code}/D/${shot}.webp`;
     imgCache.set(key, e);
   }
-  if (e.ok && !e.out) e.out = cook(e.img);
-  return e.out;
+  if (e.ok && !e.out[variant]) e.out[variant] = cook(e.img);
+  return e.out[variant] || null;
 }
 // 초상 카드: 1번 이미지 위쪽 가운데(얼굴·어깨)를 44×50 모서리 둥근 카드로
 function cookPortrait(img) {
@@ -414,7 +417,10 @@ class Game {
     this.banner = sp.type === 'spell' && !sp.follow ? { text: sp.name, t: 0 } : null;
     // 전투 이미지가 있는 인물의 스펠: 왼쪽에서 짧게 지나가는 컷인
     const code = codeOf(sp.boss);
-    this.cutin = sp.type === 'spell' && !sp.follow && code && CUTIN_CODES.has(code) ? { code, t: 0 } : null;
+    // 강스펠(strong)은 화려한 컷인: 필살기(103) 등 따로 지정한 이미지(없으면 102). 약스펠은 작은 컷인(102)
+    const strongShot = sp.cutinShot || (CUTIN_STRONG_BAND[code + '/103'] !== undefined ? '103' : '102');
+    this.cutin = sp.type === 'spell' && !sp.follow && code && CUTIN_CODES.has(code) ? { code, t: 0, strong: !!sp.strong, shot: sp.strong ? strongShot : '102' } : null;
+    if (this.cutin && this.cutin.strong) this.shake(4);
     if (this.banner) SFX.spell();
     this.result = null; this.timeFlash = null;
     if (b.hidden) { b.x = W / 2; b.y = -200; b.move = null; }
@@ -1564,10 +1570,61 @@ function drawHitbox(G, g) {
   g.beginPath(); g.arc(p.x, p.y, HIT_R, 0, TAU); g.fill();
 }
 
+// 강스펠 컷인 띠: 필드 폭 전체, 높이 96. 선명하게, 양 끝만 살짝 투명하게
+function cookCutinStrong(img, top) {
+  const w = W, h = 96, c = document.createElement('canvas');
+  c.width = w * SC; c.height = h * SC;
+  const g = c.getContext('2d'); g.scale(SC, SC);
+  const sh = img.naturalWidth * h / w;
+  g.filter = 'saturate(1.15) contrast(1.05)';
+  g.drawImage(img, 0, img.naturalHeight * top, img.naturalWidth, sh, 0, 0, w, h);
+  g.filter = 'none';
+  g.globalCompositeOperation = 'destination-in';
+  const gr = g.createLinearGradient(0, 0, w, 0);
+  gr.addColorStop(0, 'rgba(0,0,0,0.2)'); gr.addColorStop(0.12, 'rgba(0,0,0,1)'); gr.addColorStop(0.88, 'rgba(0,0,0,1)'); gr.addColorStop(1, 'rgba(0,0,0,0.2)');
+  g.fillStyle = gr; g.fillRect(0, 0, w, h);
+  return c;
+}
+
+// 강스펠 컷인: 잔상을 달고 빠르게 들어와 섬광, 머무는 동안 천천히 확대되며 빛줄기가 흐르고, 오른쪽으로 빠르게 빠져나감(약 1.7초)
+function drawCutinStrong(G, g, c) {
+  const band = CUTIN_STRONG_BAND[c.code + '/' + c.shot] ?? CUTIN_BAND[c.code] ?? 0.1;
+  const strip = charSprite(c.code, c.shot, img => cookCutinStrong(img, band), 'strong');
+  if (!strip) return;
+  const t = c.t, y = 104, h = 96, inK = Math.min(1, t / 9), e = 1 - Math.pow(1 - inK, 3), out = Math.max(0, (t - 82) / 18);
+  const x = -W * (1 - e) + out * W * 1.1, col = G.boss.color || '#fff';
+  // 배경 어둡게
+  g.globalAlpha = 0.35 * Math.min(1, t / 6) * (1 - out); g.fillStyle = '#000'; g.fillRect(0, 0, W, H);
+  // 잔상(들어올 때·나갈 때)
+  if (t < 9 || out > 0) for (const k of [2, 1]) { g.globalAlpha = 0.18 * k * (1 - out * 0.5); g.drawImage(strip, x - (out > 0 ? -1 : 1) * k * 26, y, W, h); }
+  // 본체: 천천히 확대
+  const z = 1 + 0.05 * Math.min(1, t / 90);
+  g.save(); g.beginPath(); g.rect(0, y, W, h); g.clip();
+  g.globalAlpha = 1 - out;
+  g.drawImage(strip, x - W * (z - 1) / 2, y - h * (z - 1) / 2, W * z, h * z);
+  // 가로로 흐르는 빛줄기
+  g.globalCompositeOperation = 'lighter';
+  for (let i = 0; i < 6; i++) {
+    const sy = y + 8 + ((i * 37 + t * 3) % (h - 16)), sx = ((i * 97 - t * 14) % (W + 120) + W + 120) % (W + 120) - 60;
+    g.globalAlpha = 0.25 * (1 - out); g.fillStyle = '#fff'; g.fillRect(x + sx, sy, 60, 1.5);
+  }
+  g.globalCompositeOperation = 'source-over';
+  g.restore();
+  // 위아래 테두리(보스 색으로 빛남)
+  g.globalAlpha = (0.9 - 0.3 * Math.sin(t * 0.3)) * (1 - out); g.fillStyle = col;
+  g.fillRect(x, y - 3, W, 3); g.fillRect(x, y + h, W, 3);
+  g.globalAlpha = 0.6 * (1 - out); g.fillStyle = '#fff'; g.fillRect(x, y - 1, W, 1); g.fillRect(x, y + h + 1, W, 1);
+  // 들어온 순간 섬광
+  if (t >= 8 && t < 22) { g.globalAlpha = 0.45 * (1 - (t - 8) / 14); g.fillStyle = '#fff'; g.fillRect(0, 0, W, H); }
+  g.globalAlpha = 1;
+}
+
 function drawCutin(G, g) {
   const c = G.cutin;
-  if (!c || c.t > 70) return;
-  const strip = charSprite(c.code, '102', img => cookCutin(img, CUTIN_BAND[c.code]));
+  if (!c) return;
+  if (c.strong) { if (c.t <= 100) drawCutinStrong(G, g, c); return; }
+  if (c.t > 70) return;
+  const strip = charSprite(c.code, '102', img => cookCutin(img, CUTIN_BAND[c.code]), 'weak');
   if (!strip) return;
   // 0~10프레임 왼쪽에서 슉 들어오고, 50프레임부터 오른쪽으로 조금 밀리며 사라짐
   const t = c.t, inK = Math.min(1, t / 10), e = 1 - Math.pow(1 - inK, 3), out = Math.max(0, (t - 50) / 20);

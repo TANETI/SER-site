@@ -9,6 +9,8 @@
 //   survival: false,                         // true면 보스 무적, 시간까지 버티면 획득
 //   start: [192, 110],                       // 보스 시작 위치
 //   follow: true,                            // 선택. 앞 패턴에 이어지는 뒤 단계(같은 체력바, 다시 선언하지 않음)
+//   strong: true,                            // 선택. 강스펠(화려한 컷인, 필살기 이미지). 없으면 약스펠(작은 컷인)
+//   cutinShot: '120',                         // 선택. 강스펠 컷인 이미지 번호(기본 103, 없으면 102)
 //   bgmRate: 1.2,                            // 선택. 배경음악 재생 속도(폭주 마르코처럼 같은 곡을 빠르게)
 //   *run(s) { ... }                          // 제너레이터. yield n = n프레임 대기
 // }
@@ -419,7 +421,7 @@ const SPELLS = [
   },
   {
     name: '「성스러운 수류탄」(가칭)',
-    type: 'spell', boss: '고현성', bossColor: '#c8d4e8', hp: 2400, time: 48, start: [192, 90],
+    type: 'spell', strong: true, boss: '고현성', bossColor: '#c8d4e8', hp: 2400, time: 48, start: [192, 90],
     *run(s) {
       // 성당교회가 보급하는 금색 유리병. 떨어질 자리를 십자선으로 먼저 보여 주고, 깨진 자리에서 금빛 물방울이 퍼짐(처음엔 느리게)
       for (let w = 0; ; w++) {
@@ -648,7 +650,7 @@ const SPELLS = [
   },
   {
     name: '파테르 제2식 — 능히 일어나지 못하게 하리니',
-    type: 'spell', boss: '마르코', bossColor: '#e0c89a', bgmRate: 1.2, hp: 2500, time: 58, start: [192, 100],
+    type: 'spell', strong: true, boss: '마르코', bossColor: '#e0c89a', bgmRate: 1.2, hp: 2500, time: 58, start: [192, 100],
     *run(s) {
       // 폭주한 마르코의 마지막 스펠: 달려드는 제압. 플레이어가 1초 전에 있던 자리로 끝까지 돌진하고, 착지한 자리에서 충격파
       marcoRage(s);
@@ -767,7 +769,7 @@ const SPELLS = [
   },
   {
     name: '「스펙타클」(가칭)',
-    type: 'spell', boss: '김예나', bossColor: '#ffb3d9', bgmRate: yenaRate, hp: 2600, time: 48, start: [192, 80],
+    type: 'spell', strong: true, boss: '김예나', bossColor: '#ffb3d9', bgmRate: yenaRate, hp: 2600, time: 48, start: [192, 80],
     *run(s) {
       // 불꽃놀이: 폭죽이 화면 위쪽 여기저기로 날아가(터질 자리에 십자선) 별 원형탄으로 터지고, 불똥이 흩날려 떨어짐.
       // 터지는 자리는 플레이어에게서 90px 넘게 떨어진 곳만
@@ -859,7 +861,7 @@ const SPELLS = [
   },
   {
     name: '「시선」(가칭)',
-    type: 'spell', boss: '차서린', bossColor: '#9fc8ff', hp: 2860, time: 53, start: [192, 90],
+    type: 'spell', strong: true, boss: '차서린', bossColor: '#9fc8ff', hp: 2860, time: 53, start: [192, 90],
     *run(s) {
       // 아인(눈·보다·빛): 화면 양옆 높이에 눈 표식 둘이 뜨고 플레이어를 바라봄 → 예고선 뒤 그 시선을 따라 빛줄기.
       // 두 눈이 번갈아 보므로 한쪽을 피한 자리를 다른 쪽이 노림. 박자에 맞춘 원형탄이 함께
@@ -966,7 +968,7 @@ const SPELLS = [
   },
   {
     name: '「정의의 파도」(가칭)',
-    type: 'spell', boss: '고태웅', bossColor: '#ffcf6b', hp: 3000, time: 52, start: [192, 80],
+    type: 'spell', strong: true, boss: '고태웅', bossColor: '#ffcf6b', hp: 3000, time: 52, start: [192, 80],
     *run(s) {
       // 정의의 파도: 엇갈린 세로 줄들이 고정 간격(가로 48px, 세로 dy, 이웃 줄은 반 칸 엇갈림)을 지키며 왼쪽에서 오른쪽으로
       // 계속 밀려옴(깜빡이지 않음). 엇갈린 이웃 줄 사이 dy/4 높이에 격자와 함께 흐르는 가로 안전 줄이 있고
@@ -1130,7 +1132,7 @@ const SPELLS = [
   },
   {
     name: '「아인」(가칭)',
-    type: 'spell', boss: '아즈라엘', bossColor: '#e8e8f4', hp: 5600, time: 84, start: [192, 70],
+    type: 'spell', strong: true, boss: '아즈라엘', bossColor: '#e8e8f4', hp: 5600, time: 84, start: [192, 70],
     *run(s) {
       // 엇갈린 격자(0-0-0 / -0-0- / 0-0-0)가 세 줄씩 묶여 천천히 내려옴. 한 줄 안의 틈과 엇갈린 이웃 줄의 틈을 이어
       // 비스듬히 빠져나감. 동시에 표적(시선)이 약 4초 동안 기체를 천천히 따라오다가 멈춰 조여든 뒤 그 자리에서 좁게
@@ -1392,7 +1394,7 @@ const SPELLS = [
   },
   {
     name: 'Clavis Collata — NUNC DIMITTIS',
-    type: 'spell', boss: '예로니모', bossColor: '#e8e0c8', hp: 3000, time: 52, start: [192, 100],
+    type: 'spell', strong: true, cutinShot: '120', boss: '예로니모', bossColor: '#e8e0c8', hp: 3000, time: 52, start: [192, 100],
     *run(s) {
       // 전조: 고유 클라비스 영창. 읊는 동안은 느린 원형탄만
       const light = s.task(function* () {
@@ -1620,7 +1622,7 @@ const SPELLS = [
   },
   {
     name: 'Clavis Collata — NUNC DIMITTIS',
-    type: 'spell', extra: true, boss: '예로니모(진심)', bossColor: '#e8e0c8', hp: 3000, time: 52, start: [192, 100],
+    type: 'spell', strong: true, cutinShot: '120', extra: true, boss: '예로니모(진심)', bossColor: '#e8e0c8', hp: 3000, time: 52, start: [192, 100],
     *run(s) {
       // 사슬이 걷힌 자리에 고리가 남아 양옆으로 천천히 흩어짐. 사슬이 늘어날수록 남는 고리도 늘어 화면이 조여듦
       const light = s.task(function* () {
@@ -1944,7 +1946,7 @@ const SPELLS = [
   },
   {
     name: '「담쟁이 정원」(가칭)',
-    type: 'spell', boss: '리크니스', bossColor: '#e8b4c8', hp: 3800, time: 55, start: [192, 90],
+    type: 'spell', strong: true, boss: '리크니스', bossColor: '#e8b4c8', hp: 3800, time: 55, start: [192, 90],
     *run(s) {
       // 담쟁이 정원: 예고선을 따라 사선 격자를 딱 한 번 만들고(움직여도 가장자리가 비지 않게 화면보다 넓게), 이후 그 구조가
       // 통째로 대각선으로 천천히 오르내림(진폭 60px, 약 7초 주기, 최대 약 1.05px/프레임). 칸 안에서 함께 움직이며 버티고,
@@ -1984,15 +1986,31 @@ const SPELLS = [
     name: '논스펠 · 이즘 1',
     type: 'nonspell', boss: '이즘', bossColor: '#8fe8ff', hp: 2600, time: 36, start: [192, 100],
     *run(s) {
-      // 데이터 묶음: 정사각형으로 뭉친 탄 덩어리를 조준해 보냄
+      // 데이터 묶음: 정사각형으로 뭉친 탄 덩어리(한 변 28~56px)가 통째로 빙글빙글 돌면서 기체 쪽으로 천천히 방향을 틀며 다가옴.
+      // 덩어리 중심이 처음 약 1.7초 동안 조금씩(프레임당 0.02) 꺾으며 속도 1.3으로 움직이고 그 뒤로는 곧게 날아감
       for (let w = 1; ; w++) {
-        const a = s.aim() + s.rand(-0.3, 0.3), n = s.lv(2, 3, 3);
+        const n = s.lv(3, 3, 4, 4, 5), gap = 14, st = { x: s.boss.x, y: s.boss.y, ang: s.aim() + s.rand(-0.3, 0.3), rot: s.rand(0, s.TAU), f: -1, age: 0 };
+        const spin = (w % 2 ? 1 : -1) * 0.04, spd = s.sp(1.3);
+        const tick = () => {
+          if (st.f === s.frame) return;
+          st.f = s.frame; st.age++;
+          const want = Math.atan2(s.player.y - st.y, s.player.x - st.x), da = ((want - st.ang + Math.PI * 3) % s.TAU) - Math.PI;
+          if (st.age < 100) st.ang += Math.max(-0.02, Math.min(0.02, da));   // 처음 약 1.7초만 쫓고 그 뒤로는 곧게(기체 둘레를 맴돌지 않게)
+          st.x += Math.cos(st.ang) * spd; st.y += Math.sin(st.ang) * spd; st.rot += spin;
+        };
         for (let i = 0; i < n; i++) for (let j = 0; j < n; j++) {
-          s.fire({ x: s.boss.x + (i - (n - 1) / 2) * 10, y: s.boss.y + (j - (n - 1) / 2) * 10, ang: a, spd: s.sp(3), shape: 'small', color: 'cyan' });
+          const ox = (i - (n - 1) / 2) * gap, oy = (j - (n - 1) / 2) * gap;
+          s.fire({ x: st.x + ox, y: st.y + oy, spd: 0, shape: 'small', color: 'cyan', margin: 60,
+            fn: b => {
+              tick();
+              const c = Math.cos(st.rot), sn = Math.sin(st.rot), nx = st.x + ox * c - oy * sn, ny = st.y + ox * sn + oy * c;
+              b.pvx = nx - b.x; b.pvy = ny - b.y; b.x = nx; b.y = ny;   // pvx·pvy: 회피 봇 예측용
+              if (b.t > 600) b.dead = true;
+            } });
         }
-        yield s.wait(26);
-        if (w % 4 === 0) s.ring(s.cnt(22), { offset: s.rand(0, s.TAU), spd: s.sp(1.6), shape: 'rice', color: 'white' });
-        if (w % 8 === 0) yield* s.wander();
+        yield s.wait(40);
+        if (w % 3 === 0) s.ring(s.cnt(22), { offset: s.rand(0, s.TAU), spd: s.sp(1.6), shape: 'rice', color: 'white' });
+        if (w % 6 === 0) yield* s.wander();
       }
     },
   },
@@ -2006,6 +2024,18 @@ const SPELLS = [
       // 칸 하나를 벗어나는 데 고속 이동으로 약 20프레임이 드므로 터지는 간격은 22프레임 아래로 내리지 않음. 터지기 전 예고는 약 0.5~0.7초
       const [cols, rows] = s.lv([3, 1], [3, 1], [3, 3], [3, 4], [3, 4]), n = cols * rows, cw = s.W / cols, ch = s.H / rows;
       const cell = c => ({ x: (c % cols) * cw, y: Math.floor(c / cols) * ch, w: cw, h: ch });
+      // 스프링클러(곁다리): 이즘을 중심으로 조금씩 돌아가는 방향으로 작은 탄 세 발짜리 덩어리를 뿜음.
+      // 약 0.5초 뿜고 약 1초 쉬기를 반복하며, 순서를 알려 주는 동안과 터지는 동안에도 계속 나옴
+      s.task(function* () {
+        let a = s.rand(0, s.TAU);
+        for (;;) {
+          for (let k = 0; k < 4; k++) {
+            for (let j = -1; j <= 1; j++) s.fire({ ang: a + j * 0.06, spd: s.sp(1.5 + Math.abs(j) * 0.15), shape: 'small', color: 'white' });
+            a += 0.45; yield 8;
+          }
+          yield s.wait(60);
+        }
+      }());
       for (;;) {
         for (let round = 0; round < 4; round++) {
           const f = Math.pow(0.9, round), order = [...Array(n).keys()].sort(() => Math.random() - 0.5);
@@ -2041,18 +2071,30 @@ const SPELLS = [
     name: '논스펠 · 이즘 2',
     type: 'nonspell', boss: '이즘', bossColor: '#8fe8ff', hp: 2800, time: 36, start: [192, 80],
     *run(s) {
-      // 스캔: 세로 레이저가 한쪽 끝에서 반대쪽으로 차례로 훑음. 이미 훑고 지나간 쪽으로 피하거나 레이저 사이 틈(약 21px)에 섬.
-      // 훑는 동안 느린 조준탄이 섞임(노말 이상)
+      // 스캔: 가로 레이저 스캔선이 화면 위에서 아래로(다음엔 아래에서 위로) 천천히 훑고 지나감. 선에는 한 칸 빈 틈이 있고,
+      // 켜지기 전 예고 단계부터 틈 위치가 보이므로 그 틈으로 가 있으면 통과. 하드 이상은 약 1.5초 뒤 다른 틈을 가진 두 번째 스캔선.
+      // 틈 폭은 이지 80 … 헬 56px, 훑는 속도는 약 1.6~2.2px/프레임
+      // 두 번째 틈은 첫 번째 틈에서 180px 안쪽(약 1.5초 안에 옮겨 갈 수 있는 거리)
+      const scan = (dir, delay, gx) => s.task(function* () {
+        yield delay;
+        const gapW = s.lv(80, 72, 64, 60, 56), spd = s.sp(1.9) * dir, warn = 50;
+        const st = { y: dir > 0 ? 4 : s.H - 4 }, dur = Math.ceil((s.H - 8) / Math.abs(spd));
+        const move = l => { if (l.t > warn) st.y += spd / 2; l.y = st.y; };   // 두 레이저가 같은 st를 반씩 옮김
+        s.laser({ x: 0, y: st.y, ang: 0, len: gx - gapW / 2, w: 10, warn, dur, color: 'cyan', fn: move });
+        s.laser({ x: gx + gapW / 2, y: st.y, ang: 0, len: s.W - gx - gapW / 2, w: 10, warn, dur, color: 'cyan', fn: move });
+        s.mark({ x: gx, y: st.y + dir * 18, dur: warn });   // 틈 자리 표시
+      }());
       for (let w = 0; ; w++) {
-        const col = 40, dir = w % 2 ? 1 : -1;
-        for (let i = 0; i < s.W / col; i++) {
-          if (s.diff > 0 && i % 3 === 0) s.spread(3, s.aim(), 0.3, { spd: s.sp(2), shape: 'small', color: 'white' });
-          const x = dir > 0 ? i * col + col / 2 : s.W - i * col - col / 2;
-          s.laser({ x, y: 0, ang: Math.PI / 2, len: s.H, w: 20, warn: s.lv(50, 42, 36), dur: 14, color: 'cyan' });
-          yield s.lv(12, 10, 8, 7, 6);
+        const dir = w % 2 ? -1 : 1;
+        const gapW = s.lv(80, 72, 64, 60, 56), g1 = s.rand(gapW, s.W - gapW);
+        scan(dir, 0, g1);
+        if (s.diff >= 2) scan(dir, 90, Math.max(gapW, Math.min(s.W - gapW, g1 + s.rand(-180, 180))));
+        const len = 50 + Math.ceil((s.H - 8) / s.sp(1.9)) + (s.diff >= 2 ? 90 : 0);
+        for (let t = 0; t < len; t += 40) {
+          if (s.diff >= 3 && t % 80 === 40) s.fire({ ang: s.aim(), spd: s.sp(2.2), shape: 'small', color: 'white' });
+          yield 40;
         }
-        for (let k = 0; k < 3; k++) { s.ring(s.cnt(20), { offset: k * 0.2, spd: s.sp(1.8), shape: 'small', color: 'white' }); yield s.wait(25); }
-        yield s.wait(50);
+        yield s.wait(40);
       }
     },
   },
@@ -2138,52 +2180,6 @@ const SPELLS = [
         s.ring(s.cnt(20), { offset: s.rand(0, s.TAU), spd: s.sp(1.5), shape: 'rice', color: 'white' });
         yield s.wait(40);
         if (w % 2 === 1) yield* s.wander(60, 40);
-      }
-    },
-  },
-  {
-    name: '논스펠 · 이즘 4',
-    type: 'nonspell', boss: '이즘', bossColor: '#8fe8ff', hp: 2800, time: 40, start: [192, 70],
-    *run(s) {
-      // 바이너리 비: 세로 8줄이 켜짐(1)·꺼짐(0)으로 바뀜. 켜질 줄을 먼저 표시하고 그 줄에만 데이터 비가 쏟아짐.
-      // 이전 비가 다 내린 뒤 다음 신호가 오도록 사이를 둠
-      const lanes = 8, lw = s.W / lanes;
-      for (let w = 0; ; w++) {
-        const on = s.lv(3, 4, 4, 5, 5), warn = s.lv(50, 42, 36);
-        const pickLanes = () => [...Array(lanes).keys()].sort(() => Math.random() - 0.5).slice(0, on);
-        let pick = pickLanes();
-        for (const i of pick) s.area({ x: i * lw + 2, y: 0, w: lw - 4, h: s.H, warn, dur: 0, label: '1', color: '#35d6ff' });
-        yield warn;
-        // 두 번 내림: 첫 비가 내리는 끝무렵에 다음 줄을 예고하고, 이어서 그 줄에 비가 내림
-        for (let round = 0; round < 2; round++) {
-          let next = null;
-          for (let t = 0; t < 120; t += 3) {
-            if (round === 0 && t === 120 - warn - (warn % 3)) {
-              // 다음 줄은 지금 서 있는 줄을 반드시 포함하고, 비가 안 오는 이웃 칸(비 줄을 건너지 않고 갈 수 있는 곳) 하나는 비워 둠.
-              // 그런 칸이 없으면 두 번째 비는 없음
-              const pl = Math.max(0, Math.min(lanes - 1, Math.floor(s.player.x / lw))), seg = [];
-              if (!pick.includes(pl)) {
-                for (let i = pl - 1; i >= 0 && !pick.includes(i); i--) seg.push(i);
-                for (let i = pl + 1; i < lanes && !pick.includes(i); i++) seg.push(i);
-              }
-              if (seg.length) {
-                const keep = s.pick(seg);
-                next = [pl, ...[...Array(lanes).keys()].filter(i => i !== pl && i !== keep).sort(() => Math.random() - 0.5).slice(0, on - 1)];
-                for (const i of next) s.area({ x: i * lw + 2, y: 0, w: lw - 4, h: s.H, warn, dur: 0, label: '0', color: '#8fe8ff' });
-              }
-            }
-            for (const i of pick) if (Math.random() < s.lv(0.45, 0.6, 0.7, 0.8, 0.9)) {
-              s.fire({ x: i * lw + s.rand(6, lw - 6), y: -6, ang: Math.PI / 2, spd: s.sp(s.rand(3, 4.5)), shape: 'small', color: 'cyan' });
-            }
-            // 빈 줄에 서 있어도 조준탄이 와서 줄 안에서 비켜야 함
-            if (t % 24 === 12) s.spread(s.lv(1, 3, 3, 3, 5), s.aim(), 0.14, { spd: s.sp(2.6), shape: 'rice', color: 'white' });
-            yield 3;
-          }
-          if (!next) break;
-          pick = next;
-        }
-        if (s.diff > 0) s.spread(3, s.aim(), 0.3, { spd: s.sp(2.4), shape: 'rice', color: 'white' });
-        yield 70;
       }
     },
   },
@@ -2334,7 +2330,7 @@ const SPELLS = [
   },
   {
     name: '「백일몽」(가칭)',
-    type: 'spell', boss: '이즘', bossColor: '#8fe8ff', hp: 3200, time: 70, start: [192, 70],
+    type: 'spell', strong: true, boss: '이즘', bossColor: '#8fe8ff', hp: 3200, time: 70, start: [192, 70],
     *run(s) {
       // 「열흘 같은 하루」의 강화판: 느려진 시간 속 미로 도중에 OVERCLOCK 경고가 뜨고 약 1.2초 동안 시간이 두 배로 빨라짐
       // (미로가 두 배 빠르게 흘러옴). 빨라져도 따라갈 수 있게 통로가 줄마다 옮겨 가는 폭(shift)을 6px 이하로 둠:
@@ -2461,7 +2457,7 @@ const SINS = [
 
 SPELLS.push({
   name: 'Clavis Communis, 스피리투스 제10식 — CONFITEOR. 내 죄가 항상 내 앞에 있나이다',
-  type: 'spell', survival: true, extra: true, boss: '예로니모(진심)', bossColor: '#e8e0c8', hp: 1, time: 75, start: [192, 110],
+  type: 'spell', strong: true, survival: true, extra: true, boss: '예로니모(진심)', bossColor: '#e8e0c8', hp: 1, time: 75, start: [192, 110],
   *run(s) {
     const C = CHANTS.CONFITEOR;
     // 발악: 마리·마르코, 예로니모가 차례로 쓰러진 뒤의 비상 상황이라 입회·승인 절차 없이 곧바로 개방(시험판 연출)
@@ -2513,7 +2509,7 @@ SPELLS.push({
 // 보스전: 목숨·폭탄·파워를 이어 가며 패턴을 순서대로. name은 오른쪽 표시용 짧은 이름, power는 시작 파워,
 // hpScale은 체력·제한시간 배율. 목록은 스테이지 순서. 1스테이지는 홍마향처럼 중간 보스(윤도연) 뒤에 보스(고현성)
 // 3스테이지는 세 보스전(3-1·3-2·3-3)으로 나눔. 각각 노말에서 약 4분(회피 봇·아리엘 실측으로 맞춘 hpScale)
-// 캐릭터별 스펠은 1~3장(이즘만 4장). 나중에 한 보스전 안에서 모든 스펠이 나오는 구조로 바꿀 예정.
+// 캐릭터별 스펠은 1~3장. 예측 사격은 뺐지만 시스템(이동 예측 저격)은 나중에 쓰려고 남겨 둠. 나중에 한 보스전 안에서 모든 스펠이 나오는 구조로 바꿀 예정.
 // 본게임에 쓰는 스펠은 여기 보스전 순서에 든 것만(2026-09-27 추림). 필리우스 제1식(내구)·휘감는 덩굴·감정 학습·오버클럭·
 // 열흘 같은 하루와 시험 패턴은 빠졌으며 단일 패턴 연습에서만 볼 수 있다
 // 보스전은 잡몹 구간 없이 보스부터 시작한다. 시작 파워는 그 스테이지에 닿았을 때쯤의 값이고, 패턴이 끝날 때 떨어지는 P로 오른다
@@ -2622,8 +2618,6 @@ const BOSS_RUNS = [
       spellOf('논스펠 · 이즘 1'),
       spellOf('「순차 격자 타격」(가칭)'),
       spellOf('논스펠 · 이즘 2'),
-      spellOf('「예측 사격」(가칭)'),
-      spellOf('논스펠 · 이즘 4'),
       spellOf('「세이브 포인트」(가칭)'),
       spellOf('「백일몽」(가칭)'),
     ],
