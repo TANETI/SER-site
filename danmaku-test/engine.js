@@ -349,7 +349,8 @@ class Game {
   // 보스전: 여러 패턴을 이어서, 목숨·폭탄을 이어 가며 진행
   // carry=true면 본게임에서 앞 스테이지의 목숨·파워를 이어받음(파워는 그 스테이지 기준값보다 1 넘게 낮지 않게, 폭탄은 다시 채움)
   startRun(run, carry = false) {
-    this.run = { ...run, idx: 0, bars: this.barsOf(run.seq) };
+    // 보스전 동안 쌓는 상태(김예나 시청자 수 등)는 다시 시작하면 초기화
+    this.run = { ...run, idx: 0, bars: this.barsOf(run.seq), yena: undefined };
     if (carry && this.player) {
       const p = this.player;
       if (!this.powerLock) p.power = Math.max(p.power, (run.power ?? 0) - 1);
@@ -380,7 +381,7 @@ class Game {
   start(i = this.spellIndex) {
     this.spellIndex = (i + this.spells.length) % this.spells.length;
     const sp = this.spell = this.spells[this.spellIndex];
-    this.bullets = []; this.lasers = []; this.enemies = []; this.shots = []; this.fx = [];
+    this.bullets = []; this.lasers = []; this.enemies = []; this.shots = []; this.fx = []; this.boost = null;
     this.partners = []; this.chants = []; this.zones = []; this.areas = []; this.slow = null; this.safes = [];
     this.items = this.items || [];
     this.tasks.clear(); this.error = '';
@@ -396,7 +397,8 @@ class Game {
       name: sp.boss || '', color: sp.bossColor || '#d8d0ff', shield: 0, glow: 0, contact: false };
     if (cont && prev && !prev.hidden) { b.x = prev.x; b.y = prev.y; }
     // 배경음악: 이 보스의 폴더 곡. 보스전 도중 곡이 없는 보스면 앞 곡을 이어 감. 같은 곡이면 처음으로 돌리지 않음
-    BGM.playBoss(sp.boss, cont, sp.bgmRate || 1);   // bgmRate: 곡 재생 속도(폭주 마르코 1.2)
+    // bgmRate: 곡 재생 속도(폭주 마르코 1.2). 함수면 게임 상태로 정함(김예나 시청자 수 단계)
+    BGM.playBoss(sp.boss, cont, (typeof sp.bgmRate === 'function' ? sp.bgmRate(this) : sp.bgmRate) || 1);
     // 보스전 시작이나 보스가 바뀔 때(중간 보스 → 보스) 가운데에 소개
     if (this.run && sp.boss && (!cont || !prev || prev.name !== sp.boss)) {
       this.fx.push({ kind: 'intro', top: cont ? '' : this.run.title, text: sp.boss, t: 0, life: 130 });
@@ -839,8 +841,14 @@ function makeAPI(G) {
     get hpRate() { return G.boss.hp / G.boss.maxHp; },
     get diff() { return G.effDiff(); },
     lv: (...v) => v[Math.min(G.effDiff(), v.length - 1)],                        // 난이도별 값 고르기 (이지, 노말, 하드, 베리하드, 헬)
-    cnt: n => Math.max(1, Math.round(n * DENSITY[G.effDiff()] * (1 + 0.2 * G.heat()))),     // 탄 개수
-    wait: f => Math.max(1, Math.round(f * INTERVAL[G.effDiff()] / (1 + 0.15 * G.heat()))),  // 발사 간격(프레임)
+    cnt: n => Math.max(1, Math.round(n * DENSITY[G.effDiff()] * (1 + 0.2 * G.heat()) * (G.boost?.cnt ?? 1))),     // 탄 개수
+    wait: f => Math.max(1, Math.round(f * INTERVAL[G.effDiff()] / (1 + 0.15 * G.heat()) * (G.boost?.wait ?? 1))),  // 발사 간격(프레임)
+    // 패턴이 거는 추가 배율 {cnt, wait}(김예나 시청자 수 등). 패턴이 바뀌면 풀림
+    setBoost(o) { G.boost = o; },
+    get boost() { return G.boost || { cnt: 1, wait: 1 }; },
+    get run() { return G.run; },
+    // 배경음악 재생 속도를 패턴 도중에 바꿈
+    bgmRate(r) { BGM.wantRate = r; BGM.setRate(r); },
     get heat() { return G.heat(); },
     get slow() { return G.slowFactor(); },   // 지금 적 탄 속도 배율(불렛타임·오버클럭)
     sp: v => v * SPEED[G.effDiff()],                                             // 탄속

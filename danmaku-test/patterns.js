@@ -62,6 +62,28 @@
 // color: red orange yellow green ivy cyan blue purple pink white gold brown black
 
 // ── 세라피안 공통 ──
+// 김예나: 생방송 시청자 수. 보스전 동안 패턴이 바뀌어도 이어서 늘고(단일 패턴 연습은 패턴마다 새로), 2초마다 0.5만.
+// 10만을 넘으면 「인기 급상승!」 탄 수 ×1.2·발사 간격 ×0.85·노래 1.08배속, 20만을 넘으면 「시청자 폭주!」 ×1.35·×0.75·1.15배속.
+// 20만 단계가 한계라 그 뒤로는 더 빨라지지 않음
+const YENA_LV = [{ cnt: 1, wait: 1, rate: 1 }, { cnt: 1.2, wait: 0.85, rate: 1.08 }, { cnt: 1.35, wait: 0.75, rate: 1.15 }];
+const yenaRate = g => YENA_LV[g.run?.yena?.level ?? 0].rate;
+function yenaLive(s) {
+  const st = s.run ? (s.run.yena = s.run.yena || { viewers: 1.2, level: 0 }) : { viewers: 1.2, level: 0 };
+  const apply = () => { const L = YENA_LV[st.level]; s.setBoost({ cnt: L.cnt, wait: L.wait }); s.bgmRate(L.rate); };
+  apply();
+  s.task(function* () {
+    for (;;) {
+      s.say(s.boss, `시청자 ${st.viewers.toFixed(1)}만`, 60);
+      yield 120;
+      st.viewers += 0.5;
+      const lv = st.viewers >= 20 ? 2 : st.viewers >= 10 ? 1 : 0;
+      if (lv > st.level) { st.level = lv; apply(); s.say(s.boss, lv === 2 ? '시청자 폭주!' : '인기 급상승!', 80); s.sound('overclock'); yield 80; }
+    }
+  }());
+}
+// s.lv로 직접 정한 발 수·간격에 시청자 수 배율을 걸 때
+const yc = (s, n) => Math.max(1, Math.round(n * s.boost.cnt)), yw = (s, f) => Math.max(1, Math.round(f * s.boost.wait));
+
 // 3-3: 구석에서 시연이 구경만 함(공격하지 않음, 엑스트라 2 복선)
 function siyeonWatch(s) {
   s.partner({ name: '시연', x: s.W - 36, y: 40, color: '#c9b8f0' });
@@ -665,15 +687,14 @@ const SPELLS = [
   // 대사는 확정된 것만 쓰므로 넣지 않음
   {
     name: '논스펠 · 김예나 1',
-    type: 'nonspell', boss: '김예나', bossColor: '#ffb3d9', hp: 1900, time: 36, start: [192, 100],
+    type: 'nonspell', boss: '김예나', bossColor: '#ffb3d9', bgmRate: yenaRate, hp: 1900, time: 36, start: [192, 100],
     *run(s) {
-      // 생방송: 머리 위 시청자 수가 오를수록 별 탄이 한 발씩 늘어남(재미·자극). 원형 별탄과 조준 3점사를 번갈아
+      // 생방송: 원형 별탄과 조준 3점사를 번갈아. 시청자 수가 오르면(yenaLive) 탄 수·발사 속도·노래가 빨라짐
+      yenaLive(s);
       for (let w = 0; ; w++) {
-        const viewers = Math.min(8, w);
-        s.say(s.boss, `시청자 ${(1.2 + w * 0.7).toFixed(1)}만`, 50);
-        s.ring(s.cnt(14 + viewers), { offset: w * 0.17, spd: s.sp(1.7), shape: 'star', color: 'pink' });
+        s.ring(s.cnt(16), { offset: w * 0.17, spd: s.sp(1.7), shape: 'star', color: 'pink' });
         yield s.wait(26);
-        for (let k = 0; k < 3; k++) { s.spread(s.lv(1, 3, 3, 3, 5), s.aim(), 0.16, { spd: s.sp(3.2), shape: 'rice', color: 'white' }); yield 7; }
+        for (let k = 0; k < 3; k++) { s.spread(yc(s, s.lv(1, 3, 3, 3, 5)), s.aim(), 0.16, { spd: s.sp(3.2), shape: 'rice', color: 'white' }); yield 7; }
         yield s.wait(26);
         if (w % 4 === 3) yield* s.wander(60, 50);
       }
@@ -681,25 +702,33 @@ const SPELLS = [
   },
   {
     name: '「셔터 찬스」(가칭)',
-    type: 'spell', boss: '김예나', bossColor: '#ffb3d9', hp: 2300, time: 42, start: [192, 90],
+    type: 'spell', boss: '김예나', bossColor: '#ffb3d9', bgmRate: yenaRate, hp: 2300, time: 42, start: [192, 90],
     *run(s) {
       // 촬영: 플레이어 자리에 뷰파인더(십자선)가 잡히고, 찰칵(경고음) 하는 순간의 자리로 부채꼴 연사가 날아감.
-      // 세 장을 연달아 찍으므로 찍힌 자리에서 계속 비켜야 함
+      // 두 장에 한 장은 찍히는 자리를 지나는 가로·세로 레이저도 함께 나가므로 찍힌 자리의 가로줄·세로줄을 모두 벗어나야 함.
+      // 세 장을 연달아 찍으므로 계속 비켜야 함
+      yenaLive(s);
       if (s.diff >= 3) s.task(function* () {
         for (let k = 0; ; k++) { s.ring(s.cnt(10), { offset: k * 0.21, spd: s.sp(1.4), shape: 'star', color: 'pink' }); yield s.wait(66); }
       }());
       for (let w = 0; ; w++) {
-        for (let k = 0; k < s.lv(3, 3, 4, 4, 5); k++) {
+        for (let k = 0; k < yc(s, s.lv(3, 3, 4, 4, 5)); k++) {
           const tx = s.player.x, ty = s.player.y, lead = s.lv(40, 34, 30, 28, 26);
           s.mark({ x: tx, y: ty, dur: lead });
+          // 사진 프레임: 두 장에 한 장은 찍히는 자리를 지나는 가로·세로 긴 레이저(예고선이 함께 깔렸다가 찰칵 순간 발사).
+          // 매 장 레이저를 깔면 지나온 가로줄에 계속 걸려 쉬지 않고 대각선으로만 움직여야 해서 두 장에 한 장
+          if (k % 2 === 0) {
+            s.laser({ x: 0, y: ty, ang: 0, len: s.W, w: 12, warn: lead, dur: 18, color: 'pink' });
+            s.laser({ x: tx, y: 0, ang: Math.PI / 2, len: s.H, w: 12, warn: lead, dur: 18, color: 'pink' });
+          }
           s.task(function* () {
             yield lead;
             s.sound('beep', 1);
             s.shake(1);
             const a = Math.atan2(ty - s.boss.y, tx - s.boss.x);
-            for (let i = 0; i < 4; i++) { s.spread(s.lv(3, 5, 5, 7, 7), a, 0.13, { spd: s.sp(3.6 + i * 0.3), shape: 'rice', color: 'white' }); yield 3; }
+            for (let i = 0; i < 4; i++) { s.spread(yc(s, s.lv(3, 5, 5, 7, 7)), a, 0.13, { spd: s.sp(3.6 + i * 0.3), shape: 'rice', color: 'white' }); yield 3; }
           }());
-          yield s.lv(22, 20, 18, 16, 15);
+          yield s.lv(22, 20, 18, 16, 15);   // 찍는 간격은 시청자 수로 빨라지지 않음(레이저 가로줄 사이가 너무 좁아지지 않게)
         }
         yield s.wait(60);
         if (w % 2 === 1) yield* s.wander(50, 50);
@@ -708,28 +737,30 @@ const SPELLS = [
   },
   {
     name: '논스펠 · 김예나 2',
-    type: 'nonspell', boss: '김예나', bossColor: '#ffb3d9', hp: 2000, time: 36, start: [192, 100],
+    type: 'nonspell', boss: '김예나', bossColor: '#ffb3d9', bgmRate: yenaRate, hp: 2000, time: 36, start: [192, 100],
     *run(s) {
       // 텐션 업: 세 갈래 별 나선이 돌다가 약 1.5초마다 갑자기 반대로 꺾임(자극). 꺾일 때마다 조준 부채꼴
+      yenaLive(s);
       let a = 0, dir = 1;
       for (let f = 0; ; f++) {
-        if (f % 18 === 17) { dir = -dir; s.spread(s.lv(3, 3, 5, 5, 7), s.aim(), 0.2, { spd: s.sp(3), shape: 'rice', color: 'white' }); }
+        if (f % 18 === 17) { dir = -dir; s.spread(yc(s, s.lv(3, 3, 5, 5, 7)), s.aim(), 0.2, { spd: s.sp(3), shape: 'rice', color: 'white' }); }
         a += dir * 0.13;
         for (let i = 0; i < 3; i++) s.fire({ ang: a + i * s.TAU / 3, spd: s.sp(2.2), shape: 'star', color: i % 2 ? 'pink' : 'yellow' });
         if (f % 12 === 6) s.fire({ ang: s.aim(), spd: s.sp(3), shape: 'rice', color: 'white' });
         if (f % 90 === 89) yield* s.wander(40, 40);
-        yield s.lv(7, 6, 5, 5, 4);
+        yield yw(s, s.lv(7, 6, 5, 5, 4));
       }
     },
   },
   {
     name: '「스펙타클」(가칭)',
-    type: 'spell', boss: '김예나', bossColor: '#ffb3d9', hp: 2600, time: 48, start: [192, 80],
+    type: 'spell', boss: '김예나', bossColor: '#ffb3d9', bgmRate: yenaRate, hp: 2600, time: 48, start: [192, 80],
     *run(s) {
       // 불꽃놀이: 폭죽이 화면 위쪽 여기저기로 날아가(터질 자리에 십자선) 별 원형탄으로 터지고, 불똥이 흩날려 떨어짐.
       // 터지는 자리는 플레이어에게서 90px 넘게 떨어진 곳만
+      yenaLive(s);
       for (let w = 0; ; w++) {
-        for (let k = 0; k < s.lv(3, 4, 5, 5, 6); k++) {
+        for (let k = 0; k < yc(s, s.lv(3, 4, 5, 5, 6)); k++) {
           let tx, ty, tries = 0;
           do { tx = s.rand(50, s.W - 50); ty = s.rand(70, 230); } while (Math.hypot(tx - s.player.x, ty - s.player.y) < 90 && ++tries < 20);
           const T = 36;
@@ -744,7 +775,7 @@ const SPELLS = [
               for (let i = 0; i < s.lv(4, 6, 8, 8, 10); i++) s.fire({ x: b.x, y: b.y, vx: s.rand(-1.2, 1.2), vy: s.rand(-1.4, -0.2), ay: 0.03, shape: 'small', color: 'orange', marginTop: 120,
                 fn: c => { if (c.vy > 1.8) c.vy = 1.8; } });
             } });
-          yield s.lv(20, 18, 16, 15, 14);
+          yield yw(s, s.lv(20, 18, 16, 15, 14));
         }
         if (s.diff >= 3) s.spread(3, s.aim(), 0.18, { spd: s.sp(2.8), shape: 'rice', color: 'white' });
         yield s.wait(50);
@@ -796,26 +827,26 @@ const SPELLS = [
     name: '논스펠 · 차서린 2',
     type: 'nonspell', boss: '차서린', bossColor: '#9fc8ff', hp: 2000, time: 36, start: [192, 80],
     *run(s) {
-      // 음파: 물결 모양으로 늘어선 탄 줄이 화면 아래로 퍼져 내려감. 물결의 골(가장 높은 곳)에 한 칸 틈.
-      // 박자마다 틱 소리, 줄 사이로 조준탄
+      // 음파: 물결 모양으로 늘어선 탄 줄이 화면 아래로 천천히 퍼져 내려감. 물결 위 한 칸이 틈이고 박자마다 틱 소리.
+      // 줄 사이 약 90px(노말). 다음 줄의 틈은 앞 줄 틈에서 150px 안쪽에만 나와 줄이 오기 전에 옮겨 갈 수 있음
+      let gapX = s.W / 2;
       for (let w = 0; ; w++) {
-        const ph = s.rand(0, s.TAU), gapX = s.rand(50, s.W - 50), n = 24;
+        const ph = s.rand(0, s.TAU), n = 24;
+        gapX = Math.max(50, Math.min(s.W - 50, gapX + s.rand(-150, 150)));
         s.sound('beep', 0.6);
         for (let i = 0; i < n; i++) {
           const x = (i + 0.5) * s.W / n;
           if (Math.abs(x - gapX) < s.lv(34, 28, 24, 22, 20)) continue;
-          s.fire({ x, y: s.boss.y + 20 + Math.sin(x * 0.03 + ph) * 26, ang: Math.PI / 2, spd: s.sp(1.5), shape: 'small', color: 'cyan' });
+          s.fire({ x, y: s.boss.y + 20 + Math.sin(x * 0.03 + ph) * 26, ang: Math.PI / 2, spd: s.sp(1.2), shape: 'small', color: 'cyan' });
         }
-        yield s.wait(24);
-        s.spread(s.lv(1, 3, 3, 3, 5), s.aim(), 0.2, { spd: s.sp(2.8), shape: 'rice', color: 'white' });
-        yield s.wait(24);
+        yield s.wait(60);
         if (w % 6 === 5) yield* s.wander(40, 40);
       }
     },
   },
   {
     name: '「시선」(가칭)',
-    type: 'spell', boss: '차서린', bossColor: '#9fc8ff', hp: 2600, time: 48, start: [192, 90],
+    type: 'spell', boss: '차서린', bossColor: '#9fc8ff', hp: 2860, time: 53, start: [192, 90],
     *run(s) {
       // 아인(눈·보다·빛): 화면 양옆 높이에 눈 표식 둘이 뜨고 플레이어를 바라봄 → 예고선 뒤 그 시선을 따라 빛줄기.
       // 두 눈이 번갈아 보므로 한쪽을 피한 자리를 다른 쪽이 노림. 박자에 맞춘 원형탄이 함께
