@@ -804,7 +804,7 @@ const SPELLS = [
       // 터지는 자리는 플레이어에게서 90px 넘게 떨어진 곳만
       yenaLive(s);
       for (let w = 0; ; w++) {
-        for (let k = 0; k < yc(s, s.lv(3, 4, 5, 5, 6)); k++) {
+        for (let k = 0; k < yc(s, s.lv(2, 3, 4, 4, 5)); k++) {
           let tx, ty, tries = 0;
           do { tx = s.rand(50, s.W - 50); ty = s.rand(70, 230); } while (Math.hypot(tx - s.player.x, ty - s.player.y) < 90 && ++tries < 20);
           const T = 36;
@@ -815,11 +815,11 @@ const SPELLS = [
               if (b.t < T) return;
               b.dead = true;
               s.shake(2);
-              s.ring(s.cnt(18), { x: b.x, y: b.y, offset: s.rand(0, s.TAU), spd: s.sp(1.9), shape: 'star', color: col });
-              for (let i = 0; i < s.lv(4, 6, 8, 8, 10); i++) s.fire({ x: b.x, y: b.y, vx: s.rand(-1.2, 1.2), vy: s.rand(-1.4, -0.2), ay: 0.03, shape: 'small', color: 'orange', marginTop: 120,
+              s.ring(s.cnt(14), { x: b.x, y: b.y, offset: s.rand(0, s.TAU), spd: s.sp(1.8), shape: 'star', color: col });
+              for (let i = 0; i < s.lv(3, 4, 6, 6, 7); i++) s.fire({ x: b.x, y: b.y, vx: s.rand(-1.2, 1.2), vy: s.rand(-1.4, -0.2), ay: 0.03, shape: 'small', color: 'orange', marginTop: 120,
                 fn: c => { if (c.vy > 1.8) c.vy = 1.8; } });
             } });
-          yield yw(s, s.lv(20, 18, 16, 15, 14));
+          yield yw(s, s.lv(24, 22, 20, 19, 18));
         }
         if (s.diff >= 3) s.spread(3, s.aim(), 0.18, { spd: s.sp(2.8), shape: 'rice', color: 'white' });
         yield s.wait(50);
@@ -831,10 +831,9 @@ const SPELLS = [
     name: '논스펠 · 차서린 1',
     type: 'nonspell', boss: '차서린', bossColor: '#9fc8ff', hp: 1900, time: 36, start: [192, 100],
     *run(s) {
-      // 4박: 박자(24프레임)마다 틱 소리와 작은 원형탄, 강박(1박)에는 큰 탄 조준 부채꼴
+      // 4박: 박자(24프레임)마다 작은 원형탄, 강박(1박)에는 큰 탄 조준 부채꼴
       for (let beat = 0; ; beat++) {
         const strong = beat % 4 === 0;
-        s.sound('beep', strong ? 0.9 : 0.3);
         if (strong) s.spread(s.lv(3, 3, 5, 5, 5), s.aim(), 0.3, { spd: s.sp(2.6), shape: 'big', color: 'blue' });
         else {
           s.ring(s.cnt(14), { offset: beat * 0.26, spd: s.sp(1.8), shape: 'small', color: 'cyan' });
@@ -854,7 +853,6 @@ const SPELLS = [
       const riff = [-0.5, -0.25, 0, 0.25, 0.5, 0.25, 0, -0.25];
       for (let bar = 0; ; bar++) {
         for (let i = 0; i < riff.length; i++) {
-          s.sound('beep', 0.4 + (i % 4 === 0 ? 0.5 : 0));
           const a = Math.PI / 2 + riff[i] * (bar % 2 ? -1 : 1);
           s.spread(s.lv(3, 5, 5, 7, 7), a, 0.09, { spd: s.sp(2.6), shape: 'knife', color: 'cyan' });
           if (s.diff >= 3 && i % 4 === 3) s.fire({ ang: s.aim(), spd: s.sp(3), shape: 'rice', color: 'white' });
@@ -871,13 +869,12 @@ const SPELLS = [
     name: '논스펠 · 차서린 2',
     type: 'nonspell', boss: '차서린', bossColor: '#9fc8ff', hp: 2000, time: 36, start: [192, 80],
     *run(s) {
-      // 음파: 물결 모양으로 늘어선 탄 줄이 화면 아래로 천천히 퍼져 내려감. 물결 위 한 칸이 틈이고 박자마다 틱 소리.
+      // 음파: 물결 모양으로 늘어선 탄 줄이 화면 아래로 천천히 퍼져 내려감. 물결 위 한 칸이 틈.
       // 줄 사이 약 90px(노말). 다음 줄의 틈은 앞 줄 틈에서 150px 안쪽에만 나와 줄이 오기 전에 옮겨 갈 수 있음
       let gapX = s.W / 2;
       for (let w = 0; ; w++) {
         const ph = s.rand(0, s.TAU), n = 24;
         gapX = Math.max(50, Math.min(s.W - 50, gapX + s.rand(-150, 150)));
-        s.sound('beep', 0.6);
         for (let i = 0; i < n; i++) {
           const x = (i + 0.5) * s.W / n;
           if (Math.abs(x - gapX) < s.lv(34, 28, 24, 22, 20)) continue;
@@ -896,7 +893,6 @@ const SPELLS = [
       // 두 눈이 번갈아 보므로 한쪽을 피한 자리를 다른 쪽이 노림. 박자에 맞춘 원형탄이 함께
       s.task(function* () {
         for (let beat = 0; ; beat++) {
-          s.sound('beep', beat % 4 ? 0.3 : 0.8);
           s.ring(s.cnt(beat % 2 ? 10 : 16), { offset: beat * 0.2, spd: s.sp(1.5), shape: 'small', color: beat % 2 ? 'cyan' : 'blue' });
           yield 24;
         }
@@ -2517,25 +2513,21 @@ function spellOf(name, boss) {
 }
 const BOSS_RUNS = [
   {
-    title: '1스테이지 · 괴이사건대책반', name: '대책반', pages: [2, 2, 2], power: 0, hpScale: 4.18, bossScale: { '윤도연': 1.3 },
+    title: '1스테이지 · 괴이사건대책반', name: '대책반', pages: [2, 2], power: 0, hpScale: 4.18, bossScale: { '윤도연': 1.3 },
     seq: [
       spellOf('논스펠 · 윤도연'),
       spellOf('「발포 점착제」(가칭)'),
       spellOf('논스펠 · 고현성 1'),
-      spellOf('「강선 그물」(가칭)'),
-      spellOf('논스펠 · 고현성 2'),
-      spellOf('「성스러운 수류탄」(가칭)'),
+      spellOf('「성스러운 수류탄」(가칭)'),   // 5스테이지 전은 스테이지마다 2페이지(강선 그물·고현성 논스펠 2는 패턴 테스트 룸에서)
     ],
   },
   {
-    title: '2스테이지 · 마리와 마르코', name: '마리·마르코', pages: [2, 2, 3], power: 1.5, hpScale: 7.43, bossScale: { '마리': 1.61 },
+    title: '2스테이지 · 마리와 마르코', name: '마리·마르코', pages: [2, 2], power: 1.5, hpScale: 7.43, bossScale: { '마리': 1.61 },
     seq: [
-      spellOf('논스펠 · 마리'),
-      spellOf('파테르 제1식 — 나의 의로운 오른손으로 너를 붙들리라', '마리'),
+      // 5스테이지 전은 스테이지마다 2페이지: 마리·마르코 합류 → 마르코 폭주(마리 단독·마르코 파테르 제1식은 패턴 테스트 룸에서)
       spellOf('논스펠 · 마리와 마르코'),
       spellOf('필리우스 제2식 — 그의 백성을 두르시리로다'),
       spellOf('논스펠 · 마르코 (폭주)'),
-      spellOf('파테르 제1식 — 나의 의로운 오른손으로 너를 붙들리라', '마르코'),
       spellOf('파테르 제2식 — 능히 일어나지 못하게 하리니', '마르코'),
     ],
   },
