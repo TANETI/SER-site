@@ -2515,7 +2515,7 @@ function spellOf(name, boss) {
 }
 const BOSS_RUNS = [
   {
-    title: '1스테이지 · 괴이사건대책반', name: '대책반', pages: [2, 2, 2], power: 0, hpScale: 4.42, bossScale: { '윤도연': 1.3 },
+    title: '1스테이지 · 괴이사건대책반', name: '대책반', pages: [2, 2, 2], power: 0, hpScale: 4.64, bossScale: { '윤도연': 1.3 },
     seq: [
       spellOf('논스펠 · 윤도연'),
       spellOf('「발포 점착제」(가칭)'),
@@ -2526,7 +2526,7 @@ const BOSS_RUNS = [
     ],
   },
   {
-    title: '2스테이지 · 마리와 마르코', name: '마리·마르코', pages: [2, 2, 3], power: 1.5, hpScale: 7.87, bossScale: { '마리': 1.79 },
+    title: '2스테이지 · 마리와 마르코', name: '마리·마르코', pages: [2, 2, 3], power: 1.5, hpScale: 8.26, bossScale: { '마리': 1.79 },
     seq: [
       spellOf('논스펠 · 마리'),
       spellOf('파테르 제1식 — 나의 의로운 오른손으로 너를 붙들리라', '마리'),
@@ -2538,7 +2538,7 @@ const BOSS_RUNS = [
     ],
   },
   {
-    title: '3스테이지-1 · 김예나', name: '김예나', pages: [2, 2], power: 2, hpScale: 10.43,
+    title: '3스테이지-1 · 김예나', name: '김예나', pages: [2, 2], power: 2, hpScale: 10.95,
     seq: [
       spellOf('논스펠 · 김예나 1'),
       spellOf('「셔터 찬스」(가칭)'),
@@ -2547,7 +2547,7 @@ const BOSS_RUNS = [
     ],
   },
   {
-    title: '3스테이지-2 · 차서린', name: '차서린', pages: [2, 2], power: 2.25, hpScale: 10.09,
+    title: '3스테이지-2 · 차서린', name: '차서린', pages: [2, 2], power: 2.25, hpScale: 10.59,
     seq: [
       spellOf('논스펠 · 차서린 1'),
       spellOf('「리프」(가칭)'),
@@ -2556,7 +2556,7 @@ const BOSS_RUNS = [
     ],
   },
   {
-    title: '3스테이지-3 · 고태웅', name: '고태웅', pages: [2, 2], power: 2.5, hpScale: 8.38,
+    title: '3스테이지-3 · 고태웅', name: '고태웅', pages: [2, 2], power: 2.5, hpScale: 8.8,
     seq: [
       spellOf('논스펠 · 고태웅 1'),
       spellOf('「히어로 킥」(가칭)'),
