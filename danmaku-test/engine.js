@@ -316,7 +316,7 @@ class Game {
   // 압박 곡선(홍마향처럼 스펠이 진행될수록 거세짐): 스펠카드는 보스 체력이 줄수록, 내구 스펠은 시간이 지날수록 0→1.
   // cnt는 최대 +20%, wait는 최대 약 13% 짧아짐. 논스펠은 0
   // 격화: 패턴 진행도 0→1(보스 체력이 깎인 비율, 내구 스펠은 지난 시간 비율). 논스펠·스펠 모두.
-  // 진행도에 따라 탄 수 ×0.8→1.2, 발사 간격 ×1.18→0.82, 탄속 ×0.95→1.05로 연속해서 바뀜(절반에서 원래 값).
+  // 진행도에 따라 탄 수 ×0.75→1.35, 발사 간격 ×1.25→0.75, 탄속 ×0.92→1.12, 회전 ×0.8→1.5로 연속해서 바뀜(절반에서 거의 원래 값).
   // 진행도 1/3·2/3를 넘으면 격화 단계가 오름(격화 II·III). 잡몹 구간은 0.5로 고정
   heat() {
     const sp = this.spell;
@@ -883,8 +883,8 @@ function makeAPI(G) {
     get hpRate() { return G.boss.hp / G.boss.maxHp; },
     get diff() { return G.effDiff(); },
     lv: (...v) => v[Math.min(G.effDiff(), v.length - 1)],                        // 난이도별 값 고르기 (이지, 노말, 하드, 베리하드, 헬)
-    cnt: n => Math.max(1, Math.round(n * DENSITY[G.effDiff()] * (0.8 + 0.4 * G.heat()) * (G.boost?.cnt ?? 1))),     // 탄 개수(격화 ×0.8→1.2)
-    wait: f => Math.max(1, Math.round(f * INTERVAL[G.effDiff()] * (1.18 - 0.36 * G.heat()) * (G.boost?.wait ?? 1))),  // 발사 간격(프레임, 격화 ×1.18→0.82)
+    cnt: n => Math.max(1, Math.round(n * DENSITY[G.effDiff()] * (0.75 + 0.6 * G.heat()) * (G.boost?.cnt ?? 1))),     // 탄 개수(격화 ×0.75→1.35)
+    wait: f => Math.max(1, Math.round(f * INTERVAL[G.effDiff()] * (1.25 - 0.5 * G.heat()) * (G.boost?.wait ?? 1))),  // 발사 간격(프레임, 격화 ×1.25→0.75)
     // 패턴이 거는 추가 배율 {cnt, wait}(김예나 시청자 수 등). 패턴이 바뀌면 풀림
     setBoost(o) { G.boost = o; },
     get boost() { return G.boost || { cnt: 1, wait: 1 }; },
@@ -895,10 +895,10 @@ function makeAPI(G) {
     get slow() { return G.slowFactor(); },   // 지금 적 탄 속도 배율(불렛타임·오버클럭)
     // 필드 하단 게이지 {v: 0~1, color, flash}. 패턴이 객체를 들고 v를 바꾸면 그대로 그려짐. null이면 숨김
     setGauge(o) { G.gauge = o; return o; },
-    spin: v => v * (0.85 + 0.4 * G.heat()),
+    spin: v => v * (0.8 + 0.7 * G.heat()),   // 회전량(회전벽·도는 레이저). 격화되면 촘촘해지는 대신 더 빨리 돎(×0.8→1.5)
     get surge() { return G.surgeLevel(); },   // 격화 단계 0·1·2(격화 I·II·III)
     arms: n => n + G.surgeLevel(),             // 회전벽 등의 줄 수: 격화 II에서 한 줄, III에서 한 줄 더(3줄 → 4줄 → 5줄)   // 회전량(회전벽·도는 레이저). 격화되면 촘촘해지는 대신 더 빨리 돎(×0.85→1.25)
-    sp: v => v * SPEED[G.effDiff()] * (0.95 + 0.1 * G.heat()),                  // 탄속(격화 ×0.95→1.05)                                             // 탄속
+    sp: v => v * SPEED[G.effDiff()] * (0.92 + 0.2 * G.heat()),                  // 탄속(격화 ×0.92→1.12)
     // 머리 위 말풍선(대사 대신 짧은 절차 표시용): who=보스·동료
     // 화면 흔들림(세기 2~12 정도)과 충격음
     shake(mag = 4) { G.shake(mag); },
@@ -956,8 +956,9 @@ function makeAPI(G) {
     },
     // 중심 각도 center에서 gap 간격으로 n발
     spread(n, center, gap, o = {}) {
-      // 격화 III: 세 발 이상 부채꼴은 바깥에 한 발씩 더(3way → 5way). fixed: true면 그대로
-      if (n >= 3 && !o.fixed && G.surgeLevel() >= 2) n += 2;
+      // 세 발 이상 부채꼴은 바깥에 줄을 더함(가운데 조준 여부가 바뀌지 않게 좌우 한 줄씩). fixed: true면 그대로
+      // 난이도: 하드·베리하드 좌우 한 줄씩(+2), 헬 두 줄씩(+4). 격화 III: 좌우 한 줄씩 더(+2)
+      if (n >= 3 && !o.fixed) n += [0, 0, 2, 2, 4][G.effDiff()] + (G.surgeLevel() >= 2 ? 2 : 0);
       const out = [];
       for (let i = 0; i < n; i++) out.push(s.fire({ ...o, ang: center + (i - (n - 1) / 2) * gap }));
       return out;

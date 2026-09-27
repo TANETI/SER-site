@@ -17,11 +17,12 @@
 //
 // 난이도 (0=이지 1=노말 2=하드 3=베리하드 4=헬. 패턴에 적은 기준값이 하드)
 //   s.lv(이지, 노말, 하드, ...)   난이도별 값 고르기. 값이 모자라면 마지막 값을 씀
-//   s.cnt(n)   탄 개수 배율(이지 55%, 노말 80%, 베리하드 120%, 헬 140%). 격화로 패턴 진행에 따라 ×0.8→1.2(s.wait ×1.18→0.82, s.sp ×0.95→1.05)
+//   s.cnt(n)   탄 개수 배율(이지 55%, 노말 80%, 베리하드 120%, 헬 140%). 격화로 패턴 진행에 따라 ×0.75→1.35(s.wait ×1.25→0.75, s.sp ×0.92→1.12)
+//   s.spread는 세 발 이상이면 하드·베리하드 +2줄, 헬 +4줄, 격화 III +2줄(좌우 대칭). 줄 수를 그대로 둘 땐 fixed: true
 //   s.heat      격화 진행도 0→1(깎인 보스 체력 비율, 내구 스펠은 지난 시간 비율). 논스펠·스펠 모두
 //   s.wait(f)  발사 간격 배율(이지 1.6배 … 헬 0.78배)
 //   s.sp(v)    탄속 배율(이지 82% … 헬 112%)
-//   s.spin(v)  회전량에 격화를 곱함(×0.85→1.25). 회전벽·도는 레이저는 발사 간격을 고정하고 이것으로 도는 속도만 올림(촘촘해지지 않게)
+//   s.spin(v)  회전량에 격화를 곱함(×0.8→1.5). 회전벽·도는 레이저는 발사 간격을 고정하고 이것으로 도는 속도만 올림(촘촘해지지 않게)
 //   체력·제한시간은 엔진이 배율을 곱해 적용(보스전은 hpScale, 단일 연습은 2.2배. 내구 스펠·잡몹 구간 제외)
 //
 // s 주요 함수
@@ -2619,172 +2620,106 @@ const BOSS_RUNS = [
 ];
 
 // ── 도중(잡몹 구간): 날개 달린 오르트로스 ──
-// 본게임에서 보스전 앞에 약 1~2분. 스테이지마다 세기 T(0~1)를 정하고 웨이브 여러 종류를 정해진 순서로 이어 붙임.
-// 끝나기 약 5초 전부터는 새 웨이브를 부르지 않아 화면이 비고 보스가 등장함. 탄은 모두 조준·낙하·원형 같은 읽기 쉬운 것만
-const MOB_HP = (T, big) => Math.round(big ? 240 + 520 * T : 12 + 24 * T);
-// 작은 개체는 작은 P 하나(1스테이지 도중을 다 잡으면 파워 약 1.5), 중형은 작은 P 넷과 큰 P 하나
-const MOB_DROP = [1, 0], MOB_DROP_BIG = [4, 1];
+// 본게임에서 보스전 앞에 약 30초. 파워를 모으는 구간이라 탄은 가볍고 읽기 쉬운 것만(조준탄·작은 부채꼴·성긴 원형탄).
+// 스테이지마다 세기 T(0~0.5)로 적 수·탄속·체력이 조금씩 오름. 끝나기 약 5초 전부터는 새 웨이브를 부르지 않아 화면이 비고 보스가 등장함.
+// 부채꼴은 fixed라 하드 이상·격화의 줄 추가를 받지 않음
+const MOB_HP = (T, big) => Math.round(big ? 200 + 400 * T : 10 + 16 * T);
+// 작은 개체는 작은 P 넷, 중형은 작은 P 여섯과 큰 P 셋(파워를 모으는 구간. 회피 봇 기준 30초에 약 +1.5)
+const MOB_DROP = [4, 0], MOB_DROP_BIG = [6, 3];
 const MOB_WAVES = {
-  // 줄지어 내려오다 반대쪽으로 꺾으며 조준탄(세기가 오르면 두 번)
+  // 줄지어 내려오다 반대쪽으로 꺾으며 조준탄 한 번
   *line(s, T, col, side) {
-    const n = 5 + Math.round(3 * T);
+    const n = 5 + Math.round(2 * T);
     for (let i = 0; i < n; i++) {
       s.enemy({ x: side < 0 ? 50 + i * 4 : s.W - 50 - i * 4, y: -16, vy: 1.9, hp: MOB_HP(T), drop: MOB_DROP, run: function* (e, s) {
         yield 34;
         e.vx = -side * 1.3; e.vy = 0.8;
         yield 12;
-        s.spread(s.lv(1, 1, 3, 3, 3), s.aim(e.x, e.y), 0.22, { x: e.x, y: e.y, spd: s.sp(2.2 + 0.6 * T), shape: 'small', color: col });
-        if (T >= 0.4) { yield 40; s.fire({ x: e.x, y: e.y, ang: s.aim(e.x, e.y), spd: s.sp(2.6 + 0.6 * T), shape: 'rice', color: col }); }
+        s.spread(s.lv(1, 1, 1, 3, 3), s.aim(e.x, e.y), 0.24, { x: e.x, y: e.y, spd: s.sp(2 + 0.5 * T), shape: 'small', color: col, fixed: true });
         e.vy = -0.3;
       } });
       yield 14;
     }
     yield 50;
   },
-  // V자 편대: 가운데부터 내려와 멈춰 조준탄 → 부채꼴 → 위로 물러남
+  // V자 편대: 내려와 멈춰 조준탄 한 발(이지는 한 칸 건너) → 위로 물러남
   *vee(s, T, col) {
-    const n = T < 0.3 ? 5 : 7, mid = (n - 1) / 2;
+    const n = 5, mid = (n - 1) / 2;
     for (let i = 0; i < n; i++) {
       const d = Math.abs(i - mid), ty = 60 + d * 16;
-      s.enemy({ x: s.W / 2 + (i - mid) * 40, y: -16 - d * 20, vy: 2.2, hp: MOB_HP(T), drop: MOB_DROP, run: function* (e, s) {
+      s.enemy({ x: s.W / 2 + (i - mid) * 44, y: -16 - d * 20, vy: 2.2, hp: MOB_HP(T), drop: MOB_DROP, run: function* (e, s) {
         while (e.y < ty) yield 1;
         e.vy = 0;
-        yield 20 + d * 6;
-        if (s.diff >= 1 || i % 2 === 0) s.fire({ x: e.x, y: e.y, ang: s.aim(e.x, e.y), spd: s.sp(2.4 + 0.5 * T), shape: 'rice', color: col });
-        yield 50;
-        s.spread(s.lv(3, 3, 3, 5, 5), s.aim(e.x, e.y), 0.2, { x: e.x, y: e.y, spd: s.sp(1.8 + 0.5 * T), shape: 'small', color: col });
-        yield 40;
+        yield 24 + d * 8;
+        if (s.diff >= 1 || i % 2 === 0) s.fire({ x: e.x, y: e.y, ang: s.aim(e.x, e.y), spd: s.sp(2.2 + 0.5 * T), shape: 'rice', color: col });
+        yield 60;
         e.vy = -1.2;
       } });
     }
-    yield 170;
+    yield 150;
   },
-  // 가로지르기: 화면 위쪽을 옆으로 날며 아래로 성긴 비를 떨어뜨림
-  *sweep(s, T, col, side) {
-    const n = 5 + Math.round(3 * T), every = Math.round(30 - 10 * T);
-    for (let i = 0; i < n; i++) {
-      s.enemy({ x: side < 0 ? -20 : s.W + 20, y: 50 + (i % 2) * 34, vx: side < 0 ? 1.7 : -1.7, hp: MOB_HP(T), drop: MOB_DROP, run: function* (e, s) {
-        yield 20 + i * 3;
-        for (;;) {
-          if (e.x > 10 && e.x < s.W - 10) s.fire({ x: e.x, y: e.y, ang: Math.PI / 2 + s.rand(-0.12, 0.12), spd: s.sp(1.4 + 0.6 * T), shape: 'rice', color: col });
-          yield s.wait(every);
-        }
-      } });
-      yield 22;
-    }
-    yield 70;
-  },
-  // 양옆 협공: 좌우에서 들어와 멈추고 작은 원형탄 한 번, 위로 빠짐
+  // 양옆 협공: 좌우에서 들어와 멈추고 성긴 원형탄 한 번, 위로 빠짐
   *pincer(s, T, col) {
-    const n = T < 0.5 ? 3 : 4;
+    const n = 3;
     for (let i = 0; i < n; i++) for (const side of [-1, 1]) {
       const y = 130 + i * 28, tx = side < 0 ? 50 + i * 22 : s.W - 50 - i * 22;
       s.enemy({ x: side < 0 ? -20 : s.W + 20, y, vx: -side * 2.4, hp: MOB_HP(T), drop: MOB_DROP, run: function* (e, s) {
         while (Math.abs(e.x - tx) > 3) { e.vx = (tx - e.x) * 0.06; yield 1; }
         e.vx = 0;
-        yield 16 + i * 10;
-        s.ring(s.cnt(8 + Math.round(6 * T)), { x: e.x, y: e.y, offset: s.aim(e.x, e.y) + Math.PI / 8, spd: s.sp(1.6 + 0.5 * T), shape: 'orb', color: col });
+        yield 20 + i * 12;
+        s.ring(s.lv(5, 6, 7, 8, 8), { x: e.x, y: e.y, offset: s.aim(e.x, e.y) + Math.PI / 8, spd: s.sp(1.5 + 0.4 * T), shape: 'orb', color: col });
         yield 50;
         e.vx = side * 0.6; e.vy = -1.4;
       } });
     }
-    yield 170;
+    yield 160;
   },
-  // 포대 줄: 위쪽에 한 줄로 떠서 차례로 아래로 세 갈래를 쏨(물결처럼 번짐)
-  *turret(s, T, col) {
-    const n = 5, volleys = 3 + Math.round(2 * T);
-    for (let i = 0; i < n; i++) {
-      s.enemy({ x: s.W * (i + 1) / (n + 1), y: -16, vy: 1.6, hp: MOB_HP(T) * 2, drop: MOB_DROP, run: function* (e, s) {
-        while (e.y < 56) yield 1;
-        e.vy = 0;
-        yield 10 + i * 10;
-        for (let k = 0; k < volleys; k++) {
-          s.spread(3, Math.PI / 2 + (k % 2 ? 0.12 : -0.12), 0.3, { x: e.x, y: e.y, spd: s.sp(1.5 + 0.5 * T), shape: 'rice', color: col, fixed: true });
-          yield s.wait(50);
-        }
-        e.vy = -1;
-      } });
-    }
-    yield 150 + volleys * 40;
-  },
-  // 떼: 위에서 흩어져 빠르게 떨어지며 조준탄 한 발씩(가까이 있으면 쏘지 않음)
-  *swarm(s, T, col) {
-    const n = 10 + Math.round(8 * T);
-    for (let i = 0; i < n; i++) {
-      s.enemy({ x: s.rand(30, s.W - 30), y: -16, vy: 2.3, hp: MOB_HP(T), drop: MOB_DROP, run: function* (e, s) {
-        yield 22;
-        if (Math.hypot(s.player.x - e.x, s.player.y - e.y) > 150) s.fire({ x: e.x, y: e.y, ang: s.aim(e.x, e.y), spd: s.sp(2.6 + 0.6 * T), shape: 'small', color: col });
-      } });
-      yield Math.round(16 - 6 * T);
-    }
-    yield 60;
-  },
-  // 중형: 크게 내려와 머물며 탄막(도는 팔·연속 원형탄·부채꼴 중 하나), 큰 P를 떨어뜨림. 오래 버티면 떠남
+  // 중형: 크게 내려와 잠깐 머물며 느린 원형탄(짝수 번은 조준 부채꼴 섞음), 큰 P를 떨어뜨림
   *medium(s, T, col, kind) {
     const x0 = kind % 2 ? s.W * 0.35 : s.W * 0.65;
     s.enemy({ x: x0, y: -30, vy: 1.4, hp: MOB_HP(T, true), r: 22, color: col, drop: MOB_DROP_BIG, run: function* (e, s) {
       while (e.y < 96) yield 1;
       e.vy = 0;
       yield 20;
-      const stay = 260;
-      if (kind % 3 === 0) {
-        let a = s.aim(e.x, e.y);
-        for (let t = 0; t < stay; t += 6) {
-          a += s.spin(0.1);
-          const arms = s.lv(2, 3, 3, 4, 4);
-          for (let i = 0; i < arms; i++) s.fire({ x: e.x, y: e.y, ang: a + i * s.TAU / arms, spd: s.sp(1.7 + 0.4 * T), shape: 'rice', color: col });
-          yield 6;
-        }
-      } else if (kind % 3 === 1) {
-        for (let t = 0, k = 0; t < stay; t += 36, k++) {
-          s.ring(s.cnt(14 + Math.round(8 * T)), { x: e.x, y: e.y, offset: k * 0.2, spd: s.sp(1.6 + 0.4 * T), shape: 'orb', color: col });
-          if (k % 2) s.spread(s.lv(1, 3, 3, 3, 5), s.aim(e.x, e.y), 0.2, { x: e.x, y: e.y, spd: s.sp(2.6), shape: 'small', color: 'white' });
-          yield 36;
-        }
-      } else {
-        for (let t = 0, k = 0; t < stay; t += 44, k++) {
-          s.spread(s.lv(5, 5, 7, 7, 9), s.aim(e.x, e.y), 0.26, { x: e.x, y: e.y, spd: s.sp(2 + 0.5 * T), shape: 'big', color: col });
-          if (k % 2 === 0) s.ring(s.cnt(12), { x: e.x, y: e.y, offset: s.rand(0, s.TAU), spd: s.sp(1.2), shape: 'small', color: 'white' });
-          yield 44;
-        }
+      for (let k = 0; k < 4; k++) {
+        s.ring(s.lv(10, 12, 14, 16, 16), { x: e.x, y: e.y, offset: k * 0.2, spd: s.sp(1.4 + 0.4 * T), shape: 'orb', color: col });
+        if (kind % 2 === 0 && k % 2) s.spread(3, s.aim(e.x, e.y), 0.25, { x: e.x, y: e.y, spd: s.sp(2.2), shape: 'small', color: 'white', fixed: true });
+        yield 45;
       }
       e.vy = -0.8;
     } });
     yield 150;
   },
 };
-// 도중 웨이브 순서. 처음 스테이지(세기 낮음)는 포대·떼 대신 쉬운 웨이브
-const MOB_PLAN = [['line', -1], ['line', 1], ['vee'], ['sweep', -1], ['medium'], ['pincer'], ['turret'], ['line', 1], ['swarm'], ['sweep', 1], ['medium'], ['vee'], ['pincer'], ['swarm'], ['turret'], ['medium']];
+// 도중 웨이브 순서(약 25초 동안 차례로)
+const MOB_PLAN = [['line', -1], ['line', 1], ['vee'], ['medium'], ['pincer'], ['line', -1], ['vee'], ['line', 1]];
 function mobStage(run, o) {
   const [label] = run.title.split(' · ');
   return {
-    name: `${label} 도중 · 날개 달린 오르트로스`, type: 'stage', time: o.time, bgm: label.replace(/-\d$/, ''),
+    name: `${label} 도중 · 날개 달린 오르트로스`, type: 'stage', time: o.time ?? 30, bgm: label.replace(/-\d$/, ''),
     *run(s) {
-      const end = o.time * 60 - 300;
+      const end = (o.time ?? 30) * 60 - 300;
       let med = o.kind ?? 0;
       for (let i = 0; s.frame < end; i++) {
-        let [name, arg] = MOB_PLAN[i % MOB_PLAN.length];
-        if (o.T < 0.3 && (name === 'turret' || name === 'swarm')) name = 'line', arg = i % 2 ? 1 : -1;
-        if (name === 'medium') arg = med++;
-        // 두 웨이브를 조금 겹쳐 부름(세기가 오르면 더 겹침)
-        s.task(MOB_WAVES[name](s, o.T, o.col, arg));
-        yield Math.round(170 - 60 * o.T);
+        const [name, arg0] = MOB_PLAN[i % MOB_PLAN.length];
+        s.task(MOB_WAVES[name](s, o.T, o.col, name === 'medium' ? med++ : arg0));
+        yield 170;
       }
     },
   };
 }
-// 보스전마다 도중: 길이(초), 세기, 탄 색. 3스테이지-1·2·3은 한 스테이지를 셋으로 나눈 것이라 짧게
+// 보스전마다 도중: 세기, 탄 색(길이는 모두 30초)
 const MOB_STAGES = {
-  '대책반': { time: 75, T: 0, col: 'red' },
-  '마리·마르코': { time: 85, T: 0.15, col: 'yellow', kind: 1 },
-  '김예나': { time: 60, T: 0.3, col: 'pink', kind: 2 },
-  '차서린': { time: 60, T: 0.35, col: 'blue' },
-  '고태웅': { time: 60, T: 0.4, col: 'orange', kind: 1 },
-  '아즈라엘': { time: 95, T: 0.55, col: 'white', kind: 2 },
-  '예로니모': { time: 105, T: 0.7, col: 'gold' },
-  '리크니스': { time: 110, T: 0.8, col: 'green', kind: 1 },
-  '진심 예로니모': { time: 120, T: 1, col: 'gold', kind: 2 },
-  '이즘': { time: 120, T: 1, col: 'cyan' },
+  '대책반': { T: 0, col: 'red' },
+  '마리·마르코': { T: 0.05, col: 'yellow', kind: 1 },
+  '김예나': { T: 0.1, col: 'pink' },
+  '차서린': { T: 0.15, col: 'blue', kind: 1 },
+  '고태웅': { T: 0.2, col: 'orange' },
+  '아즈라엘': { T: 0.25, col: 'white', kind: 1 },
+  '예로니모': { T: 0.3, col: 'gold' },
+  '리크니스': { T: 0.35, col: 'green', kind: 1 },
+  '진심 예로니모': { T: 0.5, col: 'gold' },
+  '이즘': { T: 0.5, col: 'cyan', kind: 1 },
 };
 for (const r of BOSS_RUNS) {
   const o = MOB_STAGES[r.name];
