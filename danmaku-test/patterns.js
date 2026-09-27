@@ -2013,7 +2013,7 @@ const SPELLS = [
       // 데이터 묶음: 정사각형으로 뭉친 탄 덩어리(한 변 28~56px)가 통째로 빙글빙글 돌면서 기체 쪽으로 천천히 방향을 틀며 다가옴.
       // 덩어리 중심이 처음 약 1.7초 동안 조금씩(프레임당 0.02) 꺾으며 속도 1.3으로 움직이고 그 뒤로는 곧게 날아감
       for (let w = 1; ; w++) {
-        const n = s.lv(3, 3, 4, 4, 5), gap = 14, st = { x: s.boss.x, y: s.boss.y, ang: s.aim() + s.rand(-0.3, 0.3), rot: s.rand(0, s.TAU), f: -1, age: 0 };
+        const n = s.lv(3, 3, 4, 4, 4), gap = 14, st = { x: s.boss.x, y: s.boss.y, ang: s.aim() + s.rand(-0.3, 0.3), rot: s.rand(0, s.TAU), f: -1, age: 0 };
         const spin = (w % 2 ? 1 : -1) * 0.04, spd = s.sp(1.3);
         const tick = () => {
           if (st.f === s.frame) return;

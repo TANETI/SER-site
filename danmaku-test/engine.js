@@ -467,6 +467,11 @@ class Game {
     const sp = this.spell;
     const captured = reason !== 'timeout' || sp.survival ? this.stats.miss === 0 && this.stats.bombs === 0 : false;
     if (captured && sp.type === 'spell') { this.score += Math.floor(1000000 * this.timer / this.timerMax + 100000); SFX.capture(); }
+    // 본게임: 스펠카드 획득 수(뒤 단계는 앞 단계와 한 장으로 셈)
+    if (this.story && sp.type === 'spell' && !sp.follow) {
+      const c = this.story.cards = this.story.cards || { got: 0, tried: 0 };
+      c.tried++; if (captured) c.got++;
+    }
     if (reason === 'defeat' && !this.boss.hidden) {
       SFX.boom(); this.shake(9);
       this.fx.push({ kind: 'burst', x: this.boss.x, y: this.boss.y, t: 0, life: 50, color: '#fff' });
@@ -1749,7 +1754,10 @@ function drawHUD(G, g) {
 
   // 무엇을 하고 있는지: 모드와 패턴 이름
   g.fillStyle = '#f5c542'; g.font = font(11, true);
-  g.fillText(G.run ? `보스전 · ${G.run.name} ${G.run.idx + 1}/${G.run.seq.length}` : `단일 패턴 ${G.spellIndex + 1}/${G.spells.length}`, x, 18);
+  const head = G.story && G.story.idx < G.story.list.length
+    ? `본게임 ${G.story.idx + 1}/${G.story.list.length} · ${G.run.name}`
+    : G.run ? `보스전 · ${G.run.name} ${G.run.idx + 1}/${G.run.seq.length}` : `단일 패턴 ${G.spellIndex + 1}/${G.spells.length}`;
+  g.fillText(head, x, 18);
   g.fillStyle = '#fff'; g.font = font(12, true);
   const nameEnd = wrap(g, G.spell.name, x, 34, w, 16, 3);
   g.fillStyle = '#8e8ea6'; g.font = font(11);
@@ -1781,9 +1789,17 @@ function drawHUD(G, g) {
   g.fillStyle = '#fff'; g.font = font(13, true);
   g.textAlign = 'right'; g.fillText(G.score.toLocaleString(), x + w, y); g.fillText(String(G.graze), x + w, y + 20); g.textAlign = 'left';
 
-  // 개발 정보(작게)
   y += 52;
   g.fillStyle = 'rgba(255,255,255,0.08)'; g.fillRect(x, y - 8, w, 1);
+  if (G.story) {
+    // 본게임: 개발 정보 대신 이번 판 스펠카드 획득 수와 남은 체력바
+    const sc = G.story.cards || { got: 0, tried: 0 }, bars = G.run && G.run.bars;
+    const left = bars ? bars[bars.length - 1] - bars[G.run.idx] + 1 : 0;
+    g.font = font(12); g.fillStyle = '#8e8ea6'; g.fillText('스펠카드', x, y); g.fillText('남은 체력바', x, y + 20);
+    g.fillStyle = '#fff'; g.font = font(13, true); g.textAlign = 'right';
+    g.fillText(`${sc.got} / ${sc.tried}`, x + w, y); g.fillText(String(left), x + w, y + 20); g.textAlign = 'left';
+  } else {
+  // 개발 정보(작게)
   g.fillStyle = '#6e6e86'; g.font = font(10, true); g.fillText('개발 정보', x, y); y += 16;
   const dps = st.dmgLog.reduce((a, b) => a + b, 0);
   const rows = [
@@ -1799,6 +1815,7 @@ function drawHUD(G, g) {
     g.fillStyle = '#8e8ea6'; g.fillText(k, x, y + i * 17);
     g.fillStyle = '#c8c8d8'; g.textAlign = 'right'; g.fillText(String(v), x + w, y + i * 17); g.textAlign = 'left';
   });
+  }
 
   // 켜져 있는 연습 옵션 표시
   const tags = [G.invincible && '무적', G.powerLock && '파워 고정', SFX.muted && '소리 끔', G.paused && '일시정지'].filter(Boolean);
