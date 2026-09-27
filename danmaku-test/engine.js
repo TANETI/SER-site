@@ -937,6 +937,13 @@ function drawActor(G, g, a, isBoss) {
     gr.addColorStop(0, '#fff'); gr.addColorStop(0.3, '#ffd24a'); gr.addColorStop(1, '#ffd24a00');
     g.fillStyle = gr; g.beginPath(); g.arc(gx, gy, pulse * 2, 0, TAU); g.fill();
   }
+  if (a.rage) {
+    // 폭주: 붉은 기운이 일렁임
+    const pr = r + 10 + Math.sin(a.t * 0.3) * 3 + Math.random() * 2;
+    const rg = g.createRadialGradient(a.x, a.y, r * 0.6, a.x, a.y, pr);
+    rg.addColorStop(0, '#ff304888'); rg.addColorStop(1, '#ff304800');
+    g.fillStyle = rg; g.beginPath(); g.arc(a.x, a.y, pr, 0, TAU); g.fill();
+  }
   g.fillStyle = a.hurt > 0 ? '#fff' : a.color;
   g.beginPath(); g.arc(a.x, a.y, r, 0, TAU); g.fill();
   g.fillStyle = 'rgba(0,0,0,0.35)'; g.beginPath(); g.arc(a.x, a.y, r * 0.55, 0, TAU); g.fill();
