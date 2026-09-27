@@ -238,6 +238,15 @@ class Game {
   // 화면 흔들림: 가장 센 것을 따르고 매 프레임 줄어듦
   shake(mag) { if (this.shakeOn) this.shakeMag = Math.max(this.shakeMag, mag); }
 
+  // 압박 곡선(홍마향처럼 스펠이 진행될수록 거세짐): 스펠카드는 보스 체력이 줄수록, 내구 스펠은 시간이 지날수록 0→1.
+  // cnt는 최대 +20%, wait는 최대 약 13% 짧아짐. 논스펠은 0
+  heat() {
+    const sp = this.spell;
+    if (!sp || sp.type !== 'spell' || this.phase !== 'active') return 0;
+    if (sp.survival) return 1 - this.timer / this.timerMax;
+    return 1 - this.boss.hp / this.boss.maxHp;
+  }
+
   // 실제로 쓰는 난이도. 엑스트라 패턴은 한 단계 위(최대 3)
   effDiff() { return Math.min(DENSITY.length - 1, this.difficulty + (this.spell && this.spell.extra ? 1 : 0)); }
 
@@ -278,6 +287,10 @@ class Game {
     const b = this.boss = { x: W / 2, y: -40, hp, maxHp: hp, move: null, hidden: sp.type === 'stage', t: 0,
       name: sp.boss || '', color: sp.bossColor || '#d8d0ff', shield: 0, glow: 0, contact: false };
     if (cont && prev && !prev.hidden) { b.x = prev.x; b.y = prev.y; }
+    // 보스전 시작이나 보스가 바뀔 때(중간 보스 → 보스) 가운데에 소개
+    if (this.run && sp.boss && (!cont || !prev || prev.name !== sp.boss)) {
+      this.fx.push({ kind: 'intro', top: cont ? '' : this.run.title, text: sp.boss, t: 0, life: 130 });
+    }
     this.moveBoss(sp.start?.[0] ?? W / 2, sp.start?.[1] ?? 110, 45);
     this.frame = 0; this.phase = 'intro'; this.phaseT = cont ? 100 : 70;
     // 제한시간도 난이도별 체력 배율을 따라가 난이도와 상관없이 '필요 시간/제한시간' 비율이 같게 함
@@ -693,8 +706,9 @@ function makeAPI(G) {
     get hpRate() { return G.boss.hp / G.boss.maxHp; },
     get diff() { return G.effDiff(); },
     lv: (...v) => v[Math.min(G.effDiff(), v.length - 1)],                        // 난이도별 값 고르기 (이지, 노말, 하드[, 엑스트라 하드])
-    cnt: n => Math.max(1, Math.round(n * DENSITY[G.effDiff()])),                 // 탄 개수
-    wait: f => Math.max(1, Math.round(f * INTERVAL[G.effDiff()])),               // 발사 간격(프레임)
+    cnt: n => Math.max(1, Math.round(n * DENSITY[G.effDiff()] * (1 + 0.2 * G.heat()))),     // 탄 개수
+    wait: f => Math.max(1, Math.round(f * INTERVAL[G.effDiff()] / (1 + 0.15 * G.heat()))),  // 발사 간격(프레임)
+    get heat() { return G.heat(); },
     sp: v => v * SPEED[G.effDiff()],                                             // 탄속
     // 머리 위 말풍선(대사 대신 짧은 절차 표시용): who=보스·동료
     // 화면 흔들림(세기 2~12 정도)과 충격음
@@ -1267,6 +1281,15 @@ function drawFx(G, g) {
       g.moveTo(f.x - r - 5, f.y); g.lineTo(f.x + r + 5, f.y); g.moveTo(f.x, f.y - r - 5); g.lineTo(f.x, f.y + r + 5); g.stroke();
     } else if (f.kind === 'ghost') {
       g.globalAlpha = 0.5 * (1 - k); g.fillStyle = COLORS[f.color] || f.color; g.fillRect(f.x - 2, f.y - 2, 4, 4);
+    } else if (f.kind === 'intro') {
+      // 보스 소개: 가는 선이 양옆으로 벌어지고 위에 스테이지 이름, 가운데에 보스 이름
+      const inK = Math.min(1, f.t / 18), outK = Math.min(1, (f.life - f.t) / 25), al = Math.min(inK, outK);
+      g.save(); g.globalAlpha = al; g.textAlign = 'center'; g.textBaseline = 'middle';
+      const cy = H * 0.42, half = 150 * inK;
+      g.strokeStyle = '#f5c542'; g.lineWidth = 1; g.beginPath(); g.moveTo(W / 2 - half, cy + 22); g.lineTo(W / 2 + half, cy + 22); g.stroke();
+      if (f.top) { g.fillStyle = '#c8c8d8'; g.font = `13px ${CHANT_FONT}`; g.fillText(f.top, W / 2, cy - 24); }
+      g.shadowColor = '#f5c542'; g.shadowBlur = 14; g.fillStyle = '#fff'; g.font = `bold 26px ${CHANT_FONT}`; g.fillText(f.text, W / 2, cy + 2);
+      g.restore(); g.textAlign = 'left'; g.textBaseline = 'top';
     } else if (f.kind === 'title') {
       // 큰 제목: 살짝 크게 나타났다가 제자리로 줄고, 글자 간격이 벌어지며 사라짐
       const inK = Math.min(1, f.t / 14), outK = Math.min(1, (f.life - f.t) / 30);

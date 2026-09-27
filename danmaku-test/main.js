@@ -52,13 +52,19 @@ function fillSpells() {
   const group = label => { const g = document.createElement('optgroup'); g.label = label; spellSel.append(g); return g; };
   const runs = group('보스전 (패턴을 이어서, 목숨·파워 유지)');
   BOSS_RUNS.forEach((r, i) => runs.append(new Option(r.title, 'r' + i)));
-  const groups = new Map();
+  // 단일 패턴은 스테이지 순서로 묶고, 보스전에 쓰지 않는 시험 패턴은 맨 아래
+  const STAGE_OF = { '윤도연': '1스테이지', '고현성': '1스테이지', '마르코': '2스테이지', '예로니모': '6스테이지',
+    '리크니스': '7스테이지', '예로니모(진심)': '엑스트라', '이즘': '엑스트라 2' };
+  const order = ['윤도연', '고현성', '마르코', '예로니모', '리크니스', '예로니모(진심)', '이즘', ''];
+  const groups = new Map(order.map(k => [k, []]));
   SPELLS.forEach((sp, i) => {
-    const key = sp.boss || '시험 패턴';
-    if (!groups.has(key)) groups.set(key, []);
+    const key = sp.boss && groups.has(sp.boss) ? sp.boss : '';
     groups.get(key).push(new Option(`${i + 1}. ${sp.name}`, i));
   });
-  for (const [key, opts] of groups) group(key === '시험 패턴' ? key : `${key} 단일 패턴`).append(...opts);
+  for (const [key, opts] of groups) {
+    if (!opts.length) continue;
+    group(key ? `${STAGE_OF[key]} · ${key}${key === '윤도연' ? ' (중간 보스)' : ''}` : '시험 패턴 (보스전에 쓰지 않음)').append(...opts);
+  }
 }
 fillSpells();
 for (const [code, a] of Object.entries(ANGELS)) angelSel.add(new Option(a.name, code));

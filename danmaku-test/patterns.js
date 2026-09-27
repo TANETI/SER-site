@@ -13,7 +13,8 @@
 //
 // 난이도 (0=이지 1=노말 2=하드 3=베리하드 4=헬. 패턴에 적은 기준값이 하드)
 //   s.lv(이지, 노말, 하드, ...)   난이도별 값 고르기. 값이 모자라면 마지막 값을 씀
-//   s.cnt(n)   탄 개수 배율(이지 55%, 노말 80%, 베리하드 120%, 헬 140%)
+//   s.cnt(n)   탄 개수 배율(이지 55%, 노말 80%, 베리하드 120%, 헬 140%). 스펠카드는 보스 체력이 줄수록 최대 20% 더
+//   s.heat      스펠 진행도 0→1(스펠카드는 깎인 체력 비율, 내구 스펠은 지난 시간 비율)
 //   s.wait(f)  발사 간격 배율(이지 1.6배 … 헬 0.78배)
 //   s.sp(v)    탄속 배율(이지 82% … 헬 112%)
 //   체력·제한시간은 엔진이 배율을 곱해 적용(보스전은 hpScale, 단일 연습은 2.2배. 내구 스펠·잡몹 구간 제외)
@@ -77,6 +78,14 @@ function* castGap(s) {
   for (let t = 0; t < frames; t += s.wait(40)) {
     s.spread(s.lv(1, 3, 3, 3, 5), s.aim(), 0.3, { spd: s.sp(2.2), shape: 'small', color: 'white' });
     yield s.wait(40);
+  }
+}
+// 기다리는 동안(돌진 예고 등) 느린 조준탄을 몇 번 쏨. 홍마향처럼 고정 탄 사이에 조준 요소를 섞어 가만히 서 있지 못하게
+function* aimWhile(s, frames, color = 'white') {
+  const every = s.lv(22, 18, 16, 14, 12);
+  for (let t = 0; t < frames; t += every) {
+    s.spread(s.lv(1, 3, 3, 3, 5), s.aim(), 0.22, { spd: s.sp(2.4), shape: 'rice', color });
+    yield Math.min(every, frames - t);
   }
 }
 // 마리가 가끔 필리우스 제1식으로 마르코에게 보호막을 씌움
@@ -243,6 +252,123 @@ const SPELLS = [
     },
   },
   {
+    name: '논스펠 · 윤도연',
+    type: 'nonspell', boss: '윤도연', bossColor: '#9fb4c8', hp: 1400, time: 32, start: [192, 100],
+    *run(s) {
+      // E3 제압 사격: 짧게 끊어 쏘는 조준 3점사 + 박자에 맞춘 느린 원형탄. 홍마향 1스테이지처럼 조준과 고정 탄을 번갈아
+      for (let w = 1; ; w++) {
+        for (let k = 0; k < 3; k++) { s.spread(s.lv(1, 3, 3, 5, 5), s.aim(), 0.14, { spd: s.sp(3.4), shape: 'rice', color: 'blue' }); yield 6; }
+        yield s.wait(24);
+        s.ring(s.cnt(20), { offset: w * 0.13, spd: s.sp(1.6), shape: 'small', color: 'white' });
+        yield s.wait(30);
+        if (w % 3 === 0) yield* s.wander(70, 50);
+      }
+    },
+  },
+  {
+    name: '「발포 점착제」(가칭)',
+    type: 'spell', boss: '윤도연', bossColor: '#9fb4c8', hp: 1800, time: 40, start: [192, 90],
+    *run(s) {
+      // 대책반의 구속 장비. 점착제 덩어리가 포물선으로 날아가 떨어진 자리에 한동안 붙어 있음.
+      // 닿으면 목숨은 그대로지만 잠깐 둔해짐. 붙은 덩어리 사이로 조준 사격을 피해야 함
+      const stick = s.lv(240, 210, 190, 180, 170);
+      for (let w = 0; ; w++) {
+        for (let i = 0; i < s.lv(3, 4, 5, 5, 6); i++) {
+          const tx = s.rand(40, s.W - 40), ty = s.rand(220, s.H - 40), T = 50, g = 0.12;
+          s.fire({
+            vx: (tx - s.boss.x) / T, vy: (ty - s.boss.y) / T - 0.5 * g * T, ay: g, shape: 'big', color: '#f0e6a0', soft: true, marginTop: 200,
+            fn: b => { if (b.t === T) { b.vx = 0; b.vy = 0; b.ay = 0; } if (b.t > T + stick) b.dead = true; },
+          });
+          yield 8;
+        }
+        for (let k = 0; k < 4; k++) { s.spread(s.lv(1, 3, 3, 5, 5), s.aim(), 0.2, { spd: s.sp(2.8), shape: 'rice', color: 'blue' }); yield s.wait(22); }
+        yield s.wait(50);
+      }
+    },
+  },
+  {
+    name: '논스펠 · 고현성 1',
+    type: 'nonspell', boss: '고현성', bossColor: '#c8d4e8', hp: 1800, time: 34, start: [192, 100],
+    *run(s) {
+      // E4 관통탄 연사: 조준한 방향 둘레를 좌우로 훑는 칼날 줄기 + 사이사이 원형탄
+      for (let w = 1; ; w++) {
+        const a0 = s.aim();
+        for (let k = 0; k < s.lv(8, 10, 12, 14, 14); k++) {
+          s.spread(s.lv(3, 3, 5, 5, 7), a0 + Math.sin(k * 0.4) * 0.25, 0.2, { spd: s.sp(4.2), shape: 'knife', color: 'cyan' });
+          yield 4;
+        }
+        yield s.wait(30);
+        s.ring(s.cnt(24), { offset: s.rand(0, s.TAU), spd: s.sp(1.8), shape: 'orb', color: 'blue' });
+        yield s.wait(40);
+        if (w % 2 === 0) yield* s.wander(80, 45);
+      }
+    },
+  },
+  {
+    name: '「강선 그물」(가칭)',
+    type: 'spell', boss: '고현성', bossColor: '#c8d4e8', hp: 2200, time: 45, start: [192, 90],
+    *run(s) {
+      // 강선 그물: 플레이어 둘레에 45도 격자로 예고선이 깔리고, 강선이 한꺼번에 팽팽해짐. 마름모 칸 한가운데로 옮기면 안전
+      for (let w = 0; ; w++) {
+        const gap = s.lv(110, 96, 86, 80, 76), warn = s.lv(62, 54, 48, 44, 40);
+        const cx = s.player.x, cy = s.player.y, off = s.rand(-gap / 2, gap / 2);
+        for (const ang of [Math.PI / 4, Math.PI * 3 / 4]) {
+          const nx = Math.cos(ang + Math.PI / 2), ny = Math.sin(ang + Math.PI / 2);
+          for (let k = -4; k <= 4; k++) {
+            const px = cx + nx * (k * gap + off), py = cy + ny * (k * gap + off);
+            s.laser({ x: px - Math.cos(ang) * 640, y: py - Math.sin(ang) * 640, ang, len: 1280, w: 10, warn, dur: 60, color: 'white' });
+          }
+        }
+        yield warn;
+        for (let k = 0; k < 3; k++) { s.spread(s.lv(1, 3, 3, 5, 5), s.aim(), 0.25, { spd: s.sp(2.6), shape: 'rice', color: 'cyan' }); yield 18; }
+        yield s.wait(70);
+      }
+    },
+  },
+  {
+    name: '논스펠 · 고현성 2',
+    type: 'nonspell', boss: '고현성', bossColor: '#c8d4e8', hp: 2000, time: 36, start: [192, 100],
+    *run(s) {
+      // 충격탄: 느려지며 멈춘 자리에서 터져 작은 탄을 사방으로
+      for (let w = 1; ; w++) {
+        for (let i = 0; i < s.lv(2, 3, 3, 4, 4); i++) {
+          s.fire({
+            ang: s.aim() + (i - 1) * 0.5, spd: s.sp(3.4), accel: -0.06, minSpd: 0, shape: 'big', color: 'blue',
+            fn: (b, s) => { if (b.spd > 0) return; b.dead = true; s.ring(s.cnt(14), { x: b.x, y: b.y, offset: s.rand(0, s.TAU), spd: s.sp(1.8), shape: 'small', color: 'cyan' }); s.shake(2); },
+          });
+          yield 10;
+        }
+        yield s.wait(50);
+        if (w % 3 === 0) yield* s.wander(60, 50);
+      }
+    },
+  },
+  {
+    name: '「성스러운 수류탄」(가칭)',
+    type: 'spell', boss: '고현성', bossColor: '#c8d4e8', hp: 2400, time: 48, start: [192, 90],
+    *run(s) {
+      // 성당교회가 보급하는 금색 유리병. 떨어질 자리를 십자선으로 먼저 보여 주고, 깨진 자리에서 금빛 물방울이 퍼짐(처음엔 느리게)
+      for (let w = 0; ; w++) {
+        const n = s.lv(3, 4, 5, 5, 6), T = s.lv(60, 54, 48, 44, 40), g = 0.1;
+        for (let i = 0; i < n; i++) {
+          const tx = Math.max(30, Math.min(s.W - 30, s.player.x + s.rand(-110, 110))), ty = Math.max(200, Math.min(s.H - 30, s.player.y + s.rand(-80, 40)));
+          s.mark({ x: tx, y: ty, dur: T });
+          s.fire({
+            vx: (tx - s.boss.x) / T, vy: (ty - s.boss.y) / T - 0.5 * g * T, ay: g, shape: 'orb', color: 'gold', marginTop: 200,
+            fn: (b, s) => {
+              if (b.t !== T) return;
+              b.dead = true;
+              s.ring(s.cnt(16), { x: b.x, y: b.y, offset: s.rand(0, s.TAU), spd: 0.5, accel: 0.04, maxSpd: s.sp(2.4), shape: 'rice', color: 'gold' });
+              s.shake(3);
+            },
+          });
+          yield s.wait(14);
+        }
+        yield s.wait(60);
+      }
+    },
+  },
+  {
     name: '논스펠 · 마리와 마르코',
     type: 'nonspell', boss: '마르코', bossColor: '#e0c89a', hp: 1100, time: 35, start: [240, 100],
     *run(s) {
@@ -324,7 +450,7 @@ const SPELLS = [
           const stop = Math.max(0, d - 70);
           const tx = s.boss.x + (px - s.boss.x) / d * stop, ty = Math.min(s.boss.y + (py - s.boss.y) / d * stop, s.H - 120);
           s.warnLine({ x: s.boss.x, y: s.boss.y, x2: tx, y2: ty, band: 32, dur: s.lv(48, 40, 32) });
-          yield s.lv(48, 40, 32);
+          yield* aimWhile(s, s.lv(48, 40, 32), 'yellow');
           // 사거리가 없으므로 직접 달려듦. 돌진 중에는 몸에 닿아도 피격
           s.boss.contact = true;
           yield* s.moveTo(tx, ty, 18);
@@ -347,9 +473,10 @@ const SPELLS = [
       // 마르코: 묵직한 조준탄
       s.task(function* () {
         for (let w = 1; ; w++) {
-          s.spread(s.lv(1, 3, 3), s.aim(), 0.3, { spd: s.sp(3.4), shape: 'orb', color: 'gold' });
-          yield s.wait(60);
-          if (w % 4 === 0) yield* s.wander(40, 50);
+          s.spread(s.lv(1, 3, 3, 5, 5), s.aim(), 0.3, { spd: s.sp(3.4), shape: 'orb', color: 'gold' });
+          if (w % 3 === 0) s.ring(s.cnt(16), { offset: s.rand(0, s.TAU), spd: s.sp(1.6), shape: 'small', color: 'yellow' });
+          yield s.wait(40);
+          if (w % 5 === 0) yield* s.wander(40, 50);
         }
       }());
       // 마리: 파테르 제1식으로 딱밤. 필리우스 전문이라 파테르의 위력이 나오지 않아 별로 아프지 않음
@@ -399,7 +526,10 @@ const SPELLS = [
       const mari = churchDuo(s);
       yield* s.chant('FILIUS1', { by: mari });
       s.shield(s.boss, 60 * 60);
-      s.task(mariRings(s, mari, 90));
+      s.task(mariRings(s, mari, 60));
+      s.task(function* () {   // 보호막을 두른 마르코의 조준 연사
+        for (;;) { yield s.wait(50); s.spread(s.lv(3, 5, 5, 7, 7), s.aim(), 0.16, { spd: s.sp(2.8), shape: 'rice', color: 'gold' }); }
+      }());
       for (;;) {
         yield* castGap(s);
         yield* s.chant('PATER2', { by: s.boss, step: 36 });
@@ -408,7 +538,7 @@ const SPELLS = [
           const stop = Math.max(0, d - 80);
           const tx = s.boss.x + (px - s.boss.x) / d * stop, ty = Math.min(s.boss.y + (py - s.boss.y) / d * stop, s.H - 130);
           s.warnLine({ x: s.boss.x, y: s.boss.y, x2: tx, y2: ty, band: 32, dur: s.lv(48, 40, 34) });
-          yield s.lv(48, 40, 34);
+          yield* aimWhile(s, s.lv(48, 40, 34), 'yellow');
           s.boss.contact = true;
           yield* s.moveTo(tx, ty, 20);
           s.boss.contact = false;
@@ -549,9 +679,10 @@ const SPELLS = [
       // 빛의 십자: 네 갈래 줄기가 천천히 돌고, 가끔 대각으로 한 번 비틀림. 줄기 사이가 안전 지대
       let a = 0;
       for (let f = 0; ; f++) {
-        a += 0.012 * (Math.floor(f / 150) % 2 ? -1 : 1);
+        a += 0.014 * (Math.floor(f / 90) % 2 ? -1 : 1);
         for (let i = 0; i < 4; i++) s.fire({ ang: a + i * Math.PI / 2, spd: s.sp(2.8), shape: 'rice', color: 'yellow' });
         if (f % 24 === 0) s.ring(s.cnt(12), { offset: a + Math.PI / 4, spd: s.sp(1.4), shape: 'small', color: 'white' });
+        if (f % 18 === 9) s.spread(s.lv(1, 3, 3, 3, 5), s.aim(), 0.12, { spd: s.sp(3.6), shape: 'knife', color: 'white' });
         if (f % 300 === 299) yield* s.wander(40, 50);
         yield s.lv(8, 6, 5, 4);
       }
@@ -570,7 +701,7 @@ const SPELLS = [
           const stop = Math.max(0, d - 110);
           const tx = s.boss.x + (px - s.boss.x) / d * stop, ty = Math.min(s.boss.y + (py - s.boss.y) / d * stop, s.H - 160);
           s.warnLine({ x: s.boss.x, y: s.boss.y, x2: tx, y2: ty, band: 32, dur: s.lv(48, 40, 34) });
-          yield s.lv(48, 40, 34);
+          yield* aimWhile(s, s.lv(48, 40, 34), 'yellow');
           s.boss.contact = true;
           yield* s.moveTo(tx, ty, 20);
           s.boss.contact = false;
@@ -940,6 +1071,7 @@ const SPELLS = [
           }
           const spd = Math.max(5, dist / travel), n = s.lv(6, 8, 10, 12, 14);
           for (let i = 0; i < n; i++) { s.fire({ ang: a, spd, shape: 'knife', color: 'red' }); yield 2; }
+          s.ring(s.cnt(14), { offset: s.rand(0, s.TAU), spd: s.sp(1.5), shape: 'small', color: 'cyan' });
           yield s.lv(24, 20, 16, 14, 12);
         }
         s.ring(s.cnt(24), { offset: s.rand(0, s.TAU), spd: s.sp(1.6), shape: 'small', color: 'cyan' });
@@ -1258,7 +1390,7 @@ SPELLS.push({
 });
 
 // 보스전: 목숨·폭탄·파워를 이어 가며 패턴을 순서대로. name은 오른쪽 표시용 짧은 이름, power는 시작 파워,
-// hpScale은 체력·제한시간 배율(노말에서 스테이지가 약 6.5분이 되도록 맞춘 값)
+// hpScale은 체력·제한시간 배율. 목록은 스테이지 순서. 1스테이지는 홍마향처럼 중간 보스(윤도연) 뒤에 보스(고현성)
 // 보스전은 잡몹 구간 없이 보스부터 시작한다. 시작 파워는 그 스테이지에 닿았을 때쯤의 값이고, 패턴이 끝날 때 떨어지는 P로 오른다
 function spellOf(name, boss) {
   const sp = SPELLS.find(x => x.name === name && (!boss || x.boss === boss));
@@ -1267,16 +1399,25 @@ function spellOf(name, boss) {
 }
 const BOSS_RUNS = [
   {
-    title: '엑스트라 · 진심 예로니모', name: '진심 예로니모', power: 4, hpScale: 1.7,
+    title: '1스테이지 · 괴이사건대책반', name: '대책반', power: 0, hpScale: 1.6,
     seq: [
-      exOf(spellOf('논스펠 · 예로니모 1')),
-      exOf(spellOf('스피리투스 제1식 — 꺼져가는 등불을 끄지 아니하고')),
-      exOf(spellOf('논스펠 · 예로니모 2')),
-      exOf(spellOf('파테르 제1식 — 나의 의로운 오른손으로 너를 붙들리라', '예로니모')),
-      exOf(spellOf('논스펠 · 예로니모 3')),
-      exOf(spellOf('파테르 제2식 — 능히 일어나지 못하게 하리니', '예로니모')),
-      exOf(spellOf('Clavis Collata — NUNC DIMITTIS')),
-      spellOf('Clavis Communis, 스피리투스 제10식 — CONFITEOR. 내 죄가 항상 내 앞에 있나이다'),
+      spellOf('논스펠 · 윤도연'),
+      spellOf('「발포 점착제」(가칭)'),
+      spellOf('논스펠 · 고현성 1'),
+      spellOf('「강선 그물」(가칭)'),
+      spellOf('논스펠 · 고현성 2'),
+      spellOf('「성스러운 수류탄」(가칭)'),
+    ],
+  },
+  {
+    title: '2스테이지 · 마르코와 마리', name: '마르코·마리', power: 1.5, hpScale: 3.2,
+    seq: [
+      spellOf('논스펠 · 마리와 마르코'),
+      spellOf('파테르 제1식 — 나의 의로운 오른손으로 너를 붙들리라', '마르코'),
+      spellOf('논스펠 · 마리의 딱밤'),
+      spellOf('필리우스 제2식 — 그의 백성을 두르시리로다'),
+      spellOf('파테르 제2식 — 능히 일어나지 못하게 하리니', '마르코'),
+      spellOf('필리우스 제1식 — 불꽃이 너를 사르지 못하리니'),
     ],
   },
   {
@@ -1306,6 +1447,19 @@ const BOSS_RUNS = [
     ],
   },
   {
+    title: '엑스트라 · 진심 예로니모', name: '진심 예로니모', power: 4, hpScale: 1.7,
+    seq: [
+      exOf(spellOf('논스펠 · 예로니모 1')),
+      exOf(spellOf('스피리투스 제1식 — 꺼져가는 등불을 끄지 아니하고')),
+      exOf(spellOf('논스펠 · 예로니모 2')),
+      exOf(spellOf('파테르 제1식 — 나의 의로운 오른손으로 너를 붙들리라', '예로니모')),
+      exOf(spellOf('논스펠 · 예로니모 3')),
+      exOf(spellOf('파테르 제2식 — 능히 일어나지 못하게 하리니', '예로니모')),
+      exOf(spellOf('Clavis Collata — NUNC DIMITTIS')),
+      spellOf('Clavis Communis, 스피리투스 제10식 — CONFITEOR. 내 죄가 항상 내 앞에 있나이다'),
+    ],
+  },
+  {
     title: '엑스트라 2 · 이즘', name: '이즘', power: 4, hpScale: 1.85,
     seq: [
       spellOf('논스펠 · 이즘 1'),
@@ -1319,17 +1473,6 @@ const BOSS_RUNS = [
       spellOf('「오버클럭」(가칭)'),
       spellOf('「세이브 포인트」(가칭)'),
       spellOf('「열흘 같은 하루」(가칭)'),
-    ],
-  },
-  {
-    title: '2스테이지 · 마르코와 마리', name: '마르코·마리', power: 1.5, hpScale: 3.2,
-    seq: [
-      spellOf('논스펠 · 마리와 마르코'),
-      spellOf('파테르 제1식 — 나의 의로운 오른손으로 너를 붙들리라', '마르코'),
-      spellOf('논스펠 · 마리의 딱밤'),
-      spellOf('필리우스 제2식 — 그의 백성을 두르시리로다'),
-      spellOf('파테르 제2식 — 능히 일어나지 못하게 하리니', '마르코'),
-      spellOf('필리우스 제1식 — 불꽃이 너를 사르지 못하리니'),
     ],
   },
 ];
