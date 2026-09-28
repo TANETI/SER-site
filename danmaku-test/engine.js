@@ -336,7 +336,7 @@ const MAX_CONTINUES = 2, CONTINUE_EVERY = 3, CONTINUE_WAIT = 600;
 // 철인 모드(하드부터, 컨티뉴 없음): 클리어하면 난이도 배율을 곱한 뒤 5000점 추가(헬 철인 만점 105000)
 const IRON_BONUS = 5000;
 // 박동: beat가 있는 패턴은 배경음악 박마다 화면이 짧게 흔들림(세기 = 이 값 × beat, 마디 첫 박은 1.6배). 화면 흔들림 설정을 따름
-const BEAT_SHAKE = 2.2;
+const BEAT_SHAKE = 1.1;   // 2.2에서 절반으로
 // 발악: 격화 III에 닿은 뒤 버티는 시간(프레임)
 const DESPERATE_FRAMES = 900;
 function finalScore(st) {
