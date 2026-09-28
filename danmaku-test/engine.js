@@ -321,6 +321,13 @@ function finalScore(st) {
   return { diff: d, sec, target, parts, raw, mul: SCORE_DIFF[d], score: Math.min(100000, Math.round(raw * SCORE_DIFF[d])), miss: st.miss, bombs: st.bombs, continues: st.continues, tools: st.tools };
 }
 
+// 탈락(게임 오버로 끝난 판) 점수: 시간·노미스·노봄·노컨티뉴 보너스 없이 기본 5000 + 진행도(깬 스테이지 / 전체 × 28500)
+// − 미스 300·폭탄 150씩(탈락판은 감점을 가볍게), 그 뒤 같은 난이도 배율. 탈락하면 목숨을 다 잃은 것이므로 미스는 보통 목숨 수
+function failScore(r) {
+  const raw = Math.max(0, 5000 + 28500 * (r.cleared / (r.total || 8)) - 300 * r.miss - 150 * r.bombs);
+  return Math.round(raw * SCORE_DIFF[r.diff]);
+}
+
 // 오래 켜 두는 레이저(패턴 내내 켜진 빔·쓸고 가는 레이저·시선): 폭탄이나 피탄으로 지우면 패턴이 다시 만들지 않으므로 남김
 function lasting(l) { return l.kind !== 'chain' && (l.light || l.dur >= 300); }
 
