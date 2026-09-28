@@ -2460,7 +2460,7 @@ const SPELLS = [
     *run(s) {
       // 안전지대 하나를 기체 근처에 먼저 보여 준 뒤 빰! 나머지 화면을 탄으로 채움. 이후 안전지대가 탄막째 느린 곡선을 그리며
       // 끊기지 않고 계속 움직이고(최대 약 1.35px/프레임, 반복되는 곡선이라 채운 탄막이 비는 곳 없이 유지), 이즘이 예측 저격(predictShot)을
-      // 계속 쏨. 안전지대를 따라가기만 하면 저격에 걸리므로 안전지대 안에서 옆으로 비켜야 함
+      // 계속 쏨. 약 1.5초마다 곧 향할 방향 화살표가 안전지대에 뜸(헬은 없음). 안전지대를 따라가기만 하면 저격에 걸리므로 안전지대 안에서 옆으로 비켜야 함
       const R = s.lv(52, 48, 44, 40, 38), pad = 150, ph = s.rand(0, s.TAU), c0x = 192, c0y = 250;
       const path = t => ({ x: c0x + 110 * Math.sin(t * 0.009 + ph), y: c0y + 70 * Math.sin(t * 0.013 + ph * 1.7) });
       // 시작 자리를 기체에 가깝게: 경로에서 기체와 가장 가까운 점부터
@@ -2477,6 +2477,8 @@ const SPELLS = [
           const q = path(t0 + t);
           motion.vx = q.x - prev.x; motion.vy = q.y - prev.y; prev = q;
           zone.x = q.x; zone.y = q.y;
+          // 이동 방향 전조: 약 1.5초마다 0.6초 뒤에 향할 방향 화살표를 안전지대에(헬은 없음)
+          if (s.diff < 4 && t % 90 === 1) { const a = path(t0 + t + 36), b = path(t0 + t + 40); s.arrow(zone, Math.atan2(b.y - a.y, b.x - a.x), 44); }
           yield 1;
         }
       }());
@@ -2893,7 +2895,7 @@ const BOSS_RUNS = [
     ],
   },
   {
-    title: '엑스트라 2 · 이즘', name: '이즘', pages: [2, 3], power: 4, hpScale: 5.41,
+    title: '엑스트라 2 · 이즘', name: '이즘', pages: [2, 3], power: 4, hpScale: 4.6,
     seq: [
       spellOf('논스펠 · 이즘 1'),
       spellOf('「순차 격자 타격」(가칭)'),
