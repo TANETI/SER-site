@@ -2892,14 +2892,14 @@ SPELLS.push({
         while (s.frame < burstEnd) {
           const q = inA(100);
           s.ring(s.lv(5, 6, 7, 8, 9), { x: q.x, y: q.y, offset: s.rand(0, s.TAU), spd: s.sp(s.rand(1.5, 2.2)), shape: 'rice', color: 'red' });
-          yield s.wait(6);
+          yield s.wait(6.7);   // 탄 수 약 10% 줄임(예전 6)
         }
       }());
       yield 30;
       // 균열이 열리면 티폰이 A 쪽이거나 균열 위에 있을 때만 원형탄(B로 가는 탄은 균열이 삼킴)
       const bossInA = s.riftSide(r, s.boss.x, s.boss.y) === sideA && Math.abs(r.nx * s.boss.x + r.ny * s.boss.y - r.c) > 8;
       if (bossInA) s.task(function* () {
-        for (let k = 0; s.frame < burstEnd; k++) { s.ring(s.cnt(22), { offset: k * 0.13, spd: s.sp(2.6), shape: 'orb', color: 'red' }); yield s.wait(22); }
+        for (let k = 0; s.frame < burstEnd; k++) { s.ring(s.cnt(20), { offset: k * 0.13, spd: s.sp(2.6), shape: 'orb', color: 'red' }); yield s.wait(22); }
       }());
       // 약 2초 뒤: 티폰이 균열을 가로질러 벰. 벨 자리는 기체가 선 곳 근처(균열을 따라 잰 위치), 하드부터 두 번(베리하드부터 셋)
       yield 120;
@@ -2924,7 +2924,7 @@ SPELLS.push({
               yield j * 6;
               for (let k = 0; m.t < m.life - 40; k++) {
                 if (Math.abs(r.nx * m.x + r.ny * m.y - r.c) > 150) { m.vx *= 0.9; m.vy *= 0.9; }   // 균열에서 멀어지면 느려져 머묾
-                if ((r.nx * m.x + r.ny * m.y - r.c) * sideA < -10) s.ring(s.cnt(8), { x: m.x, y: m.y, offset: s.rand(0, s.TAU), spd: s.sp(1.4), shape: 'small', color: 'red' });
+                if ((r.nx * m.x + r.ny * m.y - r.c) * sideA < -10) s.ring(s.cnt(7), { x: m.x, y: m.y, offset: s.rand(0, s.TAU), spd: s.sp(1.4), shape: 'small', color: 'red' });
                 yield s.wait(26);
               }
             }());
@@ -2947,40 +2947,40 @@ SPELLS.push({
   // 2페이즈 곡: bgm/티폰 2페이즈/ 폴더(1페이즈는 bgm/티폰/). 폴더가 비어 있으면 1페이즈 곡이 이어짐
   type: 'spell', boss: '티폰', bossColor: TY_COLOR, bgm: '티폰 2페이즈', beat: 1.5, desperateBgmRate: 1.2, hp: 4200, time: 60, start: [192, 70],
   *run(s) {
-    // 화면을 무수히 잘게 잘랐다 붙이길 되풀이. 균열은 벌어지는 순간 그 위에 있으면 피탄이고, 열린 동안 넘어갈 수 없음.
+    // 1차: 화면을 굵은 균열로 잘게 잘랐다 붙이길 되풀이. 균열은 벌어지는 순간 그 위에 있으면 피탄이고, 열린 동안 넘어갈 수 없음.
     // 모든 균열이 비켜 가는 자리(생존 가능한 위치)가 하나 있고, 자를 때마다 조금씩만 옮겨 감(거의 정해져 있음).
-    // 균열의 절반쯤은 그 자리 바로 곁(gap ~ gap+30px)을 지나가게 해 생존 칸이 좁음. 열린 균열에서는 탄이 조금씩 새어 나옴.
-    // 2차: 격화 III(이 스펠의 발악)에 닿으면 자르기를 멈추고 티폰이 몸에서 회전벽을 소환, 되풀이해 화면의 4분의 3을 베어 날려 버림
+    // 균열의 절반은 그 자리 곁을 스치고 나머지는 그때 가장 넓게 빈 곳을 지나가 다른 넓은 빈자리가 남지 않음. 열린 균열에서 탄이 조금씩 새어 나옴.
+    // 2차: 격화 III(이 스펠의 발악)에 닿으면 티폰이 화면의 4분의 3을 지워 버리고(기체가 있던 칸만 남김) 남은 4분의 1 안에서 회전벽을 피함
     const { W, H } = s;
     const P = { x: W / 2 + s.rand(-60, 60), y: H - 90 };
     yield 60;
     while (s.surge < 2) {
       P.x = Math.max(50, Math.min(W - 50, P.x + s.rand(-18, 18)));
       P.y = Math.max(H * 0.5, Math.min(H - 40, P.y + s.rand(-12, 12)));
-      const n = Math.round(s.lv(20, 24, 28, 32, 36) * (0.85 + 0.4 * s.heat)), gap = s.lv(26, 22, 18, 16, 15);
-      const warn = Math.max(40, s.wait(64)), rs = [];
-      // 짝수 번째 균열은 생존 자리 곁을 스치고, 홀수 번째는 지금 가장 넓게 빈 곳(생존 자리 70px 밖, 16px 격자)을 지나감.
-      // 그래서 생존 자리 말고는 넓은 빈자리가 남지 않음
-      const lines = [], grid = [];
+      // 굵은 균열(반폭 8~10px)을 적게: 이지 8 … 헬 14줄에서 격화로 늘어남
+      const rw = s.lv(8, 8, 9, 9, 10), n = Math.round(s.lv(8, 9, 10, 12, 14) * (0.85 + 0.4 * s.heat));
+      const gap = rw + 2 + s.lv(18, 14, 11, 10, 9);   // 생존 자리에서 균열 가장자리까지 여유(이지 18 … 헬 9px)
+      const warn = Math.max(44, s.wait(64)), rs = [];
+      const grid = [];
       for (let x = 4; x < W; x += 12) for (let y = 4; y < H; y += 12) if (Math.hypot(x - P.x, y - P.y) > 70) grid.push([x, y]);
-      const clear = ([x, y]) => lines.reduce((m, l) => Math.min(m, Math.abs(l.nx * x + l.ny * y - l.c)), 1e9);
+      const near = new Float32Array(grid.length).fill(1e9);   // 격자 점마다 가장 가까운 균열까지 거리(균열을 넣을 때마다 갱신)
       for (let i = 0; i < n; i++) {
         let ang, nx, ny, c;
         for (let tries = 0; ; tries++) {
           ang = s.rand(0, Math.PI); nx = -Math.sin(ang); ny = Math.cos(ang);
           const cp = nx * P.x + ny * P.y;
-          if (i % 2 === 0) { c = cp + s.pick([-1, 1]) * s.rand(gap, gap + 30); break; }   // 생존 자리 곁을 스침
+          if (i % 2 === 0) { c = cp + s.pick([-1, 1]) * s.rand(gap, gap + 24); break; }   // 생존 자리 곁을 스침
           let bestP = grid[0], bm = -1;
-          for (const q of grid) { const m = clear(q); if (m > bm) { bm = m; bestP = q; } }
+          for (let g = 0; g < grid.length; g++) if (near[g] > bm) { bm = near[g]; bestP = grid[g]; }
           c = nx * bestP[0] + ny * bestP[1];
           if (Math.abs(c - cp) >= gap || tries > 10) { if (Math.abs(c - cp) < gap) c = cp + Math.sign(c - cp || 1) * gap; break; }
         }
-        lines.push({ nx, ny, c });
-        rs.push(s.rift({ x: nx * c, y: ny * c, ang, warn: warn + i, tear: 10, w: 4, lethal: true, quiet: i > 0 }));
+        for (let g = 0; g < grid.length; g++) { const d = Math.abs(nx * grid[g][0] + ny * grid[g][1] - c); if (d < near[g]) near[g] = d; }
+        rs.push(s.rift({ x: nx * c, y: ny * c, ang, warn: warn + i * 2, tear: 10, w: rw, lethal: true, quiet: i > 0 }));
       }
-      yield warn + n + 10;
+      yield warn + 2 * n + 10;
       // 열린 동안 균열 여기저기서 탄이 조금씩 새어 나옴(기체 40px 안에서는 새지 않음). 균열에 수직으로 양쪽으로 느리게
-      const hold = s.wait(80), every = s.lv(5, 4, 3, 3, 2);
+      const hold = s.wait(80), every = s.lv(6, 5, 4, 4, 3);
       for (let f = 0; f < hold; f++) {
         if (f % every === 0) {
           const r = s.pick(rs);
@@ -2988,7 +2988,7 @@ SPELLS.push({
             const d = s.rand(-r.len / 2, r.len / 2), x = r.x + r.dx * d, y = r.y + r.dy * d;
             if (x < 4 || x > W - 4 || y < 4 || y > H - 4 || Math.hypot(x - s.player.x, y - s.player.y) < 40) continue;
             const side = s.pick([-1, 1]);
-            s.fire({ x: x + r.nx * side * 6, y: y + r.ny * side * 6, ang: Math.atan2(r.ny * side, r.nx * side) + s.rand(-0.5, 0.5), spd: s.sp(s.rand(0.7, 1.2)), shape: 'small', color: 'pink' });
+            s.fire({ x: x + r.nx * side * (r.w + 3), y: y + r.ny * side * (r.w + 3), ang: Math.atan2(r.ny * side, r.nx * side) + s.rand(-0.5, 0.5), spd: s.sp(s.rand(0.7, 1.2)), shape: 'small', color: 'pink' });
             break;
           }
         }
@@ -2997,38 +2997,43 @@ SPELLS.push({
       for (const r of rs) s.closeRift(r);
       yield 45;
     }
-    // ── 2차: 회전벽 + 화면 4분의 3 베기 ──
-    s.impact(10);
-    // 몸에서 회전벽: 팔 여러 줄이 돌며 탄 줄기를 뿜음(발사 간격 고정, 격화로 도는 속도만 오름)
-    s.task(function* () {
-      let base = s.rand(0, s.TAU);
-      const arms = s.lv(3, 4, 4, 5, 6), dir = s.pick([-1, 1]);
-      for (;;) {
-        for (let i = 0; i < arms; i++) s.fire({ ang: base + i * s.TAU / arms, spd: s.sp(2.2), shape: 'rice', color: 'pink' });
-        base += dir * s.spin(0.045);
-        yield 4;
-      }
-    }());
-    // 베기: 네 칸 중 한 칸만 남기고 나머지 4분의 3을 예고(붉게 깜빡임) → 번쩍이며 여러 줄로 찢겨 날아감(그 안이면 피탄, 회전벽 탄도 날아감).
-    // 남는 칸은 매번 지금 칸의 이웃 칸(대각선으로 건너뛰지 않음)
-    let q = (s.player.x < W / 2 ? 0 : 1) + (s.player.y < H / 2 ? 0 : 2);
-    for (;;) {
-      q = q ^ s.pick([1, 2]);
-      const sx = q & 1 ? W / 2 : 0, sy = q & 2 ? H / 2 : 0, warn = s.lv(80, 70, 62, 58, 54);
-      const zones = [0, 1, 2, 3].filter(k => k !== q).map(k => ({ x: k & 1 ? W / 2 : 0, y: k & 2 ? H / 2 : 0, w: W / 2, h: H / 2 }));
-      for (const z of zones) s.area({ ...z, warn, dur: 10, color: '#ff2d5a', pulse: true });
-      s.safeZone({ x: sx + W / 4, y: sy + H / 4, r: 40, dur: warn });
-      yield warn - 8;
-      // 찢기는 연출(판정은 구역 공격이 맡고, 이 균열은 보이기만 함)
-      for (let k = 0; k < 4; k++) {
-        const z = s.pick(zones), cx = z.x + s.rand(20, z.w - 20), cy = z.y + s.rand(20, z.h - 20);
-        const r = s.rift({ x: cx, y: cy, ang: s.rand(0, Math.PI), warn: 0, tear: 8, w: 9, visual: true, quiet: k > 0 });
-        s.task(function* () { yield 30; s.closeRift(r); }());
-      }
-      yield 8;
-      s.pop(s.bullets.filter(b => !(b.x >= sx && b.x < sx + W / 2 && b.y >= sy && b.y < sy + H / 2)), true);
-      s.shake(12);
-      yield s.lv(70, 60, 50, 46, 42);
+
+    // ── 2차: 화면 4분의 3을 지워 버림 ──
+    // 남는 칸 = 지금 기체가 있는 칸(움직이지 않아도 살아남게). 긴 예고(이지 110 … 헬 80프레임) 동안 지워질 곳이 붉게 깜빡이고 남는 칸에 초록 표시.
+    // 지워지는 순간 그 안이면 피탄. 그 뒤로는 남은 칸 밖으로 나갈 수 없고(지워진 곳은 검보랏빛 공허), 티폰은 남은 칸의 안쪽 모서리(화면 가운데)에서
+    // 몸에서 회전벽을 뿜음: 팔마다 탄 줄기가 끊겼다 이어져 틈이 생기고, 그 틈으로 벽을 통과함. 하드부터 가끔 도는 방향이 바뀜(0.7초 전 경고음)
+    s.pop(s.bullets, false);
+    const q = (s.player.x < W / 2 ? 0 : 1) + (s.player.y < H / 2 ? 0 : 2);
+    const sx = q & 1 ? W / 2 : 0, sy = q & 2 ? H / 2 : 0;
+    const zones = [0, 1, 2, 3].filter(k => k !== q).map(k => ({ x: k & 1 ? W / 2 : 0, y: k & 2 ? H / 2 : 0, w: W / 2, h: H / 2 }));
+    const warn = s.lv(110, 100, 90, 85, 80);
+    s.move(W / 2, H / 2 + (sy ? -30 : 30), warn);   // 티폰은 남은 칸 바깥쪽 가운데로
+    for (const z of zones) s.area({ ...z, warn, dur: 12, color: '#ff2d5a', pulse: true });
+    s.safeZone({ x: sx + W / 4, y: sy + H / 4, r: 48, dur: warn + 20 });
+    s.sound('beep', 1);
+    yield warn - 10;
+    // 지우는 연출: 지워지는 곳을 여러 줄로 찢고(보이기만 함) 번쩍, 크게 흔들림
+    for (let k = 0; k < 5; k++) {
+      const z = zones[k % 3], cx = z.x + s.rand(20, z.w - 20), cy = z.y + s.rand(20, z.h - 20);
+      const r = s.rift({ x: cx, y: cy, ang: s.rand(0, Math.PI), warn: 0, tear: 8, w: 12, visual: true, quiet: k > 0 });
+      s.task(function* () { yield 40; s.closeRift(r); }());
+    }
+    yield 10;
+    s.sound('boom'); s.shake(14);
+    for (const z of zones) s.mist({ ...z, void: true, fade: 20, life: 99999 });
+    s.setBounds({ x: sx, y: sy, w: W / 2, h: H / 2 });
+    yield 40;
+    // 회전벽(틈 있는 탄 줄기)
+    const arms = s.lv(4, 5, 6, 6, 7), on = s.lv(3, 3, 4, 4, 5), off = s.lv(4, 4, 3, 3, 3), spin = s.lv(0.008, 0.009, 0.011, 0.012, 0.013);
+    let base = s.rand(0, s.TAU), dir = s.pick([-1, 1]), flipAt = s.lv(Infinity, Infinity, 200, 180, 160);
+    for (let f = 0; ; f++) {
+      if (f % 5 === 0 && (f / 5) % (on + off) < on)
+        for (let i = 0; i < arms; i++) s.fire({ ang: base + i * s.TAU / arms, spd: s.sp(2.0), shape: 'rice', color: 'pink' });
+      if (f > 0 && f % flipAt === flipAt - 42) s.sound('beep', 0.8);   // 방향 바뀌기 0.7초 전
+      if (f > 0 && f % flipAt === 0) dir = -dir;
+      if (s.diff >= 4 && f % 90 === 45) s.fire({ ang: s.aim(), spd: s.sp(1.6), shape: 'small', color: 'white' });
+      base += dir * spin;
+      yield 1;
     }
   },
 });

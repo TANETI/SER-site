@@ -546,7 +546,7 @@ class Game {
     this.tasks.clear();
     this.bullets = []; this.lasers = []; this.enemies = []; this.shots = []; this.fx = []; this.boost = null; this.gauge = null; this.surgeLv = 0;
     this.partners = []; this.chants = []; this.zones = []; this.areas = []; this.slow = null; this.safes = [];
-    this.rifts = []; this.mists = [];
+    this.rifts = []; this.mists = []; this.bounds = null;
   }
   start(i = this.spellIndex) {
     this.spellIndex = (i + this.spells.length) % this.spells.length;
@@ -663,6 +663,7 @@ class Game {
     // 차원절단 균열은 다음 패턴으로 넘어가기 전에 쩌저적 하며 다시 붙음. 붉은 안개는 걷힘
     for (const r of this.rifts) this.closeRift(r);
     for (const m of this.mists) m.life = Math.min(m.life, m.t + 40);
+    this.bounds = null;
     // 논스펠은 작은 P만, 스펠은 큰 P 하나를 더 줌
     if (!this.boss.hidden && reason !== 'timeout') this.dropItems(this.boss.x, this.boss.y, 5, sp.type === 'spell' ? 1 : 0, true);
     for (const it of this.items) it.magnet = true;
@@ -977,7 +978,10 @@ class Game {
   // 기체가 벌어진 균열을 넘거나 틈에 들어가지 못하게 원래 쪽으로 밀어냄(겹친 균열이 있어 두 번 되풀이)
   keepOffRifts() {
     const p = this.player;
-    if (!p || !this.rifts.length) return;
+    if (!p) return;
+    // 이동 범위 제한(종언의 시 2차: 남은 4분의 1 칸)
+    if (this.bounds) { const b = this.bounds; p.x = Math.max(b.x + 6, Math.min(b.x + b.w - 6, p.x)); p.y = Math.max(b.y + 8, Math.min(b.y + b.h - 8, p.y)); }
+    if (!this.rifts.length) return;
     for (let k = 0; k < 2; k++) for (const r of this.rifts) {
       if (!r.live) continue;
       const d = r.nx * p.x + r.ny * p.y - r.c, need = r.cw + 3;
@@ -1379,7 +1383,9 @@ function makeAPI(G) {
     // 점 (x,y)가 균열 r의 어느 쪽인지(+1·-1)
     riftSide(r, x, y) { return r.nx * x + r.ny * y - r.c < 0 ? -1 : 1; },
     // 붉은 안개(판정 없음). 사각 {x,y,w,h} 또는 덩어리 {x,y,r,vx,vy}. fade 동안 짙어짐, life가 되면 사라짐(끝 40프레임은 옅어짐)
-    mist(o = {}) { const m = { x: o.x, y: o.y, w: o.w, h: o.h, r: o.r, vx: o.vx ?? 0, vy: o.vy ?? 0, t: 0, fade: o.fade ?? 40, life: o.life ?? 600 }; G.mists.push(m); return m; },
+    mist(o = {}) { const m = { x: o.x, y: o.y, w: o.w, h: o.h, r: o.r, vx: o.vx ?? 0, vy: o.vy ?? 0, t: 0, fade: o.fade ?? 40, life: o.life ?? 600, void: !!o.void }; G.mists.push(m); return m; },   // void: 지워진 공간(검보랏빛 공허)
+    // 기체 이동 범위 제한 {x,y,w,h}. null이면 풀림(패턴이 끝나면 자동으로 풀림)
+    setBounds(b) { G.bounds = b; },
     // 판정 없는 빨간 예고선: {x,y,x2,y2,dur}
     warnLine(o) { G.fx.push({ kind: 'warnline', x: o.x ?? G.boss.x, y: o.y ?? G.boss.y, x2: o.x2, y2: o.y2, t: 0, life: o.dur ?? 30, band: o.band ?? 0 }); },
     // 사각 구역 공격 {x,y,w,h,warn,dur,label,color}. warn 동안 예고, dur 동안 판정
@@ -1989,6 +1995,20 @@ function drawMists(G, g) {
   for (const m of G.mists) {
     const a = Math.min(1, m.t / m.fade) * Math.min(1, (m.life - m.t) / 40);
     if (a <= 0) continue;
+    if (m.void) {
+      // 지워진 공간: 검보랏빛 공허에 흐르는 보랏빛 줄, 남은 공간과 맞닿은 가장자리는 붉게 빛남
+      g.save(); g.beginPath(); g.rect(m.x, m.y, m.w, m.h); g.clip();
+      g.globalAlpha = 0.93 * a; g.fillStyle = '#06020c'; g.fillRect(m.x, m.y, m.w, m.h);
+      g.globalAlpha = 0.5 * a; g.strokeStyle = '#6a2ad8'; g.lineWidth = 1; g.beginPath();
+      for (let i = 0; i < 10; i++) { const yy = m.y + ((i * 47 + G.bgT * (0.6 + (i % 4) * 0.3)) % m.h), xx = m.x + ((i * 83) % m.w); g.moveTo(xx, yy); g.lineTo(xx + 30, yy - 6); }
+      g.stroke(); g.restore();
+      const b = G.bounds;
+      if (b) {
+        g.globalAlpha = (0.7 + 0.3 * Math.sin(G.bgT * 0.2)) * a; g.strokeStyle = '#ff5d8f'; g.lineWidth = 2;
+        g.strokeRect(b.x + 1, b.y + 1, b.w - 2, b.h - 2);
+      }
+      continue;
+    }
     if (m.r) {
       const pr = m.r * (1 + 0.08 * Math.sin(G.bgT * 0.1 + m.x)), gr = g.createRadialGradient(m.x, m.y, 0, m.x, m.y, pr);
       gr.addColorStop(0, 'rgba(255,40,70,0.55)'); gr.addColorStop(0.6, 'rgba(200,20,50,0.28)'); gr.addColorStop(1, 'rgba(160,0,30,0)');
@@ -2010,53 +2030,107 @@ function drawMists(G, g) {
 }
 
 // 차원절단 균열: 예고(흐르는 점선) → 흰 빛이 한쪽 끝에서 찢고 지나감 → 들쭉날쭉한 틈 속에 검보랏빛 공간, 가장자리는 붉게 빛남
-// → 닫힐 때 틈이 좁아지며 흰 금이 번쩍이다 흉터처럼 사라짐
+// → 닫힐 때 틈이 좁아지며 흰 금이 번쩍이다 흉터처럼 사라짐.
+// 성능: 그림자 번짐(shadowBlur)은 쓰지 않고 반투명 굵은 선을 겹쳐 빛을 흉내 냄. 다 열려 가만히 있는 균열은 한 경로로 모아 한 번에 그림
+// (종언의 시처럼 30여 줄이 한꺼번에 열려도 가볍게). 틈 속 흐르는 줄은 균열이 네 줄 이하일 때만
+function riftGap(r, cw, tip, last) {
+  const L = r.len, gap = new Path2D();
+  const px = (s, off) => r.x + r.dx * s + r.nx * off, py = (s, off) => r.y + r.dy * s + r.ny * off;
+  for (let i = 0; i <= last; i++) { const s = Math.min(tip, -L / 2 + L * i / r.N), o = cw + r.jagA[i] * (cw / r.w); gap.lineTo(px(s, o), py(s, o)); }
+  for (let i = last; i >= 0; i--) { const s = Math.min(tip, -L / 2 + L * i / r.N), o = -cw - r.jagB[i] * (cw / r.w); gap.lineTo(px(s, o), py(s, o)); }
+  gap.closePath();
+  return gap;
+}
+function strokeRiftEdge(g, gap, ea) {
+  g.globalAlpha = 0.18 * ea; g.strokeStyle = '#ff2d6f'; g.lineWidth = 10; g.stroke(gap);
+  g.globalAlpha = 0.35 * ea; g.lineWidth = 5; g.stroke(gap);
+  g.globalAlpha = ea; g.strokeStyle = '#ff7aa8'; g.lineWidth = 2.2; g.stroke(gap);
+  g.globalAlpha = 0.8 * ea; g.strokeStyle = '#fff0f6'; g.lineWidth = 1; g.stroke(gap);
+}
+// 균열이 많을 때(종언의 시): 들쭉날쭉한 다각형 대신 곧은 선 몇 겹으로(복잡한 경로를 칠하는 GPU 부담이 커서 멈칫함).
+// 폭이 같은 균열끼리 한 경로로 모아 선 굵기만 바꿔 여러 번 그음
+function drawRiftsSimple(G, g) {
+  const byW = new Map(), edges = new Path2D(), flick = [];
+  for (const r of G.rifts) {
+    if (r.t <= r.warn) continue;
+    const L = r.len, k = Math.min(1, (r.t - r.warn) / r.tear), tip = -L / 2 + L * k;
+    const cw = r.live || r.shown || r.closing ? r.cw : r.w * Math.min(1, k * 1.5);
+    const x0 = r.x - r.dx * L / 2, y0 = r.y - r.dy * L / 2, x1 = r.x + r.dx * tip, y1 = r.y + r.dy * tip;
+    if (cw > 0.3) {
+      const key = Math.round(cw * 2) / 2;
+      if (!byW.has(key)) byW.set(key, new Path2D());
+      const p = byW.get(key); p.moveTo(x0, y0); p.lineTo(x1, y1);
+      for (const sgn of [-1, 1]) { edges.moveTo(x0 + r.nx * cw * sgn, y0 + r.ny * cw * sgn); edges.lineTo(x1 + r.nx * cw * sgn, y1 + r.ny * cw * sgn); }
+    }
+    if (r.closing && r.ct < 40) flick.push(r);
+  }
+  g.lineCap = 'butt';
+  g.globalAlpha = 0.16; g.strokeStyle = '#ff2d6f';
+  for (const [w, p] of byW) { g.lineWidth = w * 2 + 10; g.stroke(p); }
+  g.globalAlpha = 1; g.strokeStyle = '#07010d';
+  for (const [w, p] of byW) { g.lineWidth = w * 2; g.stroke(p); }
+  g.globalAlpha = 0.9; g.strokeStyle = '#ff7aa8'; g.lineWidth = 1.6; g.stroke(edges);
+  // 닫히는 중: 흰 금이 번쩍이다 옅어짐(곧은 선)
+  if (flick.length) {
+    const p = new Path2D();
+    for (const r of flick) { const L = r.len; p.moveTo(r.x - r.dx * L / 2, r.y - r.dy * L / 2); p.lineTo(r.x + r.dx * L / 2, r.y + r.dy * L / 2); }
+    const ct = flick[0].ct;
+    g.globalAlpha = ct < 22 ? 0.5 + 0.4 * Math.random() : Math.max(0, 1 - (ct - 22) / 18) * 0.7;
+    g.strokeStyle = '#fff'; g.lineWidth = ct < 22 ? 1.5 : 1; g.stroke(p);
+  }
+}
+
 function drawRifts(G, g) {
   if (!G.rifts || !G.rifts.length) return;
   g.save();
+  const many = G.rifts.length > 4, steady = new Path2D();
+  let nSteady = 0;
+  // 예고: 점선(같은 모양 설정은 한 번만)
+  g.setLineDash([10, 8]);
   for (const r of G.rifts) {
-    const L = r.len, open = r.warn + r.tear;
-    const P = (s, off) => [r.x + r.dx * s + r.nx * off, r.y + r.dy * s + r.ny * off];
-    if (r.t <= r.warn) {
-      const urgent = r.warn - r.t < 18, blink = urgent ? (Math.sin(r.t * 1.4) > 0 ? 1 : 0.45) : 0.55 + 0.25 * Math.sin(r.t * 0.3);
-      g.globalAlpha = blink; g.strokeStyle = '#ff4d9a'; g.lineWidth = urgent ? 2.5 : 1.5;
-      g.setLineDash([10, 8]); g.lineDashOffset = -r.t * 1.5;
-      g.beginPath(); g.moveTo(...P(-L / 2, 0)); g.lineTo(...P(L / 2, 0)); g.stroke();
-      g.setLineDash([]); g.lineDashOffset = 0;
-      if (r.lethal) { g.globalAlpha = 0.1 * blink; g.lineWidth = (r.w + 3) * 2; g.stroke(); }
-      continue;
+    if (r.t > r.warn) continue;
+    const L = r.len, urgent = r.warn - r.t < 18, blink = urgent ? (Math.sin(r.t * 1.4) > 0 ? 1 : 0.45) : 0.55 + 0.25 * Math.sin(r.t * 0.3);
+    const x0 = r.x - r.dx * L / 2, y0 = r.y - r.dy * L / 2, x1 = r.x + r.dx * L / 2, y1 = r.y + r.dy * L / 2;
+    g.globalAlpha = blink; g.strokeStyle = '#ff4d9a'; g.lineWidth = urgent ? 2.5 : 1.5; g.lineDashOffset = -r.t * 1.5;
+    g.beginPath(); g.moveTo(x0, y0); g.lineTo(x1, y1); g.stroke();
+    if (r.lethal) { g.setLineDash([]); g.globalAlpha = 0.1 * blink; g.lineWidth = (r.w + 3) * 2; g.stroke(); g.setLineDash([10, 8]); }
+  }
+  g.setLineDash([]); g.lineDashOffset = 0;
+  if (many) {
+    drawRiftsSimple(G, g);
+    // 찢는 순간의 흰 빛·번쩍임은 조용하지 않은(대표) 균열만
+    for (const r of G.rifts) {
+      if (r.quiet || r.t <= r.warn) continue;
+      const open = r.warn + r.tear;
+      if (r.t <= open) {
+        const L = r.len, tip = -L / 2 + L * Math.min(1, (r.t - r.warn) / r.tear), tx = r.x + r.dx * tip, ty = r.y + r.dy * tip;
+        g.beginPath(); g.moveTo(r.x - r.dx * L / 2, r.y - r.dy * L / 2); g.lineTo(tx, ty);
+        g.strokeStyle = '#fff'; g.globalAlpha = 1; g.lineWidth = 2.5; g.stroke();
+      }
+      if (r.t > open - 2 && r.t < open + 12) { g.globalAlpha = 0.3 * (1 - (r.t - open + 2) / 14); g.fillStyle = '#ffe0ee'; g.fillRect(0, 0, W, H); }
     }
-    // 찢어진 길이(한쪽 끝에서부터)와 지금 반폭
+    g.restore(); g.globalAlpha = 1;
+    return;
+  }
+  for (const r of G.rifts) {
+    if (r.t <= r.warn) continue;
+    const L = r.len, open = r.warn + r.tear;
     const k = Math.min(1, (r.t - r.warn) / r.tear), tip = -L / 2 + L * k;
     const cw = r.live || r.shown || r.closing ? r.cw : r.w * Math.min(1, k * 1.5);
-    if (cw > 0.3) {
-      const pts = i => -L / 2 + L * i / r.N;
-      const last = Math.max(1, Math.ceil(r.N * k));
-      const gap = new Path2D();
-      for (let i = 0; i <= last; i++) { const s = Math.min(tip, pts(i)); gap.lineTo(...P(s, cw + r.jagA[i] * (cw / r.w))); }
-      for (let i = last; i >= 0; i--) { const s = Math.min(tip, pts(i)); gap.lineTo(...P(s, -cw - r.jagB[i] * (cw / r.w))); }
-      gap.closePath();
+    const px = (s, off) => r.x + r.dx * s + r.nx * off, py = (s, off) => r.y + r.dy * s + r.ny * off;
+    // 다 열려 가만히 있는 균열은 모아서 나중에 한 번에
+    if (!r.closing && k >= 1 && r.t > open + 12 && cw > 0.3) { steady.addPath(riftGap(r, cw, tip, r.N)); nSteady++; }
+    else if (cw > 0.3) {
+      const gap = riftGap(r, cw, tip, Math.max(1, Math.ceil(r.N * k)));
       g.globalAlpha = 1; g.fillStyle = '#07010d'; g.fill(gap);
-      // 틈 속: 흐르는 보랏빛 줄
-      g.save(); g.clip(gap);
-      g.globalAlpha = 0.7; g.strokeStyle = '#7a2cff'; g.lineWidth = 1;
-      for (let i = 0; i < 6; i++) {
-        const s = ((i * 173 + G.bgT * (2 + i % 3)) % L) - L / 2, off = (i % 3 - 1) * cw * 0.5;
-        g.beginPath(); g.moveTo(...P(s, off)); g.lineTo(...P(s + 26, off)); g.stroke();
-      }
-      g.restore();
-      // 가장자리 빛
-      const ea = r.closing ? 0.6 + 0.4 * Math.random() : 0.85 + 0.15 * Math.sin(G.bgT * 0.3);
-      g.globalAlpha = 0.25 * ea; g.strokeStyle = '#ff2d6f'; g.lineWidth = 9; g.stroke(gap);
-      g.shadowColor = '#ff2d6f'; g.shadowBlur = 18;
-      g.globalAlpha = ea; g.strokeStyle = '#ff7aa8'; g.lineWidth = 2.5; g.stroke(gap);
-      g.shadowBlur = 0; g.globalAlpha = 0.8 * ea; g.strokeStyle = '#fff0f6'; g.lineWidth = 1; g.stroke(gap);
+      strokeRiftEdge(g, gap, r.closing ? 0.6 + 0.4 * Math.random() : 0.9);
     }
     // 찢는 중: 끝을 따라가는 흰 빛
     if (r.t <= open && !r.quiet) {
-      const [tx, ty] = P(tip, 0);
-      g.globalAlpha = 1; g.strokeStyle = '#fff'; g.lineWidth = 2.5; g.shadowColor = '#fff'; g.shadowBlur = 16;
-      g.beginPath(); g.moveTo(...P(-L / 2, 0)); g.lineTo(tx, ty); g.stroke(); g.shadowBlur = 0;
+      const tx = px(tip, 0), ty = py(tip, 0);
+      g.beginPath(); g.moveTo(px(-L / 2, 0), py(-L / 2, 0)); g.lineTo(tx, ty);
+      g.strokeStyle = '#fff'; g.globalAlpha = 0.25; g.lineWidth = 9; g.stroke();
+      g.globalAlpha = 1; g.lineWidth = 2.5; g.stroke();
       const gr = g.createRadialGradient(tx, ty, 0, tx, ty, 34);
       gr.addColorStop(0, 'rgba(255,255,255,0.95)'); gr.addColorStop(0.4, 'rgba(255,90,160,0.5)'); gr.addColorStop(1, 'rgba(255,90,160,0)');
       g.fillStyle = gr; g.fillRect(tx - 34, ty - 34, 68, 68);
@@ -2067,13 +2141,31 @@ function drawRifts(G, g) {
     }
     // 닫히는 중: 들쭉날쭉한 흰 금이 번쩍이며 이어 붙고(쩌저적), 다 붙으면 흉터가 옅어짐
     if (r.closing) {
-      const q = r.ct / 40;
-      g.globalAlpha = r.ct < 22 ? 0.9 : Math.max(0, 1 - (r.ct - 22) / 18) * 0.7;
-      g.strokeStyle = '#fff'; g.lineWidth = r.ct < 22 ? 1.5 : 1; g.shadowColor = '#ff8fc0'; g.shadowBlur = 8;
+      const q = r.ct / 40, a = r.ct < 22 ? 0.9 : Math.max(0, 1 - (r.ct - 22) / 18) * 0.7;
       g.beginPath();
-      for (let i = 0; i <= r.N; i++) { const s = -L / 2 + L * i / r.N, z = r.ct < 22 ? (Math.random() * 2 - 1) * 3 * (1 - q) : 0; g.lineTo(...P(s, z)); }
-      g.stroke(); g.shadowBlur = 0;
+      for (let i = 0; i <= r.N; i++) { const s = -L / 2 + L * i / r.N, z = r.ct < 22 ? (Math.random() * 2 - 1) * 3 * (1 - q) : 0; g.lineTo(px(s, z), py(s, z)); }
+      g.strokeStyle = '#ff8fc0'; g.globalAlpha = 0.3 * a; g.lineWidth = 5; g.stroke();
+      g.strokeStyle = '#fff'; g.globalAlpha = a; g.lineWidth = r.ct < 22 ? 1.5 : 1; g.stroke();
     }
+  }
+  if (nSteady) {
+    g.globalAlpha = 1; g.fillStyle = '#07010d'; g.fill(steady);
+    // 틈 속: 흐르는 보랏빛 줄(균열이 적을 때만)
+    if (!many) {
+      g.save(); g.clip(steady);
+      g.globalAlpha = 0.7; g.strokeStyle = '#7a2cff'; g.lineWidth = 1;
+      g.beginPath();
+      for (const r of G.rifts) {
+        if (r.closing || r.t <= r.warn + r.tear + 12) continue;
+        for (let i = 0; i < 6; i++) {
+          const s = ((i * 173 + G.bgT * (2 + i % 3)) % r.len) - r.len / 2, off = (i % 3 - 1) * r.cw * 0.5;
+          g.moveTo(r.x + r.dx * s + r.nx * off, r.y + r.dy * s + r.ny * off); g.lineTo(r.x + r.dx * (s + 26) + r.nx * off, r.y + r.dy * (s + 26) + r.ny * off);
+        }
+      }
+      g.stroke();
+      g.restore();
+    }
+    strokeRiftEdge(g, steady, 0.85 + 0.15 * Math.sin(G.bgT * 0.3));
   }
   g.restore();
   g.globalAlpha = 1;
