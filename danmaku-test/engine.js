@@ -746,7 +746,7 @@ class Game {
       if (sl >= 2 && !this.desperate && !sp.survival && sp.type !== 'stage' && !this.boss.hidden) {
         this.desperate = { t: 0, dur: DESPERATE_FRAMES };
         this.timer = this.timerMax = DESPERATE_FRAMES;
-        this.fx.push({ kind: 'phase', text: '발악!', sub: `${sp.boss} · 15초 버티기`, x: this.boss.x, y: this.boss.y, t: 0, life: 110 });
+        this.fx.push({ kind: 'phase', text: 'SURVIVE', sub: `${sp.boss} · 15초`, x: this.boss.x, y: this.boss.y, t: 0, life: 110 });
         this.shake(8); SFX.boom();
       }
       if (this.desperate) this.desperate.t++;
@@ -2075,14 +2075,14 @@ function drawFieldUI(G, g) {
   }
   if (!(run && bars) && !b.hidden) {
     g.fillStyle = '#f5c542'; g.font = 'bold 10px system-ui, "Malgun Gothic", sans-serif'; g.textBaseline = 'top'; g.textAlign = 'left';
-    g.fillText(G.desperate ? '발악 · 버티기' : `격화 ${['I', 'II', 'III'][G.surgeLevel()]}`, 8, 12);
+    g.fillText(G.desperate ? 'SURVIVE' : `격화 ${['I', 'II', 'III'][G.surgeLevel()]}`, 8, 12);
   }
   if (run && bars && run.idx >= 0) {
     // 이 보스의 몇 번째 페이지인지(페이지의 보스 = 그 페이지 마지막 패턴의 보스)
     const pageBoss = pg => { let last = -1; bars.forEach((v, i) => { if (v === pg) last = i; }); return run.seq[last].boss; };
     const cur = bars[run.idx], boss = pageBoss(cur), all = [...new Set(bars)].filter(pg => pageBoss(pg) === boss);
     g.fillStyle = '#f5c542'; g.font = 'bold 10px system-ui, "Malgun Gothic", sans-serif'; g.textBaseline = 'top'; g.textAlign = 'left';
-    g.fillText(`PHASE ${all.indexOf(cur) + 1}/${all.length} · ${G.desperate ? '발악 · 버티기' : '격화 ' + ['I', 'II', 'III'][G.surgeLevel()]}`, 8, 16);
+    g.fillText(`PHASE ${all.indexOf(cur) + 1}/${all.length} · ${G.desperate ? 'SURVIVE' : '격화 ' + ['I', 'II', 'III'][G.surgeLevel()]}`, 8, 16);
   }
   // 시간
   const sec = Math.max(0, G.timer) / 60;

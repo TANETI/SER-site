@@ -1079,7 +1079,7 @@ const SPELLS = [
     type: 'spell', boss: '코스모', bossColor: '#b8a0ff', hp: 1900, time: 44, start: [192, 150],
     *run(s) {
       // 꿈의 재현: 코스모가 가운데에서 원형탄을 쉬지 않고 뿜는 동안(너무 촘촘하진 않게) 화면을 세로로 반씩 나눈 왼쪽·오른쪽이
-      // 천천히 한쪽씩 깜빡임(왼쪽 낮은 종소리, 오른쪽 높은 종소리). 깜빡임·휩쓸기 동안은 원형탄을 절반으로 줄임. 다 깜빡이고 1초 뒤, 깜빡인 순서 그대로 그 절반을
+      // 천천히 한쪽씩 깜빡임(왼쪽 낮은 종소리, 오른쪽 높은 종소리). 깜빡임·휩쓸기 동안은 원형탄을 절반으로 줄임. 한 판에 왼쪽·오른쪽이 모두 나오고 같은 쪽은 두 번까지만 연달아 깜빡임. 다 깜빡이고 1초 뒤, 깜빡인 순서 그대로 그 절반을
       // 빠른 탄막이 위에서 아래로 휩쓸고 지나감. 순서를 기억해 휩쓸리는 절반의 반대쪽에 가 있으면 됨
       // 원형탄: 깜빡임·휩쓸기가 이어지는 동안(busy)은 두 번에 한 번만 쏴서 가운데를 건너갈 틈을 줌
       const st = { busy: false };
@@ -1093,7 +1093,14 @@ const SPELLS = [
       const half = s.W / 2;
       for (let w = 0; ; w++) {
         const n = s.lv(2, 3, 3, 4, 4) + (s.surge >= 2 ? 1 : 0), seq = [];
-        for (let i = 0; i < n; i++) seq.push(Math.random() < 0.5 ? 0 : 1);
+        // 순서: 한 판에 왼쪽·오른쪽이 모두 나오고, 같은 쪽은 두 번까지만 연달아
+        do {
+          seq.length = 0;
+          for (let i = 0; i < n; i++) {
+            const run2 = i >= 2 && seq[i - 1] === seq[i - 2];
+            seq.push(run2 ? 1 - seq[i - 1] : (Math.random() < 0.5 ? 0 : 1));
+          }
+        } while (!seq.includes(0) || !seq.includes(1));
         st.busy = true;
         // 깜빡임: 천천히 한쪽씩
         for (const side of seq) {
@@ -1103,7 +1110,10 @@ const SPELLS = [
         }
         yield 60;   // 1초 뒤
         // 휩쓸기: 순서대로 그 절반을 위에서 아래로 빠른 탄 네 줄이 훑음(탄 사이 10px라 빠져나갈 틈 없음)
-        for (const side of seq) {
+        for (let i = 0; i < seq.length; i++) {
+          const side = seq[i];
+          // 같은 쪽이 연달아 휩쓸리면 앞 탄 벽이 지나간 뒤에 다음 벽(겹치지 않게)
+          if (i > 0 && seq[i - 1] === side) yield 40;
           s.sound(side ? 'dreamR' : 'dreamL'); s.shake(3);
           // 휩쓸기는 가운데 선을 6px 넘어 반대쪽까지 덮음(가운데 선 위에 서서 두 쪽을 다 피하지 못하게)
           const x0 = side ? half - 6 : 5, x1 = side ? s.W - 5 : half + 6;
