@@ -229,8 +229,8 @@ $('prevBtn').onclick = e => { G.stepSingle(-1); syncPanel(); settle(e.target); }
 $('nextBtn').onclick = e => { G.stepSingle(1); syncPanel(); settle(e.target); };
 
 // ── 모드: 스테이지 모드(본게임만, 연습 도구 없음) / 패턴 테스트 룸(패턴·보스 하나씩, 연습 도구) ──
-const STORY_INFO = { main: '1스테이지부터 · 8보스', extra: '진심 예로니모', extra2: '이즘' };
-const STORY_LOCK = { extra: '본편을 깨면 열림', extra2: '엑스트라를 깨면 열림' };
+const STORY_INFO = { main: '1스테이지부터 · 8보스', extra: '진심 예로니모', extra2: '이즘', extra3: '티폰' };
+const STORY_LOCK = { extra: '본편을 깨면 열림', extra2: '엑스트라를 깨면 열림', extra3: '엑스트라 2를 깨면 열림' };
 function syncStage() {
   for (const b of $('angelSeg').children) b.setAttribute('aria-pressed', b.dataset.v === G.angel);
   for (const b of $('diffSeg').children) b.setAttribute('aria-pressed', +b.dataset.v === G.difficulty);
@@ -365,7 +365,7 @@ const title = { key: 'main', iron: false };
 function showTitle() {
   if (!unlocked(title.key)) title.key = 'main';
   if (G.difficulty < 2) title.iron = false;
-  const modes = [['main', '본편'], ['extra', '엑스트라'], ['extra2', '엑스트라 2']];
+  const modes = [['main', '본편'], ['extra', '엑스트라'], ['extra2', '엑스트라 2'], ['extra3', '엑스트라 3']];
   showOverlay(
     '<h3>탄막 테스트</h3><div class="sub">스테이지 모드 · Z 또는 Enter로 시작</div>' +
     '<div class="tsec"><div class="tlabel">모드</div><div class="seg">' + modes.map(([k, n]) => `<button data-act="mode:${k}" aria-pressed="${title.key === k}" ${unlocked(k) ? '' : 'disabled'}>${n}${unlocked(k) ? '' : ' (잠김)'}</button>`).join('') + '</div></div>' +

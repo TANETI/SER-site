@@ -120,7 +120,7 @@ function sprite(shape, color) {
 // 가로 띠를 잘라 스펠 컷인으로 씀. 불러오지 못하면 예전처럼 색 동그라미로 그림
 const IMG_BASE = 'https://srp.issssm.com/';
 const PORTRAIT_CODE = { '윤도연': 'YD', '고현성': 'KS', '마리': 'MR', '마르코': 'MC', '김예나': 'KY', '차서린': 'CS', '고태웅': 'KT',
-  '아즈라엘': 'AZ', '예로니모': 'JR', '리크니스': 'LY', '이즘': 'IZ', '시연': 'SY', '코스모': 'CM', '진': 'GN', '셰리': 'SH' };
+  '아즈라엘': 'AZ', '예로니모': 'JR', '리크니스': 'LY', '이즘': 'IZ', '티폰': 'TY', '시연': 'SY', '코스모': 'CM', '진': 'GN', '셰리': 'SH' };
 // 전투 이미지가 있는 인물과, 컷인으로 자를 가로 띠의 시작 위치(이미지 위에서부터 비율, 얼굴이 들어오게).
 // 약스펠은 102(전투), 강스펠은 103(필살기)·120(고유 클라비스) 등. 인물별로 가진 이미지만 적음(없으면 102를 씀)
 const CUTIN_BAND = { KY: 0.08, CS: 0.03, KT: 0.08, KS: 0.13, JR: 0.2, SY: 0.12 };
@@ -291,7 +291,7 @@ const SHOT_TYPES = Object.fromEntries(['AR', 'UR', 'LM', 'RH'].map(code => [code
 
 // ── 본게임 해금 기록(이 브라우저에만 저장) ──
 // 본편 클리어 → 엑스트라, 엑스트라 클리어 → 엑스트라 2
-const UNLOCK_NEXT = { main: 'extra', extra: 'extra2' };
+const UNLOCK_NEXT = { main: 'extra', extra: 'extra2', extra2: 'extra3' };
 function unlocked(key) {
   if (key === 'main') return true;
   try { return !!JSON.parse(localStorage.getItem('danmaku.unlock') || '{}')[key]; } catch (e) { return false; }
@@ -378,6 +378,11 @@ class Game {
     return Math.max(0, Math.min(1, p));
   }
   surgeLevel() { return Math.min(2, Math.floor(this.heat() * 3)); }
+  // 발악이 걸리는 패턴: lastStand 보스전(5스테이지부터·엑스트라)의 맨 마지막 패턴. 패턴 테스트 룸에서는 그런 보스전의 마지막 패턴이면
+  lastStandSpell(sp) {
+    if (this.run) return !!this.run.lastStand && this.run.seq[this.run.seq.length - 1] === sp;
+    return typeof BOSS_RUNS !== 'undefined' && BOSS_RUNS.some(r => r.lastStand && r.seq[r.seq.length - 1] === sp);
+  }
 
   // 엑스트라는 본편을 깬 뒤 열리는 스테이지일 뿐 난이도 체계가 아니므로 고른 난이도 그대로 씀
   effDiff(sp = this.spell) { return this.difficulty; }
@@ -511,6 +516,7 @@ class Game {
     const sp = this.spell = this.spells[this.spellIndex];
     this.bullets = []; this.lasers = []; this.enemies = []; this.shots = []; this.fx = []; this.boost = null; this.gauge = null; this.surgeLv = 0;
     this.partners = []; this.chants = []; this.zones = []; this.areas = []; this.slow = null; this.safes = [];
+    this.rifts = []; this.mists = [];
     this.items = this.items || [];
     this.tasks.clear(); this.error = '';
     this.player = this.player || {};
@@ -616,6 +622,9 @@ class Game {
     }
     this.clearBullets(true);
     this.tasks.clear(); this.areas = []; this.slow = null;
+    // 차원절단 균열은 다음 패턴으로 넘어가기 전에 쩌저적 하며 다시 붙음. 붉은 안개는 걷힘
+    for (const r of this.rifts) this.closeRift(r);
+    for (const m of this.mists) m.life = Math.min(m.life, m.t + 40);
     // 논스펠은 작은 P만, 스펠은 큰 P 하나를 더 줌
     if (!this.boss.hidden && reason !== 'timeout') this.dropItems(this.boss.x, this.boss.y, 5, sp.type === 'spell' ? 1 : 0, true);
     for (const it of this.items) it.magnet = true;
@@ -717,6 +726,7 @@ class Game {
       st.diff = Math.min(st.diff, this.difficulty);   // 도중에 난이도를 낮추면 낮은 쪽으로 채점
     }
     this.updatePlayer();
+    this.updateRifts();
 
     const b = this.boss;
     this.updateActor(b);
@@ -742,8 +752,9 @@ class Game {
       this.frame++;
       // 격화 단계가 오르면 보스 옆에 알림
       const sl = this.surgeLevel();
-      // 발악: 격화 III에 닿으면(내구 스펠·도중 제외) 체력바가 사라지고 보스는 더 맞지 않으며 15초를 버티면 그 패턴을 깬 것으로 침
-      if (sl >= 2 && !this.desperate && !sp.survival && sp.type !== 'stage' && !this.boss.hidden) {
+      // 발악: 5스테이지부터(lastStand인 보스전) 보스전의 맨 마지막 패턴만. 격화 III에 닿으면(내구 스펠·도중 제외)
+      // 체력바가 사라지고 보스는 더 맞지 않으며 15초를 버티면 그 패턴을 깬 것으로 침
+      if (sl >= 2 && !this.desperate && !sp.survival && sp.type !== 'stage' && !this.boss.hidden && this.lastStandSpell(sp)) {
         this.desperate = { t: 0, dur: DESPERATE_FRAMES };
         this.timer = this.timerMax = DESPERATE_FRAMES;
         this.timerPulse = 72;   // 문구 없이 제한시간 표시를 한 번 크게 강조
@@ -875,6 +886,76 @@ class Game {
     SFX.hit();
   }
 
+  // ── 차원절단 균열(티폰) ──
+  // 화면을 가로지르는 직선 균열. 예고(warn) → 한쪽 끝에서 다른 끝으로 찢어짐(tear) → 벌어진 틈(열린 동안 기체가 지나갈 수 없음)
+  // → 닫힘(쩌저적 하며 다시 붙음, 40프레임). n·(x,y) = c가 균열의 중심선, cw는 지금 벌어진 반폭.
+  // lethal: 벌어지는 순간 틈 위에 있으면 피탄(아니면 가까운 쪽으로 밀려남). block: 적 탄을 삼킴
+  // (guard를 주면 그 쪽으로 넘어가려는 탄만 삼킴: 균열 너머 한쪽만 지키는 붉은 안개용)
+  updateRifts() {
+    const p = this.player;
+    if (!this.rifts) return;
+    for (const r of this.rifts) {
+      r.t++;
+      const open = r.warn + r.tear;
+      if (r.t === r.warn + 1) { SFX.riftTear(); this.shake(r.quiet ? 3 : 8); }
+      if (r.t > r.warn && r.t <= open && !r.quiet) {
+        // 찢어지는 끝에서 불꽃이 튐
+        const s = -r.len / 2 + r.len * (r.t - r.warn) / r.tear, tx = r.x + r.dx * s, ty = r.y + r.dy * s;
+        for (let i = 0; i < 3; i++) this.fx.push({ kind: 'shard', x: tx, y: ty, vx: (Math.random() * 2 - 1) * 3, vy: (Math.random() * 2 - 1) * 3, t: 0, life: 18 + Math.random() * 14, color: i ? '#ff6fae' : '#fff' });
+      }
+      if (r.t === open) {
+        r.live = true; r.cw = r.w;
+        const d = r.nx * p.x + r.ny * p.y - r.c;
+        r.side = d < 0 ? -1 : 1;
+        if (Math.abs(d) < r.w + HIT_R && r.lethal) this.hitPlayer();
+      }
+      if (r.closing) {
+        r.ct++;
+        r.cw = r.w * Math.max(0, 1 - r.ct / 22);
+        if (r.ct === 22) r.live = false;
+        if (r.ct % 3 === 0 && r.ct < 26) {
+          const s = (Math.random() - 0.5) * r.len, tx = r.x + r.dx * s, ty = r.y + r.dy * s;
+          this.fx.push({ kind: 'shard', x: tx, y: ty, vx: r.nx * (Math.random() * 2 - 1) * 2, vy: r.ny * (Math.random() * 2 - 1) * 2, t: 0, life: 14, color: '#fff' });
+        }
+        if (r.ct >= 40) r.dead = true;
+      }
+    }
+    this.rifts = this.rifts.filter(r => !r.dead);
+    this.keepOffRifts();
+    // 붉은 안개: 떠다니는 안개 덩어리는 속도대로 움직임
+    for (const m of this.mists) { m.t++; if (m.vx) m.x += m.vx; if (m.vy) m.y += m.vy; }
+    this.mists = this.mists.filter(m => m.t < m.life);
+  }
+  // 기체가 벌어진 균열을 넘거나 틈에 들어가지 못하게 원래 쪽으로 밀어냄(겹친 균열이 있어 두 번 되풀이)
+  keepOffRifts() {
+    const p = this.player;
+    if (!p || !this.rifts.length) return;
+    for (let k = 0; k < 2; k++) for (const r of this.rifts) {
+      if (!r.live) continue;
+      const d = r.nx * p.x + r.ny * p.y - r.c, need = r.cw + 3;
+      if (d * r.side < need) { const m = r.side * need - d; p.x += r.nx * m; p.y += r.ny * m; }
+      p.x = Math.max(8, Math.min(W - 8, p.x)); p.y = Math.max(16, Math.min(H - 16, p.y));
+    }
+  }
+  // 되살아난 자리를 기준으로 기체가 선 쪽을 다시 정함
+  resideRifts() {
+    const p = this.player;
+    for (const r of this.rifts || []) { const d = r.nx * p.x + r.ny * p.y - r.c; r.side = d < 0 ? -1 : 1; }
+    this.keepOffRifts();
+  }
+  riftEats(b) {
+    for (const r of this.rifts) {
+      if (!r.live || !r.block) continue;
+      const d = r.nx * b.x + r.ny * b.y - r.c;
+      if (Math.abs(d) > r.cw) continue;
+      if (!r.guard) return true;
+      const vx = b.cart ? b.vx : Math.cos(b.ang) * b.spd, vy = b.cart ? b.vy : Math.sin(b.ang) * b.spd;
+      if ((vx * r.nx + vy * r.ny) * r.guard > 0) return true;
+    }
+    return false;
+  }
+  closeRift(r) { if (!r.closing && !r.dead) { if (!r.live) { r.dead = true; return; } r.closing = true; r.ct = 0; SFX.riftClose(); } }
+
   hitPlayer() {
     const p = this.player;
     if (p.inv > 0) return;
@@ -889,6 +970,7 @@ class Game {
     this.clearBullets(false, true);
     // respawn: 되살아난 직후 무적 동안 새로 깔린 레이저·사슬은 판정 없음(되살아난 자리를 노린 레이저가 무적이 끝나는 순간 맞혀 목숨이 연달아 줄지 않게)
     p.x = W / 2; p.y = H - 48; p.inv = 150; p.respawn = 150; p.bomb = null;
+    this.resideRifts();
     // 한 번 죽을 때마다 목숨 하나. 폭탄은 다시 3개로
     p.lives--; p.bombs = START_BOMBS;
     if (this.story) this.story.miss++;
@@ -927,6 +1009,7 @@ class Game {
       }
       const m = b.margin;
       if (b.x < -m || b.x > W + m || b.y < -m - b.marginTop || b.y > H + m) b.dead = true;
+      if (this.rifts.length && !b.dead && this.riftEats(b)) { b.dead = true; if (Math.random() < 0.25) this.fx.push({ kind: 'spark', x: b.x, y: b.y, t: 0, life: 14, color: 'red' }); }
       if (b.dead || b.off) continue;   // off: 꺼진(깜빡임) 탄은 판정 없음
       const d = dist2(b.x, b.y, p.x, p.y), r = b.r + HIT_R, gr = b.r + GRAZE_R;
       if (d < r * r) { this.hitPlayer(); if (!this.invincible) break; }
@@ -1203,6 +1286,25 @@ function makeAPI(G) {
       G.partners.push(a);
       return a;
     },
+    // 차원절단 균열 {x,y,ang,warn,tear,w,lethal,block,guard,quiet}: (x,y)를 지나 ang 방향으로 화면을 가로지름. 닫을 때까지 열려 있음
+    // guard: 균열 너머 지킬 쪽(균열 법선 n=(-sin,cos) 기준 +1·-1). 그 쪽으로 넘어가려는 적 탄만 삼킴
+    rift(o = {}) {
+      const ang = o.ang ?? Math.PI / 2, nx = -Math.sin(ang), ny = Math.cos(ang), x0 = o.x ?? W / 2, y0 = o.y ?? H / 2;
+      // 선 위의 기준점은 화면 가운데에서 선에 내린 수선의 발(그래야 길이 len으로 화면을 끝까지 가로지름)
+      const off = nx * (x0 - W / 2) + ny * (y0 - H / 2), x = W / 2 + nx * off, y = H / 2 + ny * off;
+      const N = 36, jag = () => Array.from({ length: N + 1 }, () => Math.random() * 2.6);
+      const r = { x, y, ang, dx: Math.cos(ang), dy: Math.sin(ang), nx, ny, c: nx * x + ny * y, len: Math.hypot(W, H) + 20,
+        warn: o.warn ?? 50, tear: o.tear ?? 18, w: o.w ?? 6, cw: 0, lethal: !!o.lethal, block: !!o.block, guard: o.guard ?? 0, quiet: !!o.quiet,
+        t: 0, live: false, side: 1, N, jagA: jag(), jagB: jag() };
+      G.rifts.push(r);
+      return r;
+    },
+    closeRift(r) { G.closeRift(r); },
+    closeRifts() { for (const r of G.rifts) G.closeRift(r); },
+    // 점 (x,y)가 균열 r의 어느 쪽인지(+1·-1)
+    riftSide(r, x, y) { return r.nx * x + r.ny * y - r.c < 0 ? -1 : 1; },
+    // 붉은 안개(판정 없음). 사각 {x,y,w,h} 또는 덩어리 {x,y,r,vx,vy}. fade 동안 짙어짐, life가 되면 사라짐(끝 40프레임은 옅어짐)
+    mist(o = {}) { const m = { x: o.x, y: o.y, w: o.w, h: o.h, r: o.r, vx: o.vx ?? 0, vy: o.vy ?? 0, t: 0, fade: o.fade ?? 40, life: o.life ?? 600 }; G.mists.push(m); return m; },
     // 판정 없는 빨간 예고선: {x,y,x2,y2,dur}
     warnLine(o) { G.fx.push({ kind: 'warnline', x: o.x ?? G.boss.x, y: o.y ?? G.boss.y, x2: o.x2, y2: o.y2, t: 0, life: o.dur ?? 30, band: o.band ?? 0 }); },
     // 사각 구역 공격 {x,y,w,h,warn,dur,label,color}. warn 동안 예고, dur 동안 판정
@@ -1282,6 +1384,8 @@ function render(G) {
   g.translate(ox + (sm ? (Math.random() * 2 - 1) * sm : 0), oy + (sm ? (Math.random() * 2 - 1) * sm : 0));
   g.beginPath(); g.rect(0, 0, W, H); g.clip();
   drawBackground(G, g);
+  drawMists(G, g);
+  drawRifts(G, g);
   drawBoss(G, g);
   drawEnemies(G, g);
   drawItems(G, g);
@@ -1794,10 +1898,111 @@ function drawBullets(G, g) {
   g.setTransform(base); g.globalAlpha = 1;
 }
 
+// 붉은 안개: 옅은 붉은 막 위로 일렁이는 덩어리. 탄이 보이도록 짙지 않게
+function drawMists(G, g) {
+  if (!G.mists || !G.mists.length) return;
+  g.save();
+  for (const m of G.mists) {
+    const a = Math.min(1, m.t / m.fade) * Math.min(1, (m.life - m.t) / 40);
+    if (a <= 0) continue;
+    if (m.r) {
+      const pr = m.r * (1 + 0.08 * Math.sin(G.bgT * 0.1 + m.x)), gr = g.createRadialGradient(m.x, m.y, 0, m.x, m.y, pr);
+      gr.addColorStop(0, 'rgba(255,40,70,0.55)'); gr.addColorStop(0.6, 'rgba(200,20,50,0.28)'); gr.addColorStop(1, 'rgba(160,0,30,0)');
+      g.globalAlpha = a; g.fillStyle = gr; g.fillRect(m.x - pr, m.y - pr, pr * 2, pr * 2);
+      continue;
+    }
+    g.save(); g.beginPath(); g.rect(m.x, m.y, m.w, m.h); g.clip();
+    g.globalAlpha = 0.22 * a; g.fillStyle = '#b3122e'; g.fillRect(m.x, m.y, m.w, m.h);
+    for (let i = 0; i < 9; i++) {
+      const px = m.x + ((i * 61 + G.bgT * (0.5 + (i % 5) * 0.1)) % (m.w + 80)) - 40;
+      const py = m.y + ((i * 89 + Math.sin(G.bgT * 0.025 + i) * 40) % Math.max(1, m.h) + m.h) % Math.max(1, m.h);
+      const r = 44 + (i % 3) * 18, gr = g.createRadialGradient(px, py, 0, px, py, r);
+      gr.addColorStop(0, 'rgba(255,50,80,0.42)'); gr.addColorStop(1, 'rgba(255,50,80,0)');
+      g.globalAlpha = a; g.fillStyle = gr; g.fillRect(px - r, py - r, r * 2, r * 2);
+    }
+    g.restore();
+  }
+  g.restore();
+}
+
+// 차원절단 균열: 예고(흐르는 점선) → 흰 빛이 한쪽 끝에서 찢고 지나감 → 들쭉날쭉한 틈 속에 검보랏빛 공간, 가장자리는 붉게 빛남
+// → 닫힐 때 틈이 좁아지며 흰 금이 번쩍이다 흉터처럼 사라짐
+function drawRifts(G, g) {
+  if (!G.rifts || !G.rifts.length) return;
+  g.save();
+  for (const r of G.rifts) {
+    const L = r.len, open = r.warn + r.tear;
+    const P = (s, off) => [r.x + r.dx * s + r.nx * off, r.y + r.dy * s + r.ny * off];
+    if (r.t <= r.warn) {
+      const urgent = r.warn - r.t < 18, blink = urgent ? (Math.sin(r.t * 1.4) > 0 ? 1 : 0.45) : 0.55 + 0.25 * Math.sin(r.t * 0.3);
+      g.globalAlpha = blink; g.strokeStyle = '#ff4d9a'; g.lineWidth = urgent ? 2.5 : 1.5;
+      g.setLineDash([10, 8]); g.lineDashOffset = -r.t * 1.5;
+      g.beginPath(); g.moveTo(...P(-L / 2, 0)); g.lineTo(...P(L / 2, 0)); g.stroke();
+      g.setLineDash([]); g.lineDashOffset = 0;
+      if (r.lethal) { g.globalAlpha = 0.1 * blink; g.lineWidth = (r.w + 3) * 2; g.stroke(); }
+      continue;
+    }
+    // 찢어진 길이(한쪽 끝에서부터)와 지금 반폭
+    const k = Math.min(1, (r.t - r.warn) / r.tear), tip = -L / 2 + L * k;
+    const cw = r.live || r.closing ? r.cw : r.w * Math.min(1, k * 1.5);
+    if (cw > 0.3) {
+      const pts = i => -L / 2 + L * i / r.N;
+      const last = Math.max(1, Math.ceil(r.N * k));
+      const gap = new Path2D();
+      for (let i = 0; i <= last; i++) { const s = Math.min(tip, pts(i)); gap.lineTo(...P(s, cw + r.jagA[i] * (cw / r.w))); }
+      for (let i = last; i >= 0; i--) { const s = Math.min(tip, pts(i)); gap.lineTo(...P(s, -cw - r.jagB[i] * (cw / r.w))); }
+      gap.closePath();
+      g.globalAlpha = 1; g.fillStyle = '#07010d'; g.fill(gap);
+      // 틈 속: 흐르는 보랏빛 줄
+      g.save(); g.clip(gap);
+      g.globalAlpha = 0.7; g.strokeStyle = '#7a2cff'; g.lineWidth = 1;
+      for (let i = 0; i < 6; i++) {
+        const s = ((i * 173 + G.bgT * (2 + i % 3)) % L) - L / 2, off = (i % 3 - 1) * cw * 0.5;
+        g.beginPath(); g.moveTo(...P(s, off)); g.lineTo(...P(s + 26, off)); g.stroke();
+      }
+      g.restore();
+      // 가장자리 빛
+      const ea = r.closing ? 0.6 + 0.4 * Math.random() : 0.85 + 0.15 * Math.sin(G.bgT * 0.3);
+      g.globalAlpha = 0.25 * ea; g.strokeStyle = '#ff2d6f'; g.lineWidth = 9; g.stroke(gap);
+      g.shadowColor = '#ff2d6f'; g.shadowBlur = 18;
+      g.globalAlpha = ea; g.strokeStyle = '#ff7aa8'; g.lineWidth = 2.5; g.stroke(gap);
+      g.shadowBlur = 0; g.globalAlpha = 0.8 * ea; g.strokeStyle = '#fff0f6'; g.lineWidth = 1; g.stroke(gap);
+    }
+    // 찢는 중: 끝을 따라가는 흰 빛
+    if (r.t <= open && !r.quiet) {
+      const [tx, ty] = P(tip, 0);
+      g.globalAlpha = 1; g.strokeStyle = '#fff'; g.lineWidth = 2.5; g.shadowColor = '#fff'; g.shadowBlur = 16;
+      g.beginPath(); g.moveTo(...P(-L / 2, 0)); g.lineTo(tx, ty); g.stroke(); g.shadowBlur = 0;
+      const gr = g.createRadialGradient(tx, ty, 0, tx, ty, 34);
+      gr.addColorStop(0, 'rgba(255,255,255,0.95)'); gr.addColorStop(0.4, 'rgba(255,90,160,0.5)'); gr.addColorStop(1, 'rgba(255,90,160,0)');
+      g.fillStyle = gr; g.fillRect(tx - 34, ty - 34, 68, 68);
+    }
+    // 다 찢어진 순간: 화면이 번쩍
+    if (!r.quiet && r.t > open - 2 && r.t < open + 12) {
+      g.globalAlpha = 0.35 * (1 - (r.t - open + 2) / 14); g.fillStyle = '#ffe0ee'; g.fillRect(0, 0, W, H);
+    }
+    // 닫히는 중: 들쭉날쭉한 흰 금이 번쩍이며 이어 붙고(쩌저적), 다 붙으면 흉터가 옅어짐
+    if (r.closing) {
+      const q = r.ct / 40;
+      g.globalAlpha = r.ct < 22 ? 0.9 : Math.max(0, 1 - (r.ct - 22) / 18) * 0.7;
+      g.strokeStyle = '#fff'; g.lineWidth = r.ct < 22 ? 1.5 : 1; g.shadowColor = '#ff8fc0'; g.shadowBlur = 8;
+      g.beginPath();
+      for (let i = 0; i <= r.N; i++) { const s = -L / 2 + L * i / r.N, z = r.ct < 22 ? (Math.random() * 2 - 1) * 3 * (1 - q) : 0; g.lineTo(...P(s, z)); }
+      g.stroke(); g.shadowBlur = 0;
+    }
+  }
+  g.restore();
+  g.globalAlpha = 1;
+}
+
 function drawFx(G, g) {
   for (const f of G.fx) {
     const k = f.t / f.life;
-    if (f.kind === 'spark') {
+    if (f.kind === 'shard') {
+      // 균열 불꽃: 흩어지며 사라지는 작은 파편
+      g.globalAlpha = 1 - k; g.fillStyle = f.color;
+      g.fillRect(f.x + f.vx * f.t - 1.5, f.y + f.vy * f.t - 1.5, 3, 3);
+    } else if (f.kind === 'spark') {
       g.globalAlpha = 1 - k; g.fillStyle = COLORS[f.color] || '#fff';
       g.fillRect(f.x - 2, f.y - 2 - k * 10, 4, 4);
     } else if (f.kind === 'purify') {

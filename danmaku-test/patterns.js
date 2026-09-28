@@ -2766,6 +2766,115 @@ SPELLS.push({
   },
 });
 
+// ── 엑스트라 3 · 티폰 ──
+// 스펠 셋(차원절단 → 붉은 안개 → 종언의 시). 공통 기믹 '차원절단': 화면을 찢어 균열을 만들고, 균열은 기체가 지나갈 수 없음.
+// 다음 스펠로 넘어가기 전에 쩌저적 하며 다시 붙음(엔진이 스펠 끝에 닫음)
+const TY_COLOR = '#e0507e';
+SPELLS.push({
+  name: '「차원절단」',
+  type: 'spell', boss: '티폰', bossColor: TY_COLOR, hp: 3600, time: 50, start: [192, 80],
+  *run(s) {
+    // 화면을 비스듬히 한 번 크게 가름. 균열은 이 스펠 내내 열려 있고 기체는 넘어갈 수 없음(적 탄은 지나감)
+    const cx = s.W / 2 + s.rand(-40, 40), cy = s.H * 0.55;
+    s.rift({ x: cx, y: cy, ang: Math.PI / 2 + s.pick([-1, 1]) * s.rand(0.25, 0.55), warn: 60, tear: 22, w: 7 });
+    yield 90;
+    // 균열이 열린 동안 피하는 탄막(임시: 내용 미정이라 조준 부채꼴과 원형탄만)
+    for (let w = 0; ; w++) {
+      s.spread(5, s.aim(s.boss.x, s.boss.y), 0.16, { spd: s.sp(3.2), shape: 'knife', color: 'red' });
+      if (w % 2) s.ring(s.cnt(24), { offset: s.rand(0, s.TAU), spd: s.sp(1.6), shape: 'small', color: 'pink' });
+      yield s.wait(40);
+      if (w % 5 === 4) yield* s.wander(40);
+    }
+  },
+}, {
+  name: '「붉은 안개」',
+  type: 'spell', boss: '티폰', bossColor: TY_COLOR, hp: 4200, time: 60, start: [192, 70],
+  *run(s) {
+    // 되풀이: 세로·가로 중 하나로 화면을 반으로 차원절단. 절단에 앞서 한쪽 면(A)에 붉은 안개가 끼고 그 안에서 피하기 어려운 탄막이 쏟아짐.
+    // 균열은 A에서 반대쪽(B)으로 넘어가려는 탄을 삼키지만, 붉은 안개 덩어리가 균열을 조금씩 지나와 B에서도 탄을 뿌림
+    const { W, H } = s;
+    yield 40;
+    for (;;) {
+      const vert = Math.random() < 0.5, first = s.pick([0, 1]);
+      const A = vert ? (first ? { x: 0, y: 0, w: W / 2, h: H } : { x: W / 2, y: 0, w: W / 2, h: H })
+        : (first ? { x: 0, y: 0, w: W, h: H / 2 } : { x: 0, y: H / 2, w: W, h: H / 2 });
+      const warn = 90, tear = 18, open = warn + tear;
+      const r = s.rift({ x: W / 2, y: H / 2, ang: vert ? Math.PI / 2 : 0, warn, tear, w: 6, block: true });
+      const sideA = s.riftSide(r, A.x + A.w / 2, A.y + A.h / 2);
+      r.guard = -sideA;
+      const fog = s.mist({ ...A, fade: 50, life: 9999 });
+      // A 안에서 균열까지 거리 min 이상인 임의의 점
+      const inA = min => { for (;;) { const x = s.rand(A.x + 12, A.x + A.w - 12), y = s.rand(A.y + 12, A.y + A.h - 12); if ((r.nx * x + r.ny * y - r.c) * sideA >= min) return { x, y }; } };
+      // 절단 30프레임 전부터 안개 속에서 탄막이 터져 나옴(절단 전에 B로 넘어가지 않게 균열에서 100px 넘게 떨어진 곳에서)
+      yield open - 30;
+      const burstEnd = s.frame + 30 + 190;
+      s.task(function* () {
+        while (s.frame < burstEnd) {
+          const q = inA(100);
+          s.ring(s.lv(5, 6, 7, 8, 9), { x: q.x, y: q.y, offset: s.rand(0, s.TAU), spd: s.sp(s.rand(1.5, 2.2)), shape: 'rice', color: 'red' });
+          yield s.wait(6);
+        }
+      }());
+      yield 30;
+      // 균열이 열리면 보스도 A 쪽으로 원형탄(세로 절단이면 보스가 균열 위라 B로 가는 탄은 곧바로 삼켜짐. 보스가 B에 있으면 쏘지 않음)
+      const bossInA = s.riftSide(r, s.boss.x, s.boss.y) === sideA || Math.abs(r.nx * s.boss.x + r.ny * s.boss.y - r.c) < 8;
+      if (bossInA) s.task(function* () {
+        for (let k = 0; s.frame < burstEnd; k++) { s.ring(s.cnt(22), { offset: k * 0.13, spd: s.sp(2.6), shape: 'orb', color: 'red' }); yield s.wait(22); }
+      }());
+      // 붉은 안개가 균열을 조금씩 지나와 B에서 탄을 뿌림
+      yield 40;
+      const puffs = s.lv(2, 2, 3, 3, 4) + (s.surge >= 2 ? 1 : 0);
+      for (let i = 0; i < puffs; i++) {
+        s.task(function* () {
+          yield i * 24;
+          const along = s.rand(-0.4, 0.4) * (vert ? H : W);
+          const x0 = W / 2 + r.dx * along + r.nx * sideA * 14, y0 = H / 2 + r.dy * along + r.ny * sideA * 14;
+          const v = 0.35, m = s.mist({ x: x0, y: y0, r: 28, vx: -r.nx * sideA * v, vy: -r.ny * sideA * v, fade: 30, life: 330 - i * 24 });
+          for (let k = 0; m.t < m.life - 40; k++) {
+            const d = (r.nx * m.x + r.ny * m.y - r.c) * sideA;
+            if (d < -70) { m.vx = 0; m.vy = 0; }   // B로 70px쯤 들어오면 멈춤
+            if (d < -10 && k % 2 === 0) s.ring(s.cnt(7), { x: m.x, y: m.y, offset: s.rand(0, s.TAU), spd: s.sp(1.3), shape: 'small', color: 'red' });
+            yield s.wait(28);
+          }
+        }());
+      }
+      yield 180;
+      // 안개가 걷히며 A에 남은 탄도 사라짐(균열이 닫힌 뒤 B로 쏟아지지 않게)
+      s.pop(s.bullets.filter(b => s.riftSide(r, b.x, b.y) === sideA), false);
+      s.closeRift(r);
+      fog.life = fog.t + 40;
+      yield 60;
+    }
+  },
+}, {
+  name: '「종언의 시」',
+  type: 'spell', boss: '티폰', bossColor: TY_COLOR, hp: 4200, time: 60, start: [192, 70],
+  *run(s) {
+    // 화면을 무수히 잘게 잘랐다 붙이길 되풀이. 균열은 벌어지는 순간 그 위에 있으면 피탄이고, 열린 동안 넘어갈 수 없음.
+    // 모든 균열이 비켜 가는 자리(생존 가능한 위치)가 하나 있고, 자를 때마다 조금씩만 옮겨 감(거의 정해져 있음)
+    const { W, H } = s;
+    const P = { x: W / 2 + s.rand(-60, 60), y: H - 90 };
+    yield 60;
+    for (;;) {
+      P.x = Math.max(60, Math.min(W - 60, P.x + s.rand(-24, 24)));
+      P.y = Math.max(H * 0.5, Math.min(H - 50, P.y + s.rand(-16, 16)));
+      const n = Math.round(s.lv(8, 10, 12, 14, 16) * (0.8 + 0.5 * s.heat)), gap = s.lv(34, 28, 24, 22, 20);
+      const warn = Math.max(34, s.wait(60)), rs = [];
+      for (let i = 0; i < n; i++) {
+        const ang = s.rand(0, Math.PI), nx = -Math.sin(ang), ny = Math.cos(ang);
+        const cs = [0, W].flatMap(x => [0, H].map(y => nx * x + ny * y)), lo = Math.min(...cs) + 16, hi = Math.max(...cs) - 16;
+        let c;
+        do c = s.rand(lo, hi); while (Math.abs(c - (nx * P.x + ny * P.y)) < gap);
+        // 선 위의 한 점: 법선 방향으로 c만큼
+        rs.push(s.rift({ x: nx * c, y: ny * c, ang, warn: warn + i * 2, tear: 10, w: 4, lethal: true, quiet: i > 0 }));
+      }
+      yield warn + 2 * n + 10 + s.wait(70);
+      for (const r of rs) s.closeRift(r);
+      yield 50;
+    }
+  },
+});
+
 // ── 격화 III 추가 탄막 ──
 // 패턴이 격화 III(진행도 2/3)에 닿으면 그 보스다운 가벼운 탄막이 그 패턴이 끝날 때까지 함께 나옴(엔진이 붙임).
 // 보스 이름의 괄호 앞부분으로 찾음(예로니모(진심) → 예로니모). noSurgeExtra: true인 패턴은 제외
@@ -2813,6 +2922,7 @@ function spellOf(name, boss) {
   if (!sp) throw new Error('보스전 패턴 없음: ' + name);
   return sp;
 }
+// lastStand: 발악(격화 III에서 체력바 없이 15초 버티기)이 이 보스전의 맨 마지막 패턴에 걸림. 5스테이지부터와 엑스트라
 const BOSS_RUNS = [
   {
     title: '1스테이지 · 괴이사건대책반', name: '대책반', pages: [2, 2], power: 0, hpScale: 4.23, bossScale: { '윤도연': 0.72 },
@@ -2863,7 +2973,7 @@ const BOSS_RUNS = [
     ],
   },
   {
-    title: '5스테이지 · 아즈라엘', name: '아즈라엘', pages: [2, 2], power: 2.75, hpScale: 4.98,
+    title: '5스테이지 · 아즈라엘', name: '아즈라엘', pages: [2, 2], lastStand: true, power: 2.75, hpScale: 4.98,
     seq: [
       // 명암은 뺌(패턴 테스트 룸에서만). 1페이즈 논스펠 1 → 검은 안개, 2페이즈 논스펠 3 → 아인
       spellOf('논스펠 · 아즈라엘 1'),
@@ -2873,7 +2983,7 @@ const BOSS_RUNS = [
     ],
   },
   {
-    title: '6스테이지 · 예로니모', name: '예로니모', pages: [4, 2], power: 3, hpScale: 3.81,
+    title: '6스테이지 · 예로니모', name: '예로니모', pages: [4, 2], lastStand: true, power: 3, hpScale: 3.81,
     seq: [
       spellOf('논스펠 · 예로니모 1'),
       spellOf('스피리투스 제1식 — 꺼져가는 등불을 끄지 아니하고'),
@@ -2884,7 +2994,7 @@ const BOSS_RUNS = [
     ],
   },
   {
-    title: '7스테이지 · 리크니스', name: '리크니스', pages: [2, 3], power: 3.5, hpScale: 4.09,
+    title: '7스테이지 · 리크니스', name: '리크니스', pages: [2, 3], lastStand: true, power: 3.5, hpScale: 4.09,
     seq: [
       spellOf('논스펠 · 리크니스 2'),
       spellOf('「뿌리를 찾는 덩굴」(가칭)'),
@@ -2894,7 +3004,7 @@ const BOSS_RUNS = [
     ],
   },
   {
-    title: '엑스트라 · 진심 예로니모', name: '진심 예로니모', pages: [3, 3], power: 4, hpScale: 2.7,
+    title: '엑스트라 · 진심 예로니모', name: '진심 예로니모', pages: [3, 3], lastStand: true, power: 4, hpScale: 2.7,
     seq: [
       spellOf('논스펠 · 예로니모 3', '예로니모(진심)'),
       spellOf('파테르 제2식 — 능히 일어나지 못하게 하리니', '예로니모(진심)'),
@@ -2905,13 +3015,21 @@ const BOSS_RUNS = [
     ],
   },
   {
-    title: '엑스트라 2 · 이즘', name: '이즘', pages: [2, 3], power: 4, hpScale: 4.6,
+    title: '엑스트라 2 · 이즘', name: '이즘', pages: [2, 3], lastStand: true, power: 4, hpScale: 4.6,
     seq: [
       spellOf('논스펠 · 이즘 1'),
       spellOf('「순차 격자 타격」(가칭)'),
       spellOf('논스펠 · 이즘 2'),
       spellOf('「세이브 포인트」(가칭)'),
       spellOf('「백일몽」(가칭)'),
+    ],
+  },
+  {
+    title: '엑스트라 3 · 티폰', name: '티폰', pages: [1, 1, 1], power: 4, hpScale: 4.6, lastStand: true,
+    seq: [
+      spellOf('「차원절단」'),
+      spellOf('「붉은 안개」'),
+      spellOf('「종언의 시」'),
     ],
   },
 ];
@@ -3019,6 +3137,7 @@ const MOB_STAGES = {
   '리크니스': { T: 0.35, col: 'red', kind: 1 },
   '진심 예로니모': { T: 0.5, col: 'gold' },
   '이즘': { T: 0.5, col: 'cyan', kind: 1 },
+  '티폰': { T: 0.5, col: 'red' },
 };
 for (const r of BOSS_RUNS) {
   const o = MOB_STAGES[r.name];
@@ -3032,4 +3151,5 @@ const STORY = {
   main: ['대책반', '마리·마르코', '김예나', '고태웅', 'NYMPH', '아즈라엘', '예로니모', '리크니스'],
   extra: ['진심 예로니모'],
   extra2: ['이즘'],
+  extra3: ['티폰'],
 };

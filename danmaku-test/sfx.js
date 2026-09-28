@@ -110,4 +110,15 @@ const SFX = {
   overclock() { if (this.ok('overclock', 0.3)) { this.tone('sawtooth', 200, 1400, 0.35, 0.06); this.tone('square', 1400, 1400, 0.3, 0.02, 0.35); } },
   slowOut() { if (this.ok('slowOut', 0.3)) this.tone('sine', 110, 900, 0.4, 0.1); },
   extend()  { if (this.ok('extend', 0.3)) [520, 780, 1040].forEach((f, i) => this.tone('sine', f, f, 0.3, 0.07, i * 0.09, true)); },
+  // 차원절단: 공간이 찢어지는 소리(높은 쇳소리가 훑고 내려간 뒤 낮게 울림)
+  riftTear() { if (this.ok('riftTear', 0.12)) { this.hiss(0.45, 0.32, 'highpass', 7000, 1200, 1); this.tone('sawtooth', 1600, 70, 0.4, 0.07); this.tone('sine', 95, 30, 0.7, 0.3, 0.05, true); } },
+  // 균열이 다시 붙음: 쩌저적(불규칙한 짧은 금 가는 소리 여러 번 뒤 둔탁하게 닫힘)
+  riftClose() {
+    if (!this.ok('riftClose', 0.15)) return;
+    [0, 0.05, 0.08, 0.14, 0.17, 0.23, 0.27, 0.31].forEach((d, i) => {
+      this.hiss(0.03, 0.22, 'bandpass', this.jitter(3800, 0.3), 2600, 4, d);
+      this.tone('square', this.jitter(2400, 0.2), 900, 0.02, 0.03, d);
+    });
+    this.tone('sine', 160, 50, 0.25, 0.2, 0.36); this.hiss(0.15, 0.15, 'lowpass', 1200, 200, 1, 0.36);
+  },
 };
