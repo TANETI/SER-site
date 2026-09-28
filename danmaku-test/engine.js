@@ -442,7 +442,7 @@ class Game {
     // 배경음악: 이 보스의 폴더 곡. 보스전 도중 곡이 없는 보스면 앞 곡을 이어 감. 같은 곡이면 처음으로 돌리지 않음
     // bgmRate: 곡 재생 속도(폭주 마르코 1.2). 함수면 게임 상태로 정함(김예나 시청자 수 단계)
     // 도중은 bgm(스테이지 폴더 이름)으로 곡을 찾음
-    this.bgmFollowR = 1;
+    this.bgmFollowR = 1; this.bgmSentR = 1;
     BGM.playBoss(sp.bgm || sp.boss, cont, (typeof sp.bgmRate === 'function' ? sp.bgmRate(this) : sp.bgmRate) || 1);
     // 보스전 시작이나 보스가 바뀔 때(중간 보스 → 보스) 가운데에 소개
     if (this.run && sp.boss && (!cont || !prev || prev.name !== sp.boss)) {
@@ -641,11 +641,13 @@ class Game {
         this.shake(sl === 1 ? 4 : 6); SFX.spell();
       }
       this.surgeLv = sl;
-      // bgmFollow: 곡 속도가 적 탄 속도(불렛타임·오버클럭)를 따라감. 값은 이 패턴의 평소 탄 속도 배율(그때를 1배속으로)
+      // bgmFollow: 곡 속도가 적 탄 속도를 따라감. 값은 이 패턴의 평소 탄 속도 배율(그때 1배속). 평소보다 빠르면 1.5배속,
+      // 느리면 0.75배속을 목표로 하고, 곡은 프레임당 0.008씩(약 1초에 걸쳐) 서서히 옮겨 감. 패턴 첫 0.7초는 1배속
       if (sp.bgmFollow) {
-        // 패턴 첫 0.7초는 평소 속도로 넘어가는 중이라 1배속 유지
-        const r = this.frame < 40 ? 1 : Math.max(0.5, Math.min(2, this.slowFactor() / sp.bgmFollow));
-        if (Math.abs(r - (this.bgmFollowR ?? 1)) > 0.02) { this.bgmFollowR = r; BGM.setRate(r); }
+        const ratio = this.slowFactor() / sp.bgmFollow, want = this.frame < 40 ? 1 : ratio > 1.05 ? 1.5 : ratio < 0.95 ? 0.75 : 1;
+        const cur = this.bgmFollowR ?? 1, r = cur + Math.max(-0.008, Math.min(0.008, want - cur));
+        this.bgmFollowR = r;
+        if (Math.abs(r - (this.bgmSentR ?? 1)) > 0.02 || (r === want && r !== this.bgmSentR)) { this.bgmSentR = r; BGM.setRate(r); }
       }
       this.tasks.step();
       // 제한시간 10초 전부터 초읽기
