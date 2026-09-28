@@ -2330,7 +2330,7 @@ function drawFieldUI(G, g) {
   const run = G.run, bars = run && run.bars, bw = W - 60;
   if (!b.hidden && !sp.survival && !G.desperate) {
     let fill = b.hp / b.maxHp, marks = [];
-    if (bars && run.idx >= 0) {
+    if (bars && run.idx >= 0 && run.idx < run.seq.length) {   // 스테이지를 깬 뒤(idx가 끝을 넘음)에는 이 패턴 몫만
       // 보스 하나가 체력바 하나: 지금 보스가 이어서 나오는 패턴 전부. 표시선은 페이즈(pages) 경계에만
       let i0 = run.idx, i1 = run.idx;
       while (i0 > 0 && run.seq[i0 - 1].boss === sp.boss) i0--;
@@ -2351,7 +2351,7 @@ function drawFieldUI(G, g) {
     g.fillStyle = '#f5c542'; g.font = 'bold 10px system-ui, "Malgun Gothic", sans-serif'; g.textBaseline = 'top'; g.textAlign = 'left';
     g.fillText(`격화 ${['I', 'II', 'III'][G.surgeLevel()]}`, 8, 12);
   }
-  if (run && bars && run.idx >= 0) {
+  if (run && bars && run.idx >= 0 && run.idx < run.seq.length) {
     // 이 보스의 몇 번째 페이지인지(페이지의 보스 = 그 페이지 마지막 패턴의 보스)
     const pageBoss = pg => { let last = -1; bars.forEach((v, i) => { if (v === pg) last = i; }); return run.seq[last].boss; };
     const cur = bars[run.idx], boss = pageBoss(cur), all = [...new Set(bars)].filter(pg => pageBoss(pg) === boss);
@@ -2476,7 +2476,7 @@ function drawHUD(G, g) {
   if (G.story) {
     // 본게임: 개발 정보 대신 이번 판 스펠카드 획득 수와 남은 체력바
     const sc = G.story.cards || { got: 0, tried: 0 }, bars = G.run && G.run.bars;
-    const left = bars ? bars[bars.length - 1] - (G.run.idx < 0 ? 0 : bars[G.run.idx]) + 1 : 0;
+    const left = bars ? bars[bars.length - 1] - (G.run.idx < 0 ? 0 : bars[Math.min(G.run.idx, bars.length - 1)]) + 1 : 0;
     g.font = font(12); g.fillStyle = '#8e8ea6'; g.fillText('스펠카드', x, y); g.fillText('남은 페이즈', x, y + 20); g.fillText('컨티뉴', x, y + 40);
     g.fillStyle = '#fff'; g.font = font(13, true); g.textAlign = 'right';
     g.fillText(`${sc.got} / ${sc.tried}`, x + w, y); g.fillText(String(left), x + w, y + 20);
