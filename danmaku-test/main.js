@@ -58,6 +58,8 @@ let pausedByLock = false;
 cv.addEventListener('mousedown', e => {
   if (!G.mouseMode || G.mobile) return;
   SFX.unlock();
+  // 잠긴 채로 스테이지 클리어가 되면 왼쪽 클릭으로도 다음 스테이지로
+  if (G.phase === 'stageclear' && e.button === 0) { G.continueStage(); return; }
   if (!locked()) {
     // 잠그고 시작(시작·클리어 화면처럼 겹침 화면이 떠 있을 때는 잠그지 않음)
     if (overlay.hidden) { try { const r = cv.requestPointerLock(); if (r && r.catch) r.catch(() => {}); } catch (err) { /* 못 잠가도 진행 */ } }
@@ -304,6 +306,8 @@ const overlay = $('overlay');
 const esc = t => String(t).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const mmss = sec => `${Math.floor(sec / 60)}분 ${String(Math.floor(sec % 60)).padStart(2, '0')}초`;
 function showOverlay(html, onBtn) {
+  // 마우스 조작으로 커서가 잠겨 있으면 버튼을 누를 수 없으므로 풀어 줌
+  if (document.pointerLockElement) document.exitPointerLock();
   overlay.innerHTML = html; overlay.hidden = false;
   for (const b of overlay.querySelectorAll('button[data-act]')) {
     let done = false;
@@ -315,7 +319,7 @@ function showOverlay(html, onBtn) {
 G.onStageClear = (cur, next) => showOverlay(
   `<h3>${esc(cur.title.split(' · ')[0])} 클리어!</h3><div class="sub">다음: ${esc(next.title)}</div>` +
   `<button class="primary" data-act="next">다음 스테이지로 ▶ <small>(Z)</small></button>`,
-  () => G.continueStage());
+  () => { overlay.hidden = true; G.continueStage(); });
 G.onStoryClear = res => {
   const key = G.story && G.story.key;
   const title = res.fail ? `탈락 · ${res.stage}` : key === 'main' ? '본편 클리어!' : key === 'extra' ? '엑스트라 클리어!' : '엑스트라 2 클리어!';
