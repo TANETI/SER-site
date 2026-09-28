@@ -307,6 +307,8 @@ function roomNo(G) { const at = G.roomOrder ? G.roomOrder.indexOf(G.spellIndex) 
 // − 미스 700·폭탄 350·컨티뉴 2700씩, 그 뒤 난이도 배율(이지 0.7, 노말 1, 하드 1.1, 베리하드 1.2, 헬 1.5), 최대 100000.
 // 시간 보너스: 기준 시간(노말 약 25분, 난이도별 보스 체력 배율만큼 길게) 안이면 만점, 기준의 두 배에서 0
 const SCORE_DIFF = [0.7, 1, 1.1, 1.2, 1.5];
+// 컨티뉴: 본게임에서 최대 2회, 보스 3명마다 1회 보충. 게임 오버 뒤 10초 안에 이어 하지 않으면 탈락
+const MAX_CONTINUES = 2, CONTINUE_EVERY = 3, CONTINUE_WAIT = 600;
 function finalScore(st) {
   const d = st.diff ?? 1, sec = st.frames / 60;
   const scale = st.list.length / 8;   // 본편 8스테이지 기준
@@ -438,12 +440,31 @@ class Game {
     const list = (STORY[key] || []).map(name => BOSS_RUNS.find(r => r.name === name)).filter(Boolean);
     if (!list.length) return;
     // 본게임 기록: 플레이 시간(프레임)·미스·폭탄·컨티뉴, 테스트 도구를 썼는지(tools)
-    this.story = { key, list, idx: 0, frames: 0, miss: 0, bombs: 0, continues: 0, tools: false, diff: this.difficulty };
+    // contLeft: 남은 컨티뉴(최대 2, 처음 2). 보스를 3명 쓰러뜨릴 때마다 1 보충(같은 보스는 한 번만 셈). beaten: 쓰러뜨린 보스
+    this.story = { key, list, idx: 0, frames: 0, miss: 0, bombs: 0, continues: 0, tools: false, diff: this.difficulty, contLeft: MAX_CONTINUES, beaten: new Set() };
     this.score = 0; this.graze = 0;
     this.startRun(list[0]);
   }
+  // 본게임 게임 오버에서 이어 하기: 컨티뉴 하나를 쓰고 그 스테이지 처음부터(점수는 0부터)
+  useContinue() {
+    const st = this.story;
+    if (this.phase !== 'gameover' || !st || st.contLeft <= 0) return;
+    st.contLeft--; st.continues++;
+    this.score = 0; this.graze = 0; this.startRun(st.list[st.idx]);
+    this.onChange?.();
+  }
+  // 본게임 탈락: 컨티뉴가 없거나 10초 안에 이어 하지 않음. 탈락 점수로 채점
+  storyFail() {
+    const st = this.story;
+    this.phase = 'storyfail'; this.phaseT = 99999;
+    st.result = { fail: true, diff: st.diff, sec: st.frames / 60, miss: st.miss, bombs: st.bombs, continues: st.continues, tools: st.tools,
+      cleared: st.idx, total: st.list.length, stage: st.list[st.idx].title.split(' · ')[0] };
+    st.result.score = failScore(st.result);
+    this.onStoryClear?.(st.result);
+  }
   restart() {
-    if (this.story && this.story.idx >= this.story.list.length) return this.startStory(this.story.key);   // 클리어 뒤 R: 처음부터
+    if (this.story && (this.story.idx >= this.story.list.length || this.phase === 'storyclear' || this.phase === 'storyfail')) return this.startStory(this.story.key);   // 클리어·탈락 뒤 R: 처음부터
+    if (this.story && this.phase === 'gameover') return this.useContinue();   // 게임 오버에서 R: 컨티뉴
     if (this.story) { this.score = 0; this.graze = 0; this.startRun(this.story.list[this.story.idx]); }
     else if (this.run) this.startRun(this.run); else this.startSingle();
   }
@@ -579,6 +600,18 @@ class Game {
       this.fx.push({ kind: 'phase', text: `PHASE ${n}`, sub: sp.boss, x: this.boss.x, y: this.boss.y, t: 0, life: 150 });
       this.boss.glow = 120; this.shake(10); SFX.boom(); SFX.spell();
     }
+    // 본게임: 보스의 마지막 패턴이 끝나면(다음 패턴이 다른 보스거나 보스전 끝) 그 보스를 쓰러뜨린 것으로 셈. 3명마다 컨티뉴 1 보충
+    if (this.story && this.run && this.run.idx >= 0 && sp.boss) {
+      const nx = this.run.seq[this.run.idx + 1], st = this.story, id = this.run.name + '/' + sp.boss;
+      if ((!nx || nx.boss !== sp.boss) && !st.beaten.has(id)) {
+        st.beaten.add(id);
+        if (st.beaten.size % CONTINUE_EVERY === 0 && st.contLeft < MAX_CONTINUES) {
+          st.contLeft++;
+          this.fx.push({ kind: 'text', text: '컨티뉴 +1', x: W / 2, y: 96, t: 0, life: 90 });
+          SFX.extend();
+        }
+      }
+    }
     // 결과 화면 없이 넘어가도 스펠카드 획득은 짧게 알림
     if (this.result.quiet && this.result.captured) this.fx.push({ kind: 'text', text: '스펠카드 획득!', x: W / 2, y: 70, t: 0, life: 70 });
     // 보스전 마지막 패턴을 격파(내구 스펠은 버팀)하면 배경음악이 자연스럽게 줄어들며 끝남
@@ -702,7 +735,7 @@ class Game {
       this.result.t++;
       if (--this.phaseT <= 0) this.next();
     } else if (this.phase === 'gameover') {
-      if (--this.phaseT <= 0) this.restart();
+      if (--this.phaseT <= 0) { if (this.story) this.storyFail(); else this.restart(); }
     }
 
     if (this.cutin) this.cutin.t++;   // 스펠 컷인은 게임 시간으로 흐름(일시정지 중에는 멈춤)
@@ -820,9 +853,9 @@ class Game {
     p.power = +(p.power - lost).toFixed(2);
     if (lost > 0) this.dropItems(p.x, p.y - 30, 5, 0);
     if (p.lives <= 0) {
-      if (this.story) this.story.continues++;
       this.tasks.clear(); this.clearBullets(false);
-      this.phase = 'gameover'; this.phaseT = 240;
+      // 본게임: 컨티뉴가 남았으면 10초 기다림(그 안에 이어 하기), 없으면 잠깐 뒤 탈락. 그 밖에는 4초 뒤 자동 재시작
+      this.phase = 'gameover'; this.phaseT = this.story ? (this.story.contLeft > 0 ? CONTINUE_WAIT : 120) : 240;
     }
   }
 
@@ -970,6 +1003,7 @@ class Game {
   handleKeys() {
     const take = c => this.pressed.delete(c);
     if (this.phase === 'stageclear' && (take('KeyZ') || take('Enter'))) { this.continueStage(); return; }
+    if (this.phase === 'gameover' && this.story && (take('KeyZ') || take('Enter'))) { this.useContinue(); return; }
     if (take('Escape')) this.paused = !this.paused;
     if (take('KeyR')) this.restart();
     if (take('KeyM')) { SFX.setMuted(!SFX.muted); this.onChange?.(); }
@@ -2015,7 +2049,11 @@ function drawFieldUI(G, g) {
     // 클리어 화면(글자·버튼은 게임 화면 위 겹침 화면이 그림)
     g.fillStyle = G.phase === 'storyclear' ? 'rgba(6,6,12,0.88)' : 'rgba(0,0,0,0.6)'; g.fillRect(0, 0, W, H);
   }
-  if (G.phase === 'gameover') {
+  if (G.phase === 'gameover' && G.story) {
+    g.fillStyle = 'rgba(0,0,0,0.7)'; g.fillRect(0, 0, W, H);
+  } else if (G.phase === 'storyfail') {
+    g.fillStyle = 'rgba(6,6,12,0.88)'; g.fillRect(0, 0, W, H);
+  } else if (G.phase === 'gameover') {
     g.fillStyle = 'rgba(0,0,0,0.6)'; g.fillRect(0, 0, W, H);
     g.fillStyle = '#ff6b7a'; g.textAlign = 'center'; g.font = 'bold 24px system-ui, "Malgun Gothic", sans-serif';
     g.fillText('게임 오버', W / 2, H / 2 - 24);
@@ -2084,9 +2122,10 @@ function drawHUD(G, g) {
     // 본게임: 개발 정보 대신 이번 판 스펠카드 획득 수와 남은 체력바
     const sc = G.story.cards || { got: 0, tried: 0 }, bars = G.run && G.run.bars;
     const left = bars ? bars[bars.length - 1] - (G.run.idx < 0 ? 0 : bars[G.run.idx]) + 1 : 0;
-    g.font = font(12); g.fillStyle = '#8e8ea6'; g.fillText('스펠카드', x, y); g.fillText('남은 페이즈', x, y + 20);
+    g.font = font(12); g.fillStyle = '#8e8ea6'; g.fillText('스펠카드', x, y); g.fillText('남은 페이즈', x, y + 20); g.fillText('컨티뉴', x, y + 40);
     g.fillStyle = '#fff'; g.font = font(13, true); g.textAlign = 'right';
-    g.fillText(`${sc.got} / ${sc.tried}`, x + w, y); g.fillText(String(left), x + w, y + 20); g.textAlign = 'left';
+    g.fillText(`${sc.got} / ${sc.tried}`, x + w, y); g.fillText(String(left), x + w, y + 20);
+    g.fillText(`${G.story.contLeft} / ${MAX_CONTINUES}`, x + w, y + 40); g.textAlign = 'left';
   } else {
   // 개발 정보(작게)
   g.fillStyle = '#6e6e86'; g.font = font(10, true); g.fillText('개발 정보', x, y); y += 16;

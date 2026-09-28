@@ -198,15 +198,20 @@ G.onStageClear = (cur, next) => showOverlay(
   `<button class="primary" data-act="next">다음 스테이지로 ▶ <small>(Z)</small></button>`,
   () => G.continueStage());
 G.onStoryClear = res => {
-  const key = G.story && G.story.key, title = key === 'main' ? '본편 클리어!' : key === 'extra' ? '엑스트라 클리어!' : '엑스트라 2 클리어!';
-  const nextKey = UNLOCK_NEXT[key];
-  const board = BOARD.concat({ n: '나', v: res.score, me: true, diff: res.diff, miss: res.miss, bombs: res.bombs, cont: res.continues, sec: res.sec })
-    .sort((a, b) => b.v - a.v || (a.me ? 1 : -1));
+  const key = G.story && G.story.key;
+  const title = res.fail ? `탈락 · ${res.stage}` : key === 'main' ? '본편 클리어!' : key === 'extra' ? '엑스트라 클리어!' : '엑스트라 2 클리어!';
+  const nextKey = res.fail ? null : UNLOCK_NEXT[key];
+  // 탈락 판은 탈락 점수 항목으로 보여 줌
+  const parts = res.fail
+    ? [['기본', 5000], [`진행도 (${res.cleared}/${res.total} 스테이지)`, Math.round(28500 * res.cleared / res.total)], ['미스', -300 * res.miss], ['폭탄', -150 * res.bombs]]
+    : res.parts;
+  const me = { n: '나', v: res.score, me: true, diff: res.diff, miss: res.miss, bombs: res.bombs, cont: res.continues, sec: res.sec, fail: res.fail ? res.stage : undefined };
+  const board = BOARD.concat(me).sort((a, b) => b.v - a.v || (a.me ? 1 : -1));
   showOverlay(
     `<h3>${title}</h3>` +
-    `<div class="sub">${DIFFS[res.diff]} · 플레이 시간 ${mmss(res.sec)} (기준 ${mmss(res.target)}) · 미스 ${res.miss} · 폭탄 ${res.bombs} · 컨티뉴 ${res.continues}</div>` +
-    `<table class="parts">${res.parts.filter(([, v]) => v).map(([k, v]) => `<tr><td>${k}</td><td>${v > 0 ? '+' : ''}${v.toLocaleString()}</td></tr>`).join('')}` +
-    `<tr><td>난이도 배율</td><td>×${res.mul}</td></tr></table>` +
+    `<div class="sub">${DIFFS[res.diff]} · 플레이 시간 ${mmss(res.sec)}${res.fail ? '' : ` (기준 ${mmss(res.target)})`} · 미스 ${res.miss} · 폭탄 ${res.bombs} · 컨티뉴 ${res.continues}</div>` +
+    `<table class="parts">${parts.filter(([, v]) => v).map(([k, v]) => `<tr><td>${k}</td><td>${v > 0 ? '+' : ''}${v.toLocaleString()}</td></tr>`).join('')}` +
+    `<tr><td>난이도 배율</td><td>×${SCORE_DIFF[res.diff]}</td></tr></table>` +
     `<div class="big">${res.score.toLocaleString()}점</div>` +
     (res.tools ? `<div class="note">테스트 도구(무적·파워 고정·건너뛰기·게임 속도)를 쓴 기록이에요</div>` : '') +
     `<table class="board">${board.map((r, i) => `<tr class="${r.me ? 'me' : ''}"><td>${i + 1}위</td><td>${esc(r.n)}</td><td class="rec">${DIFFS[r.diff]}</td><td class="rec">${recText(r)}</td><td>${r.v.toLocaleString()}</td></tr>`).join('')}</table>` +
@@ -214,6 +219,22 @@ G.onStoryClear = res => {
     `<button class="primary" data-act="again">처음부터 다시</button>`,
     () => { overlay.hidden = true; G.startStory(key); syncPanel(); });
 };
+// 본게임 게임 오버: 컨티뉴 카운트다운(10초). Z·Enter·R 또는 버튼으로 이어 하기
+let contShown = false;
+function syncContinue() {
+  const on = G.phase === 'gameover' && G.story;
+  if (!on) { contShown = false; return; }
+  const st = G.story, sec = Math.ceil(G.phaseT / 60);
+  if (!contShown) {
+    contShown = true;
+    showOverlay(st.contLeft > 0
+      ? `<h3 style="color:#ff6b7a">게임 오버</h3><div class="sub">컨티뉴? 이 스테이지 처음부터 (점수는 0부터)</div><div class="big" id="contSec"></div>` +
+        `<div class="sub">남은 컨티뉴 <b>${st.contLeft}</b> / ${MAX_CONTINUES} · 보스 ${CONTINUE_EVERY}명마다 1 보충</div><button class="primary" data-act="cont">컨티뉴 <small>(Z)</small></button>`
+      : `<h3 style="color:#ff6b7a">게임 오버</h3><div class="sub">남은 컨티뉴가 없습니다</div>`,
+      () => G.useContinue());
+  }
+  const el = document.getElementById('contSec'); if (el) el.textContent = String(Math.max(0, sec));
+}
 
 // ── 코드 편집 ──
 function spellSource(sp) {
@@ -255,7 +276,8 @@ setMode(savedMode);
 let last = performance.now(), audioBusy = false;
 requestAnimationFrame(function tick(now) {
   G.frameTick(now - last); last = now;
-  if (!overlay.hidden && G.phase !== 'stageclear' && G.phase !== 'storyclear') overlay.hidden = true;
+  syncContinue();
+  if (!overlay.hidden && !['stageclear', 'storyclear', 'storyfail', 'gameover'].includes(G.phase)) overlay.hidden = true;
   // 일시정지 동안은 소리(배경음악 포함)를 멈췄다가 풀면 그 자리부터 이어 감.
   // 일시정지 중 다른 키로 소리가 다시 켜져도 여기서 다시 멈춤
   const ctx = SFX.ctx;
