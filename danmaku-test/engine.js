@@ -312,8 +312,10 @@ const SHOT_TYPES = Object.fromEntries(['AR', 'UR', 'LM', 'RH'].map(code => [code
 // ── 본게임 해금 기록(이 브라우저에만 저장) ──
 // 본편 클리어 → 엑스트라, 엑스트라 클리어 → 엑스트라 2
 const UNLOCK_NEXT = { main: 'extra', extra: 'extra2', extra2: 'extra3' };
+// 시험 기간 동안 처음부터 열어 두는 모드
+const ALWAYS_OPEN = new Set(['main', 'extra3']);
 function unlocked(key) {
-  if (key === 'main') return true;
+  if (ALWAYS_OPEN.has(key)) return true;
   try { return !!JSON.parse(localStorage.getItem('danmaku.unlock') || '{}')[key]; } catch (e) { return false; }
 }
 function unlockStory(cleared) {
@@ -507,7 +509,7 @@ class Game {
     this.story = { key, list, idx: 0, frames: 0, miss: 0, bombs: 0, continues: 0, tools: false, diff: this.difficulty, contLeft: iron ? 0 : MAX_CONTINUES, beaten: new Set(), iron };
     this.score = 0; this.graze = 0;
     this.startRun(list[0]);
-    this.showTip('위험하면 폭탄(X)을 아끼지 말고 쓰세요\n죽으면 폭탄이 다시 3개로 채워집니다', 420);
+    this.showTipOnce('bomb', '위험하면 폭탄(X)을 아끼지 말고 쓰세요\n죽으면 폭탄이 다시 3개로 채워집니다', 420);
   }
   // 본게임 게임 오버에서 이어 하기: 컨티뉴 하나를 쓰고 그 스테이지 처음부터(점수는 0부터)
   useContinue() {
@@ -1004,6 +1006,15 @@ class Game {
 
   // 필드 아래쪽 안내 한 줄(frames 동안, 끝 1초는 옅어짐)
   showTip(text, frames = 300) { this.tip = { text, t: 0, life: frames }; }
+  // 처음 한 번만(이 브라우저에 기억). 저장이 안 되면 이번 실행 동안만 한 번
+  showTipOnce(key, text, frames) {
+    const k = 'danmaku.tip.' + key;
+    this.tipsShown = this.tipsShown || new Set();
+    if (this.tipsShown.has(k)) return;
+    try { if (localStorage.getItem(k)) return; localStorage.setItem(k, '1'); } catch (err) { /* 저장 못 해도 진행 */ }
+    this.tipsShown.add(k);
+    this.showTip(text, frames);
+  }
 
   hitPlayer() {
     const p = this.player;
@@ -1015,7 +1026,7 @@ class Game {
     if (this.phase !== 'active' && this.phase !== 'intro') return;
     this.stats.miss++;
     // 폭탄을 하나도 안 쓰고 죽으면(본게임에서 한 번) 폭탄은 죽으면 다시 채워진다고 알려 줌
-    if (this.story && p.bombs >= START_BOMBS && !this.story.bombTip) { this.story.bombTip = true; this.showTip('폭탄 3개를 남긴 채 죽었습니다\n죽으면 어차피 3개로 다시 채워지니 위험하면 X', 360); }
+    if (this.story && p.bombs >= START_BOMBS) { this.showTipOnce('bombDeath', '폭탄 3개를 남긴 채 죽었습니다\n죽으면 어차피 3개로 다시 채워지니 위험하면 X', 360); }
     this.fx.push({ kind: 'burst', x: p.x, y: p.y, t: 0, life: 40 });
     SFX.die(); this.shake(12);
     this.clearBullets(false, true);
