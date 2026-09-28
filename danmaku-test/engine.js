@@ -557,7 +557,7 @@ class Game {
     this.cutin = sp.type === 'spell' && !sp.follow && code && CUTIN_CODES.has(code) ? { code, t: 0, strong: !!sp.strong, shot: sp.strong ? strongShot : '102' } : null;
     if (this.cutin && this.cutin.strong) this.shake(4);
     if (this.banner) SFX.spell();
-    this.result = null; this.timeFlash = null; this.desperate = null;
+    this.result = null; this.timeFlash = null; this.desperate = null; this.timerPulse = 0;
     if (b.hidden) { b.x = W / 2; b.y = -200; b.move = null; }
   }
 
@@ -746,8 +746,8 @@ class Game {
       if (sl >= 2 && !this.desperate && !sp.survival && sp.type !== 'stage' && !this.boss.hidden) {
         this.desperate = { t: 0, dur: DESPERATE_FRAMES };
         this.timer = this.timerMax = DESPERATE_FRAMES;
-        this.fx.push({ kind: 'phase', text: 'SURVIVE', sub: `${sp.boss} · 15초`, x: this.boss.x, y: this.boss.y, t: 0, life: 110 });
-        this.shake(8); SFX.boom();
+        this.timerPulse = 72;   // 문구 없이 제한시간 표시를 한 번 크게 강조
+        this.shake(6); SFX.boom();
       }
       if (this.desperate) this.desperate.t++;
       if (sl > (this.surgeLv ?? 0) && !this.boss.hidden) {
@@ -2075,19 +2075,26 @@ function drawFieldUI(G, g) {
   }
   if (!(run && bars) && !b.hidden) {
     g.fillStyle = '#f5c542'; g.font = 'bold 10px system-ui, "Malgun Gothic", sans-serif'; g.textBaseline = 'top'; g.textAlign = 'left';
-    g.fillText(G.desperate ? 'SURVIVE' : `격화 ${['I', 'II', 'III'][G.surgeLevel()]}`, 8, 12);
+    g.fillText(`격화 ${['I', 'II', 'III'][G.surgeLevel()]}`, 8, 12);
   }
   if (run && bars && run.idx >= 0) {
     // 이 보스의 몇 번째 페이지인지(페이지의 보스 = 그 페이지 마지막 패턴의 보스)
     const pageBoss = pg => { let last = -1; bars.forEach((v, i) => { if (v === pg) last = i; }); return run.seq[last].boss; };
     const cur = bars[run.idx], boss = pageBoss(cur), all = [...new Set(bars)].filter(pg => pageBoss(pg) === boss);
     g.fillStyle = '#f5c542'; g.font = 'bold 10px system-ui, "Malgun Gothic", sans-serif'; g.textBaseline = 'top'; g.textAlign = 'left';
-    g.fillText(`PHASE ${all.indexOf(cur) + 1}/${all.length} · ${G.desperate ? 'SURVIVE' : '격화 ' + ['I', 'II', 'III'][G.surgeLevel()]}`, 8, 16);
+    g.fillText(`PHASE ${all.indexOf(cur) + 1}/${all.length} · ${'격화 ' + ['I', 'II', 'III'][G.surgeLevel()]}`, 8, 16);
   }
   // 시간
   const sec = Math.max(0, G.timer) / 60;
   g.textAlign = 'right'; g.fillStyle = sec < 10 ? '#ff6b7a' : '#fff'; g.font = 'bold 14px Consolas, monospace';
-  g.fillText(sec.toFixed(2), W - 6, 2);
+  if (G.timerPulse > 0) {
+    // 발악 시작: 제한시간이 크게 튀어나왔다가 제자리로(약 1.2초)
+    const k = G.timerPulse / 72, sc = 1 + 1.6 * Math.sin(Math.PI * Math.min(1, (1 - k) * 1.6)) * k;
+    g.save(); g.translate(W - 6, 2); g.scale(sc, sc);
+    g.shadowColor = '#ff5e7a'; g.shadowBlur = 14 * k; g.fillStyle = '#ff6b7a';
+    g.fillText(sec.toFixed(2), 0, 0); g.restore();
+    if (!G.paused) G.timerPulse--;
+  } else g.fillText(sec.toFixed(2), W - 6, 2);
   if (G.timeFlash && G.timeFlash.t++ < 90) {
     g.globalAlpha = 1 - G.timeFlash.t / 90; g.fillStyle = '#9fe8a8';
     g.fillText(G.timeFlash.text, W - 60, 2 + G.timeFlash.t * 0.1); g.globalAlpha = 1;
