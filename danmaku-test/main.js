@@ -174,14 +174,14 @@ $('tabRoom').onclick = e => { if (G.mode !== 'room') setMode('room'); settle(e.t
 // ── 스테이지 클리어·최종 채점 화면(게임 화면 위에 겹침) ──
 // 가짜 순위표(시험판 연출). 점수는 적지 않고 기록(난이도·미스·폭탄·컨티뉴·클리어 타임)에서 본게임 채점식으로 계산함.
 // 1등 이즘(헬 만점), 2등 김예나(헬 만점에서 15% 감점 + 183에 가장 가까운 기록), 그 아래 피트·시연·고태웅,
-// 마리(이지 겨우 클리어), 꼴찌 정나은(이지 3스테이지에서 탈락. 탈락은 채점식이 없어 점수를 정해 둠)
+// 마리(노말 4스테이지에서 탈락), 꼴찌 정나은(이지 3스테이지에서 탈락). 탈락은 채점식이 없어 점수를 정해 둠
 const BOARD = [
   { n: '이즘', diff: 4, miss: 0, bombs: 0, cont: 0, sec: 22 * 60 + 48 },
   { n: '김예나', diff: 4, miss: 4, bombs: 0, cont: 0, sec: 38 * 60 + 23 },
   { n: '피트', diff: 3, miss: 1, bombs: 0, cont: 0, sec: 31 * 60 },
   { n: '시연', diff: 2, miss: 2, bombs: 1, cont: 0, sec: 27 * 60 + 30 },
   { n: '고태웅', diff: 1, miss: 6, bombs: 4, cont: 0, sec: 33 * 60 + 58 },
-  { n: '마리', diff: 0, miss: 7, bombs: 4, cont: 2, sec: 42 * 60 + 25 },
+  { n: '마리', diff: 1, miss: 10, bombs: 8, cont: 0, sec: 18 * 60 + 42, fail: '4스테이지', v: 15500 },
   { n: '정나은', diff: 0, miss: 12, bombs: 9, cont: 0, sec: 11 * 60 + 37, fail: '3스테이지', v: 6200 },
 ].map(r => ({ ...r, v: r.v ?? finalScore({ diff: r.diff, frames: r.sec * 60, miss: r.miss, bombs: r.bombs, continues: r.cont, list: { length: 8 } }).score }));
 const recText = r => `${r.fail ? `FAIL(${r.fail})` : 'CLEAR'} / 미스 ${r.miss} / 봄 ${r.bombs} / ${Math.floor(r.sec / 60)}:${String(Math.floor(r.sec % 60)).padStart(2, '0')}`;
