@@ -1684,13 +1684,20 @@ const SPELLS = [
       }());
       yield* s.chant('NUNC_DIMITTIS', { by: s.boss, step: 29 });   // 영창 10% 빠르게
       light.return();
-      // 화면 가장자리의 한 점에서 목표점을 지나는 사슬. 목표를 주지 않으면 필드 안 무작위 지점
+      // 화면 가장자리의 한 점에서 목표점을 지나는 사슬. 목표를 주지 않으면 필드 안 무작위 지점.
+      // 이지·노말: 무작위 사슬은 기체 곁(이지 30·노말 22px)을 비켜 가고, 거두는 동안(판정이 남아 벽처럼 막는 시간)이 짧음(이지 60·노말 75, 하드부터 110프레임).
+      // 앞 물결의 거두는 사슬과 새 사슬이 겹쳐 기체가 갇히는 일을 줄임
+      const clearR = s.lv(30, 22, 0), retract = s.lv(60, 75, 110);
       function edgeChain(target) {
-        const side = s.randInt(0, 2);
-        const x = side === 0 ? -8 : side === 1 ? s.W + 8 : s.rand(20, s.W - 20);
-        const y = side === 2 ? -8 : s.rand(20, s.H * 0.8);
-        const tx = target ? target.x : s.rand(40, s.W - 40), ty = target ? target.y : s.rand(s.H * 0.4, s.H - 30);
-        s.chain({ x, y, ang: Math.atan2(ty - y, tx - x), len: 720, warn: s.lv(70, 60, 50), shoot: 12, hold: 16, retract: 110 });
+        let x, y, tx, ty;
+        for (let tries = 0; tries < 8; tries++) {
+          const side = s.randInt(0, 2);
+          x = side === 0 ? -8 : side === 1 ? s.W + 8 : s.rand(20, s.W - 20);
+          y = side === 2 ? -8 : s.rand(20, s.H * 0.8);
+          tx = target ? target.x : s.rand(40, s.W - 40); ty = target ? target.y : s.rand(s.H * 0.4, s.H - 30);
+          if (target || !clearR || segDist(s.player.x, s.player.y, x, y, x + (tx - x) * 4, y + (ty - y) * 4) > clearR) break;
+        }
+        s.chain({ x, y, ang: Math.atan2(ty - y, tx - x), len: 720, warn: s.lv(70, 60, 50), shoot: 12, hold: 16, retract });
       }
       for (let w = 0; ; w++) {
         const n = Math.min(s.lv(5, 6, 6) + w, s.lv(7, 8, 9));   // 사슬 수를 두 차례 늘림(처음 +3, 최대 +4)
@@ -1845,14 +1852,15 @@ const SPELLS = [
         for (let k = 0; ; k++) { s.ring(s.cnt(14), { offset: k * 0.17, spd: s.sp(1.5), shape: 'link', color: 'yellow' }); yield s.wait(54); }
       }());
       for (let w = 0; ; w++) {
-        const tx = s.player.x, ty = s.player.y, warn = s.lv(50, 46, 42, 41, 40);
+        // 난이도가 낮을수록 사슬이 덜 오래 남고(거두는 시간 이지 40 … 헬 60프레임) 물결 사이가 조금 김(이지 +0.5 … 베리하드 +0.1초, 헬 그대로): 앞 물결 사슬에 갇히지 않게
+        const tx = s.player.x, ty = s.player.y, warn = s.lv(50, 46, 42, 41, 40), ret = s.lv(40, 50, 54, 57, 60);
         for (const x of [-8, s.W + 8]) {
           const y = s.rand(-8, 60);
-          s.chain({ x, y, ang: Math.atan2(ty - y, tx - x), len: 760, warn, shoot: 10, hold: 12, retract: 60 });
+          s.chain({ x, y, ang: Math.atan2(ty - y, tx - x), len: 760, warn, shoot: 10, hold: 12, retract: ret });
         }
         // 우리: 기체 좌우 off 옆을 지나는 세로 사슬 둘(위에서), 위아래 off를 지나는 가로 사슬 둘(좌우 가장자리에서).
         // 모두 조금씩 기울어 기체를 가운데 둔 # 모양 칸을 만들고, 칸 안에서 X자 사슬을 피해 비킴
-        const off = s.lv(120, 115, 110, 105, 100), chain = (x0, y0, px, py) => s.chain({ x: x0, y: y0, ang: Math.atan2(py - y0, px - x0), len: 800, warn, shoot: 10, hold: 12, retract: 60 });
+        const off = s.lv(120, 115, 110, 105, 100), chain = (x0, y0, px, py) => s.chain({ x: x0, y: y0, ang: Math.atan2(py - y0, px - x0), len: 800, warn, shoot: 10, hold: 12, retract: ret });
         for (const d of [-1, 1]) {
           const px = tx + d * off;
           if (px > 4 && px < s.W - 4) chain(px + s.rand(-0.2, 0.2) * (ty + 8), -8, px, ty);
@@ -1860,7 +1868,7 @@ const SPELLS = [
           if (py > 4 && py < s.H - 4) { const left = rng() < 0.5, x0 = left ? -8 : s.W + 8; chain(x0, py + s.rand(-0.2, 0.2) * Math.abs(tx - x0), tx, py); }
         }
         yield warn + 20;
-        yield s.wait(40);
+        yield s.wait(40) + s.lv(30, 20, 12, 6, 0);
       }
     },
   },
@@ -2139,15 +2147,21 @@ const SPELLS = [
       makeHead(20, s.H * 0.4);
       if (s.diff >= 2) makeHead(s.W - 20, s.H * 0.6);
       // 가운데 나선 빔
-      const st = { rot: 0 }, n = 3, omega = 0.005;
+      const st = { rot: 0 }, n = 3, omega = s.lv(0.0038, 0.0044, 0.005);   // 이지·노말은 조금 느리게 돎
       for (let i = 0; i < n; i++) {
         s.laser({ x: s.boss.x, y: s.boss.y, ang: i * s.TAU / n, len: 700, w: 12, warn: 70, dur: 99999, color: 'red',
           fn: l => { l.ang = i * s.TAU / n + st.rot; l.x = s.boss.x; l.y = s.boss.y; } });
       }
       yield 70;
+      // 약 8초마다 방향이 바뀌는데, 바뀌기 전 0.7초에 걸쳐 서서히 멈췄다가 0.7초에 걸쳐 반대로 빨라짐(1초 전 경고음)
       for (let k = 0; ; k++) {
         const dir = k % 2 ? -1 : 1;
-        for (let t = 0; t < 480; t++) { st.rot += dir * s.spin(omega); yield 1; }
+        for (let t = 0; t < 480; t++) {
+          const ease = Math.min(1, t / 42, (480 - t) / 42);
+          st.rot += dir * s.spin(omega) * ease;
+          if (t === 420) s.sound('beep', 0.5);
+          yield 1;
+        }
       }
     },
   },
