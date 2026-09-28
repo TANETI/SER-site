@@ -210,6 +210,16 @@ spellSel.onchange = () => {
 };
 angelSel.onchange = () => { G.angel = angelSel.value; settle(angelSel); };
 $('diffSel').onchange = e => { G.difficulty = +e.target.value; G.restart(); settle(e.target); };
+// 난수 시드(개발용 재현): 칸 또는 주소 ?seed=숫자. 비우면 무작위
+function setSeed(v) {
+  const n = String(v ?? '').trim() === '' ? null : parseInt(v, 10);
+  G.fixedSeed = Number.isFinite(n) ? n >>> 0 : null;
+  $('seedIn').value = G.fixedSeed ?? '';
+}
+{ const q = new URLSearchParams(location.search).get('seed'); if (q !== null) setSeed(q); }
+// 주소 ?perf=1: 필드 아래에 FPS·처리·그리기 시간·탄 수(모바일 성능 확인용)
+G.perfHud = new URLSearchParams(location.search).has('perf');
+$('seedIn').onchange = e => { setSeed(e.target.value); G.restart(); settle(e.target); };
 $('powSel').onchange = e => { G.practicePower = +e.target.value; if (!G.run || G.powerLock) G.restart(); settle(e.target); };
 $('lockChk').onchange = e => { G.powerLock = e.target.checked; G.restart(); settle(e.target); };
 $('speedSel').onchange = e => { G.speed = +e.target.value; settle(e.target); };
@@ -322,23 +332,25 @@ G.onStageClear = (cur, next) => showOverlay(
   () => { overlay.hidden = true; G.continueStage(); });
 G.onStoryClear = res => {
   const key = G.story && G.story.key;
-  const title = res.fail ? `탈락 · ${res.stage}` : key === 'main' ? '본편 클리어!' : key === 'extra' ? '엑스트라 클리어!' : '엑스트라 2 클리어!';
-  const nextKey = res.fail ? null : UNLOCK_NEXT[key];
+  const MODE_NAME = { main: '본편', extra: '엑스트라', extra2: '엑스트라 2', extra3: '엑스트라 3' };
+  const title = res.fail ? `탈락 · ${res.stage}` : `${MODE_NAME[key]} 클리어!`;
+  // 테스트 도구를 쓴 판: 다음 모드를 열지 않고 순위표에도 올리지 않음(점수는 참고로만 보여 줌)
+  const nextKey = res.fail || res.tools ? null : UNLOCK_NEXT[key];
   // 탈락 판은 탈락 점수 항목으로 보여 줌
   const parts = res.fail
     ? [['기본', 5000], [`진행도 (${res.cleared}/${res.total} 스테이지)`, Math.round(28500 * res.cleared / res.total)], ['미스', -300 * res.miss], ['폭탄', -150 * res.bombs]]
     : res.parts;
   const me = { n: '나', v: res.score, me: true, iron: !!(G.story && G.story.iron), diff: res.diff, miss: res.miss, bombs: res.bombs, cont: res.continues, sec: res.sec, fail: res.fail ? res.stage : undefined };
-  const board = BOARD.concat(me).sort((a, b) => b.v - a.v || (a.me ? 1 : -1));
+  const board = (res.tools ? BOARD : BOARD.concat(me)).sort((a, b) => b.v - a.v || (a.me ? 1 : -1));
   showOverlay(
     `<h3>${title}</h3>` +
     `<div class="sub">${DIFFS[res.diff]} · 플레이 시간 ${mmss(res.sec)}${res.fail ? '' : ` (기준 ${mmss(res.target)})`} · 미스 ${res.miss} · 폭탄 ${res.bombs} · 컨티뉴 ${res.continues}</div>` +
     `<table class="parts">${parts.filter(([, v]) => v).map(([k, v]) => `<tr><td>${k}</td><td>${v > 0 ? '+' : ''}${v.toLocaleString()}</td></tr>`).join('')}` +
     `<tr><td>난이도 배율</td><td>×${SCORE_DIFF[res.diff]}</td></tr>${res.iron ? `<tr><td>철인 모드</td><td>+${res.iron.toLocaleString()}</td></tr>` : ''}</table>` +
     `<div class="big">${res.score.toLocaleString()}점</div>` +
-    (res.tools ? `<div class="note">테스트 도구(무적·파워 고정·건너뛰기·게임 속도)를 쓴 기록이에요</div>` : '') +
+    (res.tools ? `<div class="note">테스트 도구(무적·파워 고정·건너뛰기·스테이지 바로 가기·게임 속도)를 쓴 판이라 정식 기록이 아니에요 · 순위표와 해금에서 빠짐</div>` : '') +
     `<table class="board">${board.map((r, i) => `<tr class="${r.me ? 'me' : ''}"><td>${i + 1}위</td><td>${esc(r.n)}</td><td class="rec">${DIFFS[r.diff]}${r.iron ? '·철인' : ''}</td><td class="rec">${recText(r)}</td><td>${r.v.toLocaleString()}</td></tr>`).join('')}</table>` +
-    (nextKey ? `<div class="sub">${nextKey === 'extra' ? '엑스트라' : '엑스트라 2'}가 열렸습니다</div>` : '') +
+    (nextKey ? `<div class="sub">${MODE_NAME[nextKey]}${nextKey === 'extra3' ? '이' : '가'} 열렸습니다</div>` : '') +
     `<div class="row"><button class="primary" data-act="again">다시 도전</button><button data-act="title">시작 화면으로</button></div>`,
     act => { const iron = !!(G.story && G.story.iron); overlay.hidden = true; if (act === 'title') G.toTitle(); else G.startStory(key, iron); syncPanel(); });
 };
@@ -372,6 +384,7 @@ function showTitle() {
     '<div class="tsec"><div class="tlabel">기체</div><div class="angels">' + Object.entries(ANGELS).map(([c, a]) => `<button data-act="angel:${c}" aria-pressed="${G.angel === c}"><img src="${IMG_BASE}${c}/D/01.webp" alt="" loading="lazy"><b>${a.name}</b><small>${ANGEL_DESC[c]}</small></button>`).join('') + '</div></div>' +
     '<div class="tsec"><div class="tlabel">난이도</div><div class="seg">' + DIFFS.map((d, i) => `<button data-act="diff:${i}" aria-pressed="${G.difficulty === i}">${d}</button>`).join('') + '</div></div>' +
     `<label class="check tiron"><input type="checkbox" id="tIron" ${title.iron ? 'checked' : ''} ${G.difficulty < 2 ? 'disabled' : ''}> 철인 모드 <small>${G.difficulty < 2 ? '하드부터 고를 수 있음' : `컨티뉴 없음 · 클리어하면 +${IRON_BONUS.toLocaleString()}점`}</small></label>` +
+    '<div class="ttip">폭탄(X)은 아끼지 마세요. 죽으면 폭탄이 다시 3개로 채워집니다.</div>' +
     '<button class="primary tstart" data-act="start">시작 ▶</button>',
     act => {
       const [k, v] = act.split(':');
@@ -429,6 +442,9 @@ let last = performance.now(), audioBusy = false;
 requestAnimationFrame(function tick(now) {
   G.frameTick(now - last); last = now;
   syncContinue();
+  if (G.seedUsed !== undefined && G.fixedSeed == null) { const ph = `무작위 (지금 ${G.seedUsed})`; if ($('seedIn').placeholder !== ph) $('seedIn').placeholder = ph; }
+  // 연습 파워 옆에 지금 실제로 적용 중인 파워(보스전은 그 보스전 기준값으로 시작하므로 고른 값과 다를 수 있음)
+  if (G.player && G.player.power !== undefined) { const t = `지금 ${G.player.power.toFixed(2)}${G.powerLock ? ' 고정' : ''}`; if ($('powNow').textContent !== t) $('powNow').textContent = t; }
   syncMouseHint();
   if (!overlay.hidden && !['stageclear', 'storyclear', 'storyfail', 'gameover', 'title'].includes(G.phase)) overlay.hidden = true;
   // 일시정지 동안은 소리(배경음악 포함)를 멈췄다가 풀면 그 자리부터 이어 감.

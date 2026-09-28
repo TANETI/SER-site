@@ -71,7 +71,8 @@
 // ── 세라피안 공통 ──
 // 김예나: 생방송 시청자 수. 보스전 동안 패턴이 바뀌어도 이어서 늘고(단일 패턴 연습은 패턴마다 새로), 2초마다 0.5만.
 // 10만을 넘으면 「인기 급상승!」 탄 수 ×1.2·발사 간격 ×0.85·노래 1.08배속, 20만을 넘으면 「시청자 폭주!」 ×1.35·×0.75·1.15배속.
-// 20만 단계가 한계라 그 뒤로는 더 빨라지지 않음
+// 20만 단계가 한계라 그 뒤로는 더 빨라지지 않음. 이지·노말은 오래 싸울수록 더 어려워지는 역효과를 줄이려고
+// 2초마다 이지 0.25만·노말 0.35만씩만 늘고, 「인기 급상승!」(10만) 단계에서 멈춤(시청자 수 표시는 계속 오름)
 const YENA_LV = [{ cnt: 1, wait: 1, rate: 1 }, { cnt: 1.2, wait: 0.85, rate: 1.08 }, { cnt: 1.35, wait: 0.75, rate: 1.15 }];
 const yenaRate = g => YENA_LV[g.run?.yena?.level ?? 0].rate;
 function yenaLive(s) {
@@ -82,8 +83,8 @@ function yenaLive(s) {
     for (;;) {
       s.say(s.boss, `시청자 ${st.viewers.toFixed(1)}만`, 60);
       yield 120;
-      st.viewers += 0.5;
-      const lv = st.viewers >= 20 ? 2 : st.viewers >= 10 ? 1 : 0;
+      st.viewers += s.lv(0.25, 0.35, 0.5);
+      const lv = Math.min(s.lv(1, 1, 2), st.viewers >= 20 ? 2 : st.viewers >= 10 ? 1 : 0);
       if (lv > st.level) { st.level = lv; apply(); s.say(s.boss, lv === 2 ? '시청자 폭주!' : '인기 급상승!', 80); s.sound('overclock'); yield 80; }
     }
   }());
@@ -120,7 +121,7 @@ function* predictShot(s) {
   s.mark({ x: tx, y: ty, dur: lead });
   s.warnLine({ x: s.boss.x, y: s.boss.y, x2: s.boss.x + Math.cos(a) * 700, y2: s.boss.y + Math.sin(a) * 700, dur: delay, band: 10 });
   const moving = Math.hypot(tx - p.x, ty - p.y) > 30;
-  const a2 = moving ? Math.atan2(p.y - s.boss.y, p.x - s.boss.x) : a + (Math.random() < 0.5 ? -1 : 1) * 0.16;
+  const a2 = moving ? Math.atan2(p.y - s.boss.y, p.x - s.boss.x) : a + (rng() < 0.5 ? -1 : 1) * 0.16;
   const two = s.diff >= 2;
   if (two) s.warnLine({ x: s.boss.x, y: s.boss.y, x2: s.boss.x + Math.cos(a2) * 700, y2: s.boss.y + Math.sin(a2) * 700, dur: delay, band: 10 });
   for (let t = 0, gap = 12; t < delay;) {
@@ -203,7 +204,7 @@ function ivyLeaf(s, x, y, ang, stay, group) {
 // o: {x, y, ang, spd, len, gapPx, stay, turn, wave, phase, curl, seek, seekFor, seekOffX, seekOffY, margin, step(x, y, t)}
 // curl=매 프레임 일정하게 도는 양(spd / 반지름이면 원을 그림), step=머리가 움직일 때마다 불림
 // 잎은 gapPx 간격으로 붙고, 덩굴이 다 자란 뒤 한꺼번에 모양을 유지하며 떨어짐. skip=출발점 근처 잎 생략 거리.
-// 잎은 gapPx 간격으로 붙음. 잎 판정(3)+기체 판정(2.4)이 양쪽에서 약 11px를 막으므로
+// 잎은 gapPx 간격으로 붙음. 잎 판정(3)+기체 판정(2.0)이 양쪽에서 약 10px를 막으므로
 // 간격을 17px 이상으로 둬 어느 난이도에서도 잎 사이로 빠져나갈 틈을 남긴다(벽처럼 닫힌 덩굴 금지)
 // seek은 처음 seekFor 프레임(기본 70)만 쫓음. 계속 쫓으면 플레이어 둘레를 돌며 가둬 버림
 function* ivyVine(s, o) {
@@ -211,7 +212,7 @@ function* ivyVine(s, o) {
   const spd = o.spd ?? 2.4, gapPx = o.gapPx ?? s.lv(26, 22, 19, 18, 17), m = o.margin ?? 20, seekFor = o.seekFor ?? 70;
   const head = s.fire({ x, y, spd: 0, shape: 'orb', color: 'void', margin: m + 20 });   // 덩굴 머리: 빛나는 검은 구슬
   // 출발점 근처(skip px)에는 잎을 두지 않음: 한 점에서 여러 덩굴이 나갈 때 잎이 뭉치지 않게
-  const group = { fallAt: Infinity, phase: Math.random() * 6 };
+  const group = { fallAt: Infinity, phase: rng() * 6 };
   let run = -(o.skip ?? 18), side = 0;
   for (let t = 0; t < o.len && !head.dead; t++) {
     ang += (o.curl ?? 0) + Math.sin(t * (o.wave ?? 0.08) + (o.phase ?? 0)) * (o.turn ?? 0.03);
@@ -937,7 +938,7 @@ const SPELLS = [
           const ex = side < 0 ? 24 : s.W - 24, ey = s.rand(120, 260), warn = s.lv(50, 44, 40, 38, 36);
           s.mark({ x: ex, y: ey, dur: warn + 30 });
           const a = Math.atan2(s.player.y - ey, s.player.x - ex);
-          s.laser({ x: ex, y: ey, ang: a, len: 700, w: s.lv(12, 14, 16, 16, 18), warn, dur: 30, color: 'cyan' });
+          s.laser({ x: ex, y: ey, ang: a, len: 700, w: s.lv(12, 14, 16, 17, 18), warn, dur: 30, color: 'cyan' });
           yield s.lv(40, 34, 30, 28, 26);
         }
         if (s.diff >= 3) s.spread(3, s.aim(), 0.2, { spd: s.sp(2.6), shape: 'rice', color: 'white' });
@@ -1098,7 +1099,7 @@ const SPELLS = [
           seq.length = 0;
           for (let i = 0; i < n; i++) {
             const run2 = i >= 2 && seq[i - 1] === seq[i - 2];
-            seq.push(run2 ? 1 - seq[i - 1] : (Math.random() < 0.5 ? 0 : 1));
+            seq.push(run2 ? 1 - seq[i - 1] : (rng() < 0.5 ? 0 : 1));
           }
         } while (!seq.includes(0) || !seq.includes(1));
         st.busy = true;
@@ -1148,14 +1149,15 @@ const SPELLS = [
     type: 'spell', boss: '진', bossColor: '#c07cff', hp: 2100, time: 42, start: [192, 80],
     *run(s) {
       // 승화: 보라 결정 탄이 화면 위쪽 여기저기에 박혀 멈춰 있다가(약 2초) 증기처럼 느리게 흩어지는 알갱이로 바뀜.
-      // 결정은 기체에서 80px 넘게 떨어진 곳에만 박힘. 잠금 뒤에는 결정이 기체 쪽으로 조금 치우쳐 박힘
+      // 결정은 기체에서 80px 넘게 떨어진 곳에만 박힘. 잠금 뒤에는 결정이 기체 쪽으로 조금 치우쳐 박힘.
+      // 결정은 화면 위에서 약 80%까지 박혀 하단이 늘 비어 있지 않게 함(예전 55%)
       const scan = nymphScan(s);
       for (let w = 0; ; w++) {
         for (let i = 0; i < s.lv(4, 5, 6, 7, 7); i++) {
           let tx, ty, tries = 0;
           do {
             tx = scan.locked ? s.player.x + s.rand(-160, 160) : s.rand(30, s.W - 30);
-            ty = s.rand(60, s.H * 0.55);
+            ty = s.rand(60, s.H * 0.8);
           } while (Math.hypot(tx - s.player.x, ty - s.player.y) < 80 && ++tries < 20);
           tx = Math.max(20, Math.min(s.W - 20, tx));
           const T = 30;
@@ -1196,7 +1198,7 @@ const SPELLS = [
               const x = (o.x + u.x) / 2, y = (o.y + u.y) / 2;
               if (Math.hypot(x - s.player.x, y - s.player.y) < 40) break;   // 기체 코앞에서는 터지지 않음
               s.mark({ x, y, dur: 24 });
-              s.task(function* () { yield 24; s.ring(s.lv(6, 6, 8, 8, 10), { x, y, offset: s.rand(0, s.TAU), spd: s.sp(1.5), shape: 'small', color: 'yellow' }); }());
+              s.task(function* () { yield 24; s.ring(s.lv(6, 6, 8, 9, 10), { x, y, offset: s.rand(0, s.TAU), spd: s.sp(1.5), shape: 'small', color: 'yellow' }); }());
               n++;
               break;
             }
@@ -1286,10 +1288,10 @@ const SPELLS = [
             fn: l => { l.ang = off + i * s.TAU / n + st.rot; l.x = s.boss.x; l.y = s.boss.y; } });
         }
         yield warn;
-        const d1 = Math.random() < 0.5 ? -1 : 1;
+        const d1 = rng() < 0.5 ? -1 : 1;
         for (let t = 0; t < f1; t++) { st.rot += d1 * om; yield 1; }
         yield pause;
-        const d2 = Math.random() < 0.5 ? -1 : 1;
+        const d2 = rng() < 0.5 ? -1 : 1;
         for (let t = 0; t < f2; t++) { st.rot += d2 * om; yield 1; }
         yield 20;
         if (s.diff >= 3) s.spread(3, s.aim(), 0.2, { spd: s.sp(2.6), shape: 'rice', color: 'white' });
@@ -1326,10 +1328,13 @@ const SPELLS = [
       // 판정은 10px 가로 띠로 이어 붙여 보이는 가장자리를 따라감. 안개가 서 있는 동안 통로로 흰 비가 드문드문 내리는데
       // 점점 빨라짐(1.0 → 1.5, 거기서 멈춤). 안개 속에서는 검은 탄이 가끔 튀어나와 통로 쪽으로 천천히 날아옴.
       // 안개는 1초 예고(깜빡이는 가장자리) 뒤 짙어지고, 보스가 옮기면 다시 깔림
+      // 다음 통로 자리(보스 x)는 앞 안개가 걷히기 시작할 때 미리 정해 보스가 먼저 옮겨 감(이지·노말은 예고도 길게:
+      // 저속 이동만으로도 반대편에서 새 통로까지 닿게)
+      let nx = s.rand(140, s.W - 140);
       for (let w = 0; ; w++) {
-        yield* s.moveTo(s.rand(140, s.W - 140), s.rand(70, 100), 40);
+        yield* s.moveTo(nx, s.rand(70, 100), 40);
         const cx = s.boss.x, gap = s.lv(84, 74, 66, 62, 58), bottom = s.H;
-        const warn = 60, dur = s.lv(330, 360, 390, 400, 420), sh = 10, strips = [], groups = { '-1': {}, '1': {} };
+        const warn = s.lv(110, 95, 60, 60, 60), dur = s.lv(330, 360, 390, 400, 420), sh = 10, strips = [], groups = { '-1': {}, '1': {} };
         for (let y = 0; y < bottom; y += sh) for (const side of [-1, 1]) {
           const a = s.area({ x: 0, y, w: 1, h: Math.min(sh, bottom - y), warn, dur, color: '#16141f', fog: true, edge: side < 0 ? 'right' : 'left', group: groups[side] });
           strips.push({ a, side, y });
@@ -1357,6 +1362,8 @@ const SPELLS = [
           yield s.wait(44);
         }
         rain.return(); wave.return();
+        nx = s.rand(140, s.W - 140);
+        s.move(nx, s.boss.y, 30);
         yield 30;
       }
     },
@@ -1578,7 +1585,7 @@ const SPELLS = [
       };
       s.task(function* () {
         yield 180;
-        for (;;) { snake(); if (s.diff >= 2 && Math.random() < 0.5) { yield 20; snake(); } yield s.wait(240); }
+        for (;;) { snake(); if (s.diff >= 2 && rng() < 0.5) { yield 20; snake(); } yield s.wait(240); }
       }());
       yield 30;
       for (let k = 0; ; k++) {
@@ -1743,7 +1750,7 @@ const SPELLS = [
         }
         if (s.diff >= 3 && f % 6 === 0) s.spread(s.lv(1, 3, 3, 3, 5), s.aim(), 0.14, { spd: s.sp(3.8), shape: 'knife', color: 'white' });
         if (f % 60 === 59) yield* s.wander(30, 40);
-        yield s.lv(10, 9, 8, 8, 6);   // 나선 고리 사이 간격(약 25% 넓힘)
+        yield s.lv(10, 9, 8, 7, 6);   // 나선 고리 사이 간격(약 25% 넓힘)
       }
     },
   },
@@ -1769,7 +1776,7 @@ const SPELLS = [
               if (b.t < T) return;
               b.dead = true;
               s.shake(3);
-              const n = s.lv(10, 12, 12, 14, 14);
+              const n = s.lv(10, 12, 12, 13, 14);
               for (let i = 0; i < n; i++) {
                 const a0 = i * s.TAU / n;
                 s.fire({ x: tx, y: ty, spd: 0, shape: 'link', color: 'gold',
@@ -1801,7 +1808,7 @@ const SPELLS = [
         for (let k = 0; ; k++) { s.ring(s.cnt(14), { offset: k * 0.17, spd: s.sp(1.5), shape: 'link', color: 'yellow' }); yield s.wait(54); }
       }());
       for (let w = 0; ; w++) {
-        const tx = s.player.x, ty = s.player.y, warn = s.lv(50, 46, 42, 40, 40);
+        const tx = s.player.x, ty = s.player.y, warn = s.lv(50, 46, 42, 41, 40);
         for (const x of [-8, s.W + 8]) {
           const y = s.rand(-8, 60);
           s.chain({ x, y, ang: Math.atan2(ty - y, tx - x), len: 760, warn, shoot: 10, hold: 12, retract: 60 });
@@ -1813,7 +1820,7 @@ const SPELLS = [
           const px = tx + d * off;
           if (px > 4 && px < s.W - 4) chain(px + s.rand(-0.2, 0.2) * (ty + 8), -8, px, ty);
           const py = ty + d * off;
-          if (py > 4 && py < s.H - 4) { const left = Math.random() < 0.5, x0 = left ? -8 : s.W + 8; chain(x0, py + s.rand(-0.2, 0.2) * Math.abs(tx - x0), tx, py); }
+          if (py > 4 && py < s.H - 4) { const left = rng() < 0.5, x0 = left ? -8 : s.W + 8; chain(x0, py + s.rand(-0.2, 0.2) * Math.abs(tx - x0), tx, py); }
         }
         yield warn + 20;
         yield s.wait(40);
@@ -1926,7 +1933,7 @@ const SPELLS = [
       };
       s.task(function* () {
         yield 180;
-        for (;;) { snake(); if (s.diff >= 2 && Math.random() < 0.5) { yield 20; snake(); } yield s.wait(240); }
+        for (;;) { snake(); if (s.diff >= 2 && rng() < 0.5) { yield 20; snake(); } yield s.wait(240); }
       }());
       yield 30;
       for (let k = 0; ; k++) {
@@ -1938,7 +1945,7 @@ const SPELLS = [
           for (const d of [-1, 1]) {
             const px = t.x + d * off, py = t.y + d * off;
             if (px > 4 && px < s.W - 4) cage(px + s.rand(-0.2, 0.2) * (t.y + 8), -8, px, t.y);
-            if (py > 4 && py < s.H - 4) { const x0 = Math.random() < 0.5 ? -8 : s.W + 8; cage(x0, py + s.rand(-0.2, 0.2) * Math.abs(t.x - x0), t.x, py); }
+            if (py > 4 && py < s.H - 4) { const x0 = rng() < 0.5 ? -8 : s.W + 8; cage(x0, py + s.rand(-0.2, 0.2) * Math.abs(t.x - x0), t.x, py); }
           }
         }
         for (let j = 0; j < n; j++) {
@@ -2151,7 +2158,12 @@ const SPELLS = [
           }());
           longest = Math.max(longest, len);
         }
-        yield longest + 20 + 10 * 12 + s.wait(80);   // 다 늘어지고 꽃이 다 필 때까지. 큰 패턴이라 본체는 쏘지 않음
+        // 큰 패턴이라 본체는 거의 쏘지 않지만, 한 자리에서 조금씩만 비켜 버티지 않게 가끔 느린 조준탄 몇 발로 자리를 옮기게 함
+        const total = longest + 20 + 10 * 12 + s.wait(80), every = s.lv(150, 120, 100, 90, 80);
+        for (let t = 0; t < total; t += every) {
+          if (t > 60) s.spread(s.lv(3, 3, 5, 5, 5), s.aim(), 0.13, { spd: s.sp(2.3), shape: 'orb', color: 'pink', fixed: true });
+          yield Math.min(every, total - t);
+        }
       }
     },
   },
@@ -2505,7 +2517,7 @@ const SPELLS = [
     *run(s) {
       // 불렛타임 동안 위에서 미로 띠가 약 14초 동안 이어져 내려옴. 좁은 통로를 따라 빠져나가야 함.
       // 줄(12px 간격) 사이에는 기체가 설 자리가 없으므로 이웃한 두 줄의 통로가 겹쳐야 지나갈 수 있음.
-      // 통로 폭 gapW는 통로 양쪽 탄 중심 사이 거리. 기체가 설 수 있는 폭은 gapW - 2×(탄 반지름 3 + 판정 2.4) = gapW - 10.8.
+      // 통로 폭 gapW는 통로 양쪽 탄 중심 사이 거리. 기체가 설 수 있는 폭은 gapW - 2×(탄 반지름 3 + 판정 2.0) = gapW - 10.
       // 줄마다 옮겨 가는 폭(shift)을 그보다 7px 이상 작게 둬서 어느 난이도에서도 두 줄의 통로가 겹침(막힌 미로 금지).
       // 한 줄이 기체를 지나가는 동안(약 8.6프레임) 다음 줄 통로로 옮겨야 하는 거리는 shift 이하라 저속 이동(1.6px/프레임)으로도 따라갈 수 있음
       const cell = 12, fall = 5, k = 0.25, v = fall * k, top = -10;
@@ -2521,7 +2533,7 @@ const SPELLS = [
         let cx = Math.max(gapW, Math.min(s.W - gapW, s.player.x)), dir = cx < s.W / 2 ? 1 : -1;
         for (let r = 0; r < rows; r++) {
           path.push(cx);
-          if (Math.random() < 0.2) dir = -dir;
+          if (rng() < 0.2) dir = -dir;
           if (cx + dir * shift < gapW || cx + dir * shift > s.W - gapW) dir = -dir;
           cx += dir * shift * s.rand(0.6, 1);
         }
@@ -2571,7 +2583,7 @@ const SPELLS = [
           first = first || b;
         }
         r++;
-        if (Math.random() < 0.2) dir = -dir;
+        if (rng() < 0.2) dir = -dir;
         if (cx + dir * shift < gapW || cx + dir * shift > s.W - gapW) dir = -dir;
         cx += dir * shift * s.rand(0.6, 1);
         return first;
@@ -2678,7 +2690,7 @@ const SINS = [
     // 탐식: 솟구쳤다 떨어지는 덩어리(더 자주, 가끔 한꺼번에 게워 냄)
     *call(s) { for (let k = 0; ; k++) {
       s.fire({ vx: s.rand(-2.4, 2.4), vy: s.rand(-5, -3), ay: 0.06, shape: s.pick(['orb', 'small', 'big']), color: 'orange', marginTop: 200 });
-      if (k % 25 === 24) for (let i = 0; i < s.lv(6, 8, 10, 10, 12, 12); i++) s.fire({ vx: s.rand(-3, 3), vy: s.rand(-6, -3.5), ay: 0.06, shape: 'small', color: 'orange', marginTop: 200 });
+      if (k % 25 === 24) for (let i = 0; i < s.lv(6, 8, 10, 11, 12, 12); i++) s.fire({ vx: s.rand(-3, 3), vy: s.rand(-6, -3.5), ay: 0.06, shape: 'small', color: 'orange', marginTop: 200 });
       yield s.lv(5, 4, 3, 3, 3, 2); } } },
   // 분노: 채운 뒤에는 1초마다 삐 소리 뒤 한 방향으로 확 끌려감
   { latin: 'IRA', color: 'red', hx: 192, hy: 290, v: t => {
@@ -2713,7 +2725,11 @@ SPELLS.push({
       yield* s.chant([C[6 + i]], { by: s.boss, step: 30, hold: 0 });
       const r = R - (sin.small || 0);
       const holes = sin.holes === 2 ? [{ x: sin.hx - 90, y: sin.hy, r }, { x: sin.hx + 90, y: sin.hy, r }] : [{ x: sin.hx, y: sin.hy, r }];
-      const zones = holes.map(h => s.safeZone({ x: h.x, y: h.y, r, dur: preview + hold + 10 }));
+      // 전조 시간: 기본값과, 지금 자리에서 가장 가까운 안전지대 안쪽(반지름 절반)까지 고속(3.6px/프레임)으로 가는 시간 × 1.3 + 반응 40프레임 중 긴 쪽.
+      // 어느 자리에서 호명을 들어도 늦지 않게(탐욕처럼 안전지대가 화면 아래 끝에 있을 때 위쪽에서 닿지 못하던 문제)
+      const far = Math.min(...holes.map(h => Math.max(0, Math.hypot(s.player.x - h.x, s.player.y - h.y) - r / 2)));
+      const lead = Math.max(preview, Math.ceil(far / 3.6 * 1.3) + 40);
+      const zones = holes.map(h => s.safeZone({ x: h.x, y: h.y, r, dur: lead + hold + 10 }));
       // 전조: 안전지대가 움직이기 시작하거나 방향을 바꾸기 약 0.6초 전에 그 방향 화살표를 안전지대에 띄움
       let said = null;
       const foretell = t => {
@@ -2725,7 +2741,7 @@ SPELLS.push({
         for (const z of zones) s.arrow(z, ang, 44);
         s.sound('beep', 0.4);
       };
-      for (let t = -preview; t < 0; t++) { if (t >= -36) foretell(t); yield 1; }
+      for (let t = -lead; t < 0; t++) { if (t >= -36) foretell(t); yield 1; }
       call.return();
       const motion = { vx: 0, vy: 0 };
       const list = fillField(s, { holes, motion, pad: 160, spacing: s.lv(20, 19, 18, 17, 16, 16), color: sin.color });
@@ -2774,16 +2790,33 @@ SPELLS.push({
   name: '「차원절단」',
   type: 'spell', boss: '티폰', bossColor: TY_COLOR, hp: 3600, time: 50, start: [192, 80],
   *run(s) {
-    // 화면을 비스듬히 한 번 크게 가름. 균열은 이 스펠 내내 열려 있고 기체는 넘어갈 수 없음(적 탄은 지나감)
-    const cx = s.W / 2 + s.rand(-40, 40), cy = s.H * 0.55;
-    s.rift({ x: cx, y: cy, ang: Math.PI / 2 + s.pick([-1, 1]) * s.rand(0.25, 0.55), warn: 60, tear: 22, w: 7 });
+    // 화면을 두 번 크게 갈라(세로에 가까운 균열 하나, 가로에 가까운 균열 하나) 네 조각으로 나눔. 균열은 이 스펠 내내 열려 있고
+    // 기체는 넘어갈 수 없음(적 탄은 지나감). 그 위로 티폰이 직접 베어 들어옴: 기체를 지나는 선에 폭 넓은 베기 예고 → 찢어지며
+    // 그 띠 위에 있으면 피탄, 잠깐 벌어졌다가 쩌저적 닫힘. 탄막은 가볍게 곁들임(탄막 내용은 미정이라 임시)
+    const { W, H } = s;
+    s.rift({ x: W / 2 + s.rand(-30, 30), y: H / 2, ang: Math.PI / 2 + s.pick([-1, 1]) * s.rand(0.15, 0.4), warn: 60, tear: 22, w: 7 });
+    yield 34;
+    s.rift({ x: W / 2, y: H * 0.5 + s.rand(-20, 30), ang: s.pick([-1, 1]) * s.rand(0.15, 0.35), warn: 60, tear: 22, w: 7 });
     yield 90;
-    // 균열이 열린 동안 피하는 탄막(임시: 내용 미정이라 조준 부채꼴과 원형탄만)
+    // 곁들이는 탄막
+    s.task(function* () {
+      for (let w = 0; ; w++) {
+        s.spread(3, s.aim(s.boss.x, s.boss.y), 0.2, { spd: s.sp(3), shape: 'knife', color: 'red' });
+        if (w % 2) s.ring(s.cnt(18), { offset: s.rand(0, s.TAU), spd: s.sp(1.5), shape: 'small', color: 'pink' });
+        yield s.wait(54);
+      }
+    }());
+    // 직접 베기: 기체가 선 자리를 지나는 선(각도는 무작위)에 넓은 예고 띠 → 찢어지며 그 띠 위면 피탄. 헬·격화 III는 두 줄이 엇갈려 벰
     for (let w = 0; ; w++) {
-      s.spread(5, s.aim(s.boss.x, s.boss.y), 0.16, { spd: s.sp(3.2), shape: 'knife', color: 'red' });
-      if (w % 2) s.ring(s.cnt(24), { offset: s.rand(0, s.TAU), spd: s.sp(1.6), shape: 'small', color: 'pink' });
-      yield s.wait(40);
-      if (w % 5 === 4) yield* s.wander(40);
+      const n = s.lv(1, 1, 1, 1, 2) + (s.surge >= 2 ? 1 : 0), warn = s.lv(56, 48, 42, 38, 34), cuts = [];
+      for (let i = 0; i < n; i++) {
+        const ang = s.rand(0, Math.PI) + i * Math.PI / 2;
+        cuts.push(s.rift({ x: s.player.x + s.rand(-10, 10), y: s.player.y + s.rand(-10, 10), ang, warn: warn + i * 8, tear: 8, w: s.lv(11, 12, 13, 14, 14), lethal: true }));
+      }
+      yield warn + 8 * n + 8 + 22;
+      for (const r of cuts) s.closeRift(r);
+      yield s.wait(s.lv(120, 100, 85, 80, 70));
+      if (w % 3 === 2) yield* s.wander(40);
     }
   },
 }, {
@@ -2791,11 +2824,12 @@ SPELLS.push({
   type: 'spell', boss: '티폰', bossColor: TY_COLOR, hp: 4200, time: 60, start: [192, 70],
   *run(s) {
     // 되풀이: 세로·가로 중 하나로 화면을 반으로 차원절단. 절단에 앞서 한쪽 면(A)에 붉은 안개가 끼고 그 안에서 피하기 어려운 탄막이 쏟아짐.
-    // 균열은 A에서 반대쪽(B)으로 넘어가려는 탄을 삼키지만, 붉은 안개 덩어리가 균열을 조금씩 지나와 B에서도 탄을 뿌림
+    // 균열은 A에서 반대쪽(B)으로 넘어가려는 탄을 삼킴. 세로로 가를 때는 티폰이 B 쪽 위로 옮겨 감(기체가 B에서도 때릴 수 있게).
+    // 가르고 약 2초 뒤 티폰이 균열을 가로질러 직접 벰(예고 띠 → 찢어지며 그 위면 피탄). 벤 자리로 붉은 안개가 B로 새어 나와 탄을 뿌림
     const { W, H } = s;
     yield 40;
     for (;;) {
-      const vert = Math.random() < 0.5, first = s.pick([0, 1]);
+      const vert = rng() < 0.5, first = s.pick([0, 1]);
       const A = vert ? (first ? { x: 0, y: 0, w: W / 2, h: H } : { x: W / 2, y: 0, w: W / 2, h: H })
         : (first ? { x: 0, y: 0, w: W, h: H / 2 } : { x: 0, y: H / 2, w: W, h: H / 2 });
       const warn = 90, tear = 18, open = warn + tear;
@@ -2803,11 +2837,13 @@ SPELLS.push({
       const sideA = s.riftSide(r, A.x + A.w / 2, A.y + A.h / 2);
       r.guard = -sideA;
       const fog = s.mist({ ...A, fade: 50, life: 9999 });
+      // 세로 절단: 티폰이 안개 없는 쪽(B) 위로
+      if (vert) s.move(A.x > 0 ? W * 0.27 : W * 0.73, s.rand(70, 95), 60);
       // A 안에서 균열까지 거리 min 이상인 임의의 점
       const inA = min => { for (;;) { const x = s.rand(A.x + 12, A.x + A.w - 12), y = s.rand(A.y + 12, A.y + A.h - 12); if ((r.nx * x + r.ny * y - r.c) * sideA >= min) return { x, y }; } };
       // 절단 30프레임 전부터 안개 속에서 탄막이 터져 나옴(절단 전에 B로 넘어가지 않게 균열에서 100px 넘게 떨어진 곳에서)
       yield open - 30;
-      const burstEnd = s.frame + 30 + 190;
+      const burstEnd = s.frame + 30 + 330;
       s.task(function* () {
         while (s.frame < burstEnd) {
           const q = inA(100);
@@ -2816,29 +2852,45 @@ SPELLS.push({
         }
       }());
       yield 30;
-      // 균열이 열리면 보스도 A 쪽으로 원형탄(세로 절단이면 보스가 균열 위라 B로 가는 탄은 곧바로 삼켜짐. 보스가 B에 있으면 쏘지 않음)
-      const bossInA = s.riftSide(r, s.boss.x, s.boss.y) === sideA || Math.abs(r.nx * s.boss.x + r.ny * s.boss.y - r.c) < 8;
+      // 균열이 열리면 티폰이 A 쪽이거나 균열 위에 있을 때만 원형탄(B로 가는 탄은 균열이 삼킴)
+      const bossInA = s.riftSide(r, s.boss.x, s.boss.y) === sideA && Math.abs(r.nx * s.boss.x + r.ny * s.boss.y - r.c) > 8;
       if (bossInA) s.task(function* () {
         for (let k = 0; s.frame < burstEnd; k++) { s.ring(s.cnt(22), { offset: k * 0.13, spd: s.sp(2.6), shape: 'orb', color: 'red' }); yield s.wait(22); }
       }());
-      // 붉은 안개가 균열을 조금씩 지나와 B에서 탄을 뿌림
-      yield 40;
-      const puffs = s.lv(2, 2, 3, 3, 4) + (s.surge >= 2 ? 1 : 0);
-      for (let i = 0; i < puffs; i++) {
+      // 약 2초 뒤: 티폰이 균열을 가로질러 벰. 벨 자리는 기체가 선 곳 근처(균열을 따라 잰 위치), 하드부터 두 번(베리하드부터 셋)
+      yield 120;
+      const slashes = s.lv(1, 1, 2, 2, 3) + (s.surge >= 2 ? 1 : 0), sw = s.lv(46, 40, 36, 34, 32);
+      for (let i = 0; i < slashes; i++) {
+        const along = Math.max(-0.42, Math.min(0.42, ((s.player.x - W / 2) * r.dx + (s.player.y - H / 2) * r.dy) / (vert ? H : W) + s.rand(-0.12, 0.12) + (i ? s.rand(-0.3, 0.3) : 0)));
+        const px = W / 2 + r.dx * along * (vert ? H : W), py = H / 2 + r.dy * along * (vert ? H : W);
+        // 균열에 거의 직각으로(조금 비스듬히) 베어 B 쪽까지 이어짐
+        const cut = s.rift({ x: px, y: py, ang: r.ang + Math.PI / 2 + s.rand(-0.35, 0.35), warn: sw, tear: 8, w: s.lv(10, 11, 12, 13, 13), lethal: true });
         s.task(function* () {
-          yield i * 24;
-          const along = s.rand(-0.4, 0.4) * (vert ? H : W);
-          const x0 = W / 2 + r.dx * along + r.nx * sideA * 14, y0 = H / 2 + r.dy * along + r.ny * sideA * 14;
-          const v = 0.35, m = s.mist({ x: x0, y: y0, r: 28, vx: -r.nx * sideA * v, vy: -r.ny * sideA * v, fade: 30, life: 330 - i * 24 });
-          for (let k = 0; m.t < m.life - 40; k++) {
-            const d = (r.nx * m.x + r.ny * m.y - r.c) * sideA;
-            if (d < -70) { m.vx = 0; m.vy = 0; }   // B로 70px쯤 들어오면 멈춤
-            if (d < -10 && k % 2 === 0) s.ring(s.cnt(7), { x: m.x, y: m.y, offset: s.rand(0, s.TAU), spd: s.sp(1.3), shape: 'small', color: 'red' });
-            yield s.wait(28);
+          yield sw + 8;
+          s.shake(6);
+          // 벤 자리에서 붉은 안개 덩어리가 B로 새어 나옴(벤 선을 따라 퍼지며 탄을 뿌림)
+          const puffs = s.lv(3, 3, 4, 5, 6) + (s.surge >= 2 ? 1 : 0);
+          for (let j = 0; j < puffs; j++) {
+            const spd = s.rand(0.35, 0.8), dir = cut.ang + (rng() < 0.5 ? 0 : Math.PI);
+            // B 쪽으로 가는 방향만(균열 법선 성분이 B 쪽이 되게)
+            const bx = Math.cos(dir), by = Math.sin(dir), toB = (bx * r.nx + by * r.ny) * -sideA >= 0 ? 1 : -1;
+            const vx = bx * toB * spd + r.nx * -sideA * 0.25, vy = by * toB * spd + r.ny * -sideA * 0.25;
+            const m = s.mist({ x: px + r.nx * sideA * 8, y: py + r.ny * sideA * 8, r: 26, vx, vy, fade: 20, life: 300 });
+            s.task(function* () {
+              yield j * 6;
+              for (let k = 0; m.t < m.life - 40; k++) {
+                if (Math.abs(r.nx * m.x + r.ny * m.y - r.c) > 150) { m.vx *= 0.9; m.vy *= 0.9; }   // 균열에서 멀어지면 느려져 머묾
+                if ((r.nx * m.x + r.ny * m.y - r.c) * sideA < -10) s.ring(s.cnt(8), { x: m.x, y: m.y, offset: s.rand(0, s.TAU), spd: s.sp(1.4), shape: 'small', color: 'red' });
+                yield s.wait(26);
+              }
+            }());
           }
+          yield 22;
+          s.closeRift(cut);
         }());
+        yield 28;
       }
-      yield 180;
+      yield 230;
       // 안개가 걷히며 A에 남은 탄도 사라짐(균열이 닫힌 뒤 B로 쏟아지지 않게)
       s.pop(s.bullets.filter(b => s.riftSide(r, b.x, b.y) === sideA), false);
       s.closeRift(r);
@@ -2851,26 +2903,87 @@ SPELLS.push({
   type: 'spell', boss: '티폰', bossColor: TY_COLOR, hp: 4200, time: 60, start: [192, 70],
   *run(s) {
     // 화면을 무수히 잘게 잘랐다 붙이길 되풀이. 균열은 벌어지는 순간 그 위에 있으면 피탄이고, 열린 동안 넘어갈 수 없음.
-    // 모든 균열이 비켜 가는 자리(생존 가능한 위치)가 하나 있고, 자를 때마다 조금씩만 옮겨 감(거의 정해져 있음)
+    // 모든 균열이 비켜 가는 자리(생존 가능한 위치)가 하나 있고, 자를 때마다 조금씩만 옮겨 감(거의 정해져 있음).
+    // 균열의 절반쯤은 그 자리 바로 곁(gap ~ gap+30px)을 지나가게 해 생존 칸이 좁음. 열린 균열에서는 탄이 조금씩 새어 나옴.
+    // 2차: 격화 III(이 스펠의 발악)에 닿으면 자르기를 멈추고 티폰이 몸에서 회전벽을 소환, 되풀이해 화면의 4분의 3을 베어 날려 버림
     const { W, H } = s;
     const P = { x: W / 2 + s.rand(-60, 60), y: H - 90 };
     yield 60;
-    for (;;) {
-      P.x = Math.max(60, Math.min(W - 60, P.x + s.rand(-24, 24)));
-      P.y = Math.max(H * 0.5, Math.min(H - 50, P.y + s.rand(-16, 16)));
-      const n = Math.round(s.lv(8, 10, 12, 14, 16) * (0.8 + 0.5 * s.heat)), gap = s.lv(34, 28, 24, 22, 20);
-      const warn = Math.max(34, s.wait(60)), rs = [];
+    while (s.surge < 2) {
+      P.x = Math.max(50, Math.min(W - 50, P.x + s.rand(-18, 18)));
+      P.y = Math.max(H * 0.5, Math.min(H - 40, P.y + s.rand(-12, 12)));
+      const n = Math.round(s.lv(20, 24, 28, 32, 36) * (0.85 + 0.4 * s.heat)), gap = s.lv(26, 22, 18, 16, 15);
+      const warn = Math.max(40, s.wait(64)), rs = [];
+      // 짝수 번째 균열은 생존 자리 곁을 스치고, 홀수 번째는 지금 가장 넓게 빈 곳(생존 자리 70px 밖, 16px 격자)을 지나감.
+      // 그래서 생존 자리 말고는 넓은 빈자리가 남지 않음
+      const lines = [], grid = [];
+      for (let x = 4; x < W; x += 12) for (let y = 4; y < H; y += 12) if (Math.hypot(x - P.x, y - P.y) > 70) grid.push([x, y]);
+      const clear = ([x, y]) => lines.reduce((m, l) => Math.min(m, Math.abs(l.nx * x + l.ny * y - l.c)), 1e9);
       for (let i = 0; i < n; i++) {
-        const ang = s.rand(0, Math.PI), nx = -Math.sin(ang), ny = Math.cos(ang);
-        const cs = [0, W].flatMap(x => [0, H].map(y => nx * x + ny * y)), lo = Math.min(...cs) + 16, hi = Math.max(...cs) - 16;
-        let c;
-        do c = s.rand(lo, hi); while (Math.abs(c - (nx * P.x + ny * P.y)) < gap);
-        // 선 위의 한 점: 법선 방향으로 c만큼
-        rs.push(s.rift({ x: nx * c, y: ny * c, ang, warn: warn + i * 2, tear: 10, w: 4, lethal: true, quiet: i > 0 }));
+        let ang, nx, ny, c;
+        for (let tries = 0; ; tries++) {
+          ang = s.rand(0, Math.PI); nx = -Math.sin(ang); ny = Math.cos(ang);
+          const cp = nx * P.x + ny * P.y;
+          if (i % 2 === 0) { c = cp + s.pick([-1, 1]) * s.rand(gap, gap + 30); break; }   // 생존 자리 곁을 스침
+          let bestP = grid[0], bm = -1;
+          for (const q of grid) { const m = clear(q); if (m > bm) { bm = m; bestP = q; } }
+          c = nx * bestP[0] + ny * bestP[1];
+          if (Math.abs(c - cp) >= gap || tries > 10) { if (Math.abs(c - cp) < gap) c = cp + Math.sign(c - cp || 1) * gap; break; }
+        }
+        lines.push({ nx, ny, c });
+        rs.push(s.rift({ x: nx * c, y: ny * c, ang, warn: warn + i, tear: 10, w: 4, lethal: true, quiet: i > 0 }));
       }
-      yield warn + 2 * n + 10 + s.wait(70);
+      yield warn + n + 10;
+      // 열린 동안 균열 여기저기서 탄이 조금씩 새어 나옴(기체 40px 안에서는 새지 않음). 균열에 수직으로 양쪽으로 느리게
+      const hold = s.wait(80), every = s.lv(5, 4, 3, 3, 2);
+      for (let f = 0; f < hold; f++) {
+        if (f % every === 0) {
+          const r = s.pick(rs);
+          for (let tries = 0; tries < 6; tries++) {
+            const d = s.rand(-r.len / 2, r.len / 2), x = r.x + r.dx * d, y = r.y + r.dy * d;
+            if (x < 4 || x > W - 4 || y < 4 || y > H - 4 || Math.hypot(x - s.player.x, y - s.player.y) < 40) continue;
+            const side = s.pick([-1, 1]);
+            s.fire({ x: x + r.nx * side * 6, y: y + r.ny * side * 6, ang: Math.atan2(r.ny * side, r.nx * side) + s.rand(-0.5, 0.5), spd: s.sp(s.rand(0.7, 1.2)), shape: 'small', color: 'pink' });
+            break;
+          }
+        }
+        yield 1;
+      }
       for (const r of rs) s.closeRift(r);
-      yield 50;
+      yield 45;
+    }
+    // ── 2차: 회전벽 + 화면 4분의 3 베기 ──
+    s.impact(10);
+    // 몸에서 회전벽: 팔 여러 줄이 돌며 탄 줄기를 뿜음(발사 간격 고정, 격화로 도는 속도만 오름)
+    s.task(function* () {
+      let base = s.rand(0, s.TAU);
+      const arms = s.lv(3, 4, 4, 5, 6), dir = s.pick([-1, 1]);
+      for (;;) {
+        for (let i = 0; i < arms; i++) s.fire({ ang: base + i * s.TAU / arms, spd: s.sp(2.2), shape: 'rice', color: 'pink' });
+        base += dir * s.spin(0.045);
+        yield 4;
+      }
+    }());
+    // 베기: 네 칸 중 한 칸만 남기고 나머지 4분의 3을 예고(붉게 깜빡임) → 번쩍이며 여러 줄로 찢겨 날아감(그 안이면 피탄, 회전벽 탄도 날아감).
+    // 남는 칸은 매번 지금 칸의 이웃 칸(대각선으로 건너뛰지 않음)
+    let q = (s.player.x < W / 2 ? 0 : 1) + (s.player.y < H / 2 ? 0 : 2);
+    for (;;) {
+      q = q ^ s.pick([1, 2]);
+      const sx = q & 1 ? W / 2 : 0, sy = q & 2 ? H / 2 : 0, warn = s.lv(80, 70, 62, 58, 54);
+      const zones = [0, 1, 2, 3].filter(k => k !== q).map(k => ({ x: k & 1 ? W / 2 : 0, y: k & 2 ? H / 2 : 0, w: W / 2, h: H / 2 }));
+      for (const z of zones) s.area({ ...z, warn, dur: 10, color: '#ff2d5a', pulse: true });
+      s.safeZone({ x: sx + W / 4, y: sy + H / 4, r: 40, dur: warn });
+      yield warn - 8;
+      // 찢기는 연출(판정은 구역 공격이 맡고, 이 균열은 보이기만 함)
+      for (let k = 0; k < 4; k++) {
+        const z = s.pick(zones), cx = z.x + s.rand(20, z.w - 20), cy = z.y + s.rand(20, z.h - 20);
+        const r = s.rift({ x: cx, y: cy, ang: s.rand(0, Math.PI), warn: 0, tear: 8, w: 9, visual: true, quiet: k > 0 });
+        s.task(function* () { yield 30; s.closeRift(r); }());
+      }
+      yield 8;
+      s.pop(s.bullets.filter(b => !(b.x >= sx && b.x < sx + W / 2 && b.y >= sy && b.y < sy + H / 2)), true);
+      s.shake(12);
+      yield s.lv(70, 60, 50, 46, 42);
     }
   },
 });
@@ -2885,9 +2998,9 @@ const SURGE_EXTRA = {
   // 관통탄: 기체 x 위로 예고선 뒤 위에서 칼날 줄기가 내리꽂힘
   '고현성': function* (s) { for (;;) { const x = s.player.x; s.warnLine({ x, y: 0, x2: x, y2: s.H, dur: 40, band: 8 }); yield 40; for (let i = 0; i < 6; i++) { s.fire({ x, y: -8, ang: Math.PI / 2, spd: s.sp(5), shape: 'knife', color: 'cyan' }); yield 3; } yield s.lv(110, 100, 90, 84, 80); } },
   // 황금 충격파: 느린 큰 원형탄
-  '마르코': function* (s) { for (;;) { s.ring(s.lv(8, 10, 12, 12, 14), { offset: s.rand(0, s.TAU), spd: s.sp(1.3), shape: 'big', color: 'gold' }); s.shake(2); yield s.lv(130, 120, 110, 100, 95); } },
+  '마르코': function* (s) { for (;;) { s.ring(s.lv(8, 10, 12, 13, 14), { offset: s.rand(0, s.TAU), spd: s.sp(1.3), shape: 'big', color: 'gold' }); s.shake(2); yield s.lv(130, 120, 110, 100, 95); } },
   // 플래시: 화면 위 여기저기서 별 원형탄이 터짐
-  '김예나': function* (s) { for (;;) { const x = s.rand(40, s.W - 40), y = s.rand(40, 160); s.mark({ x, y, dur: 24 }); yield 24; s.ring(s.lv(8, 10, 12, 12, 14), { x, y, offset: s.rand(0, s.TAU), spd: s.sp(1.6), shape: 'star', color: 'pink' }); yield s.lv(80, 70, 60, 56, 52); } },
+  '김예나': function* (s) { for (;;) { const x = s.rand(40, s.W - 40), y = s.rand(40, 160); s.mark({ x, y, dur: 24 }); yield 24; s.ring(s.lv(8, 10, 12, 13, 14), { x, y, offset: s.rand(0, s.TAU), spd: s.sp(1.6), shape: 'star', color: 'pink' }); yield s.lv(80, 70, 60, 56, 52); } },
   // 음파: 박자마다 보스에서 퍼지는 작은 탄 부채
   '차서린': function* (s) { for (let k = 0; ; k++) { s.spread(s.lv(7, 9, 9, 11, 11), Math.PI / 2 + (k % 2 ? 0.25 : -0.25), 0.16, { spd: s.sp(1.8), shape: 'small', color: 'cyan', fixed: true }); yield s.lv(84, 76, 72, 68, 64); } },
   // 히어로 대시: 양옆에서 기체를 향한 칼날 두 발
@@ -3099,7 +3212,7 @@ const MOB_WAVES = {
       e.vy = 0;
       yield 20;
       for (let k = 0; k < 4; k++) {
-        s.ring(s.lv(10, 12, 14, 16, 16), { x: e.x, y: e.y, offset: k * 0.2, spd: s.sp(1.4 + 0.4 * T), shape: 'orb', color: col });
+        s.ring(s.lv(10, 12, 14, 15, 16), { x: e.x, y: e.y, offset: k * 0.2, spd: s.sp(1.4 + 0.4 * T), shape: 'orb', color: col });
         if (kind % 2 === 0 && k % 2) s.spread(3, s.aim(e.x, e.y), 0.25, { x: e.x, y: e.y, spd: s.sp(2.2), shape: 'small', color: 'white', fixed: true });
         yield 45;
       }

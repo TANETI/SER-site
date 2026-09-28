@@ -26,6 +26,26 @@ const HP_SCALE = 2.2;
 const DIFFS = ['이지', '노말', '하드', '베리하드', '헬'];
 const DENSITY = [0.55, 0.8, 1, 1.2, 1.4, 1.6], INTERVAL = [1.6, 1.25, 1, 0.88, 0.78, 0.7], SPEED = [0.82, 0.92, 1, 1.06, 1.12, 1.16];
 
+// ── 게임 난수 ──────────────────────────────────────────────
+// 패턴·아이템·자기 탄 흔들림 등 게임 결과에 닿는 난수는 모두 rng()로(연출·화면 흔들림은 Math.random).
+// 패턴을 시작할 때마다 다시 심음: 시드를 정해 두면(패턴 테스트 룸의 '난수 시드' 또는 주소 ?seed=) 같은 패턴은 같은 난수로 재현됨.
+// 비워 두면 매번 무작위 시드(지금 쓴 시드는 G.seedUsed)
+// 흐름은 둘: 패턴(rng)과 기체 쪽(rngP: 자기 탄 흔들림·아이템 흩어짐). 조작이 달라도 패턴 난수는 같게
+function makeRng() {   // mulberry32
+  let st = 1;
+  const f = () => {
+    st = (st + 0x6D2B79F5) | 0;
+    let t = st;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+  f.seed = n => { st = (n >>> 0) || 1; };
+  return f;
+}
+const rng = makeRng(), rngP = makeRng();
+function seedRng(n) { rng.seed(n); rngP.seed(Math.imul(n, 1597334677) ^ 0x9E3779B9); }
+
 // ── 탄 스프라이트 ──────────────────────────────────────────
 const COLORS = {
   // ivy: 리크니스의 잎. 리크니스 이펙트는 빨강·검정 계열(잎 짙은 빨강, 덩굴 머리 검정, 꽃잎 빨강)
@@ -268,8 +288,8 @@ function bodyShots(p, out, focus, L, b) {
   if (p.fireT % b.iv[L]) return;
   const n = b.n[L], spread = focus ? b.focusSpread(n) : b.spread, gapX = focus ? 4 : b.gapX;
   for (let i = 0; i < n; i++) {
-    const k = i - (n - 1) / 2, wob = b.wob ? (Math.random() * 2 - 1) * (focus ? b.wob / 3 : b.wob) : 0;
-    const extra = b.falloff ? { life: b.life + (Math.random() * 3 | 0), falloff: true } : undefined;
+    const k = i - (n - 1) / 2, wob = b.wob ? (rngP() * 2 - 1) * (focus ? b.wob / 3 : b.wob) : 0;
+    const extra = b.falloff ? { life: b.life + (rngP() * 3 | 0), falloff: true } : undefined;
     shot(out, p.x + k * gapX, p.y - 10, UP + k * spread + wob, b.spd, b.dmg[L] * (focus ? 1 : (b.wideDmg ?? 1)), b.shape, b.color, extra);
   }
 }
@@ -389,9 +409,14 @@ class Game {
 
   // 패턴의 실제 체력(난이도·보스전 배율 반영). 체력바를 그릴 때 다음 패턴 몫도 이걸로 셈
   hpFor(sp) {
+    const { scaled, k } = this.scaleOf(sp);
+    return sp.hp >= 99999 ? sp.hp : Math.max(1, Math.round((sp.hp || 1000) * HP_MUL[this.effDiff(sp)] * k * (scaled ? BOSS_HP : 1)));
+  }
+  // 체력·제한시간 배율: 체력으로 깨는 패턴(scaled)만 보스전 배율(hpScale × bossScale, 단일 패턴 연습은 HP_SCALE)을 받음
+  scaleOf(sp) {
     const scaled = sp.hp < 99999 && !sp.survival && sp.type !== 'stage';
     const k = scaled ? (this.run ? this.run.hpScale * (this.run.bossScale?.[sp.boss] ?? 1) : HP_SCALE) : 1;   // bossScale: 보스전 안 보스별 배율(중간 보스 등)
-    return sp.hp >= 99999 ? sp.hp : Math.max(1, Math.round((sp.hp || 1000) * HP_MUL[this.effDiff(sp)] * k * (scaled ? BOSS_HP : 1)));
+    return { scaled, k };
   }
 
   // 홍마향식 체력바: 논스펠과 바로 뒤의 스펠(같은 보스)이 체력바 하나. 그 밖의 패턴은 혼자 체력바 하나.
@@ -424,8 +449,8 @@ class Game {
   toTitle() {
     if (!this.spell) this.startSingle(this.roomOrder?.[0] ?? 0);   // 처음 켰을 때: 그릴 것이 있게 패턴 하나를 깔아 둠
     this.story = null; this.run = null;
-    this.tasks.clear(); this.bullets = []; this.lasers = []; this.enemies = []; this.areas = []; this.fx = []; this.items = [];
-    this.boss.hidden = true; this.cutin = null; this.banner = null; this.slow = null;
+    this.clearField(); this.items = []; this.tip = null;
+    this.boss.hidden = true; this.cutin = null; this.banner = null;
     BGM.fadeOut(1);
     this.phase = 'title'; this.phaseT = 99999;
     this.onTitle?.();
@@ -480,6 +505,7 @@ class Game {
     this.story = { key, list, idx: 0, frames: 0, miss: 0, bombs: 0, continues: 0, tools: false, diff: this.difficulty, contLeft: iron ? 0 : MAX_CONTINUES, beaten: new Set(), iron };
     this.score = 0; this.graze = 0;
     this.startRun(list[0]);
+    this.showTip('위험하면 폭탄(X)을 아끼지 말고 쓰세요\n죽으면 폭탄이 다시 3개로 채워집니다', 420);
   }
   // 본게임 게임 오버에서 이어 하기: 컨티뉴 하나를 쓰고 그 스테이지 처음부터(점수는 0부터)
   useContinue() {
@@ -511,22 +537,29 @@ class Game {
     this.items = [];
   }
 
-  start(i = this.spellIndex) {
-    this.spellIndex = (i + this.spells.length) % this.spells.length;
-    const sp = this.spell = this.spells[this.spellIndex];
+  // 필드를 비움(패턴 시작·시작 화면): 탄·레이저·적·연출·패턴이 건 상태와 작업
+  clearField() {
+    this.tasks.clear();
     this.bullets = []; this.lasers = []; this.enemies = []; this.shots = []; this.fx = []; this.boost = null; this.gauge = null; this.surgeLv = 0;
     this.partners = []; this.chants = []; this.zones = []; this.areas = []; this.slow = null; this.safes = [];
     this.rifts = []; this.mists = [];
+  }
+  start(i = this.spellIndex) {
+    this.spellIndex = (i + this.spells.length) % this.spells.length;
+    const sp = this.spell = this.spells[this.spellIndex];
+    this.clearField();
     this.items = this.items || [];
-    this.tasks.clear(); this.error = '';
+    this.error = '';
+    // 난수 시드: 정해 둔 시드가 있으면 그 시드와 패턴 번호로(같은 패턴은 같은 난수), 없으면 무작위
+    this.seedUsed = this.fixedSeed != null ? (Math.imul(this.fixedSeed >>> 0, 2654435761) ^ this.spellIndex) >>> 0 : (Math.random() * 4294967296) >>> 0;
+    seedRng(this.seedUsed);
     this.player = this.player || {};
     // cont: 보스전 안에서 이어지는 패턴(도중 뒤 첫 보스 포함). 기체 자리·곡을 이어 감
     const cont = this.run && (this.run.idx > 0 || (this.run.idx === 0 && this.run.afterStage)), prev = this.boss;
     if (!cont) Object.assign(this.player, { x: W / 2, y: H - 48, options: [] });
     Object.assign(this.player, { inv: 60, fireT: 0, bomb: null, flash: 0, stun: 0 });
     this.stats = { miss: 0, hits: 0, bombs: 0, dmgLog: new Array(60).fill(0), dmgNow: 0 };
-    const scaled = sp.hp < 99999 && !sp.survival && sp.type !== 'stage';
-    const k = scaled ? (this.run ? this.run.hpScale * (this.run.bossScale?.[sp.boss] ?? 1) : HP_SCALE) : 1;   // bossScale: 보스전 안 보스별 배율(중간 보스 등)
+    const { scaled, k } = this.scaleOf(sp);
     const hp = this.hpFor(sp);
     const b = this.boss = { x: W / 2, y: -40, hp, maxHp: hp, move: null, hidden: sp.type === 'stage', t: 0,
       name: sp.boss || '', color: sp.bossColor || '#d8d0ff', shield: 0, glow: 0, contact: false };
@@ -580,7 +613,8 @@ class Game {
         // 스테이지를 깨면 잠깐 멈추고 '다음 스테이지로' 버튼(Z·Enter). 마지막이면 채점 화면
         BGM.fadeOut(1.5);   // 마지막 패턴이 시간 초과로 끝났어도 클리어 화면에서는 곡을 줄임
         if (st.idx < st.list.length - 1) { this.phase = 'stageclear'; this.phaseT = 99999; this.clearAt = performance.now(); SFX.stageClear(); this.onStageClear?.(st.list[st.idx], st.list[st.idx + 1]); }
-        else { unlockStory(st.key); this.phase = 'storyclear'; this.phaseT = 99999; SFX.stageClear(); st.result = finalScore(st); this.onUnlock?.(); this.onStoryClear?.(st.result); }
+        else { if (!st.tools) unlockStory(st.key); this.phase = 'storyclear';   // 테스트 도구를 쓴 판은 다음 모드를 열지 않음
+           this.phaseT = 99999; SFX.stageClear(); st.result = finalScore(st); this.onUnlock?.(); this.onStoryClear?.(st.result); }
       }
       else if (this.loop) this.startRun(r);
       else this.startSingle(this.spellIndex);
@@ -676,8 +710,8 @@ class Game {
   // 아이템: 작은 P(p)·큰 P(P). magnet이면 곧장 플레이어에게 날아옴
   dropItems(x, y, small, big, magnet = false) {
     for (let i = 0; i < small + big; i++) {
-      this.items.push({ kind: i < big ? 'P' : 'p', x: x + (Math.random() * 2 - 1) * (8 + i * 2), y: y + (Math.random() * 2 - 1) * 8,
-        vy: -2.2 - Math.random() * 1.2, t: 0, magnet });
+      this.items.push({ kind: i < big ? 'P' : 'p', x: x + (rngP() * 2 - 1) * (8 + i * 2), y: y + (rngP() * 2 - 1) * 8,
+        vy: -2.2 - rngP() * 1.2, t: 0, magnet });
     }
   }
 
@@ -903,7 +937,8 @@ class Game {
         const s = -r.len / 2 + r.len * (r.t - r.warn) / r.tear, tx = r.x + r.dx * s, ty = r.y + r.dy * s;
         for (let i = 0; i < 3; i++) this.fx.push({ kind: 'shard', x: tx, y: ty, vx: (Math.random() * 2 - 1) * 3, vy: (Math.random() * 2 - 1) * 3, t: 0, life: 18 + Math.random() * 14, color: i ? '#ff6fae' : '#fff' });
       }
-      if (r.t === open) {
+      if (r.t === open && r.visual) { r.shown = true; r.cw = r.w; }   // visual: 보이기만 하는 균열(막지도 맞히지도 않음)
+      else if (r.t === open) {
         r.live = true; r.cw = r.w;
         const d = r.nx * p.x + r.ny * p.y - r.c;
         r.side = d < 0 ? -1 : 1;
@@ -912,7 +947,7 @@ class Game {
       if (r.closing) {
         r.ct++;
         r.cw = r.w * Math.max(0, 1 - r.ct / 22);
-        if (r.ct === 22) r.live = false;
+        if (r.ct === 22) r.live = r.shown = false;
         if (r.ct % 3 === 0 && r.ct < 26) {
           const s = (Math.random() - 0.5) * r.len, tx = r.x + r.dx * s, ty = r.y + r.dy * s;
           this.fx.push({ kind: 'shard', x: tx, y: ty, vx: r.nx * (Math.random() * 2 - 1) * 2, vy: r.ny * (Math.random() * 2 - 1) * 2, t: 0, life: 14, color: '#fff' });
@@ -954,7 +989,10 @@ class Game {
     }
     return false;
   }
-  closeRift(r) { if (!r.closing && !r.dead) { if (!r.live) { r.dead = true; return; } r.closing = true; r.ct = 0; SFX.riftClose(); } }
+  closeRift(r) { if (!r.closing && !r.dead) { if (!r.live && !r.shown) { r.dead = true; return; } r.closing = true; r.ct = 0; SFX.riftClose(); } }
+
+  // 필드 아래쪽 안내 한 줄(frames 동안, 끝 1초는 옅어짐)
+  showTip(text, frames = 300) { this.tip = { text, t: 0, life: frames }; }
 
   hitPlayer() {
     const p = this.player;
@@ -965,6 +1003,8 @@ class Game {
     }
     if (this.phase !== 'active' && this.phase !== 'intro') return;
     this.stats.miss++;
+    // 폭탄을 하나도 안 쓰고 죽으면(본게임에서 한 번) 폭탄은 죽으면 다시 채워진다고 알려 줌
+    if (this.story && p.bombs >= START_BOMBS && !this.story.bombTip) { this.story.bombTip = true; this.showTip('폭탄 3개를 남긴 채 죽었습니다\n죽으면 어차피 3개로 다시 채워지니 위험하면 X', 360); }
     this.fx.push({ kind: 'burst', x: p.x, y: p.y, t: 0, life: 40 });
     SFX.die(); this.shake(12);
     this.clearBullets(false, true);
@@ -1158,9 +1198,14 @@ class Game {
     } else {
       this.acc = (this.acc || 0) + Math.min(dt, 100) * this.speed;
       let n = 0;
+      const t0 = performance.now();
       while (this.acc >= 1000 / 60 && n++ < 8) { this.update(); this.acc -= 1000 / 60; this.pressed.clear(); }
+      if (n) this.msUpdate = (this.msUpdate ?? 0) * 0.9 + (performance.now() - t0) / n * 0.1;   // 틱 한 번 처리 시간(ms, 평활)
     }
+    const t1 = performance.now();
     render(this);
+    this.msRender = (this.msRender ?? 0) * 0.9 + (performance.now() - t1) * 0.1;   // 한 번 그리는 시간(ms, 평활)
+    this.bulletPeak = Math.max(this.bulletPeak ?? 0, this.bullets?.length ?? 0);
   }
 }
 
@@ -1219,13 +1264,13 @@ function makeAPI(G) {
     // 보스를 지금 자리 근처로 조금만 옮김. 너무 자주 쓰지 않는다(4초에 한 번 정도)
     *wander(range = 50, dur = 60) {
       const b = G.boss;
-      const x = Math.max(90, Math.min(W - 90, b.x + (Math.random() * 2 - 1) * range));
-      const y = Math.max(80, Math.min(140, b.y + (Math.random() * 2 - 1) * range * 0.4));
+      const x = Math.max(90, Math.min(W - 90, b.x + (rng() * 2 - 1) * range));
+      const y = Math.max(80, Math.min(140, b.y + (rng() * 2 - 1) * range * 0.4));
       G.moveBoss(x, y, dur); yield dur;
     },
-    rand: (a = 0, b = 1) => a + Math.random() * (b - a),
-    randInt: (a, b) => Math.floor(a + Math.random() * (b - a + 1)),
-    pick: arr => arr[Math.floor(Math.random() * arr.length)],
+    rand: (a = 0, b = 1) => a + rng() * (b - a),
+    randInt: (a, b) => Math.floor(a + rng() * (b - a + 1)),
+    pick: arr => arr[Math.floor(rng() * arr.length)],
     aim(x = G.boss.x, y = G.boss.y) { return Math.atan2(G.player.y - y, G.player.x - x); },
 
     // o: {x,y, ang,spd, accel,angVel,maxSpd,minSpd | vx,vy,ax,ay, shape,color, fn(b,s), margin}
@@ -1294,7 +1339,7 @@ function makeAPI(G) {
       const off = nx * (x0 - W / 2) + ny * (y0 - H / 2), x = W / 2 + nx * off, y = H / 2 + ny * off;
       const N = 36, jag = () => Array.from({ length: N + 1 }, () => Math.random() * 2.6);
       const r = { x, y, ang, dx: Math.cos(ang), dy: Math.sin(ang), nx, ny, c: nx * x + ny * y, len: Math.hypot(W, H) + 20,
-        warn: o.warn ?? 50, tear: o.tear ?? 18, w: o.w ?? 6, cw: 0, lethal: !!o.lethal, block: !!o.block, guard: o.guard ?? 0, quiet: !!o.quiet,
+        warn: o.warn ?? 50, tear: o.tear ?? 18, w: o.w ?? 6, cw: 0, lethal: !!o.lethal, block: !!o.block, guard: o.guard ?? 0, quiet: !!o.quiet, visual: !!o.visual,
         t: 0, live: false, side: 1, N, jagA: jag(), jagB: jag() };
       G.rifts.push(r);
       return r;
@@ -1882,17 +1927,26 @@ function drawChain(G, g, l) {
   g.restore(); g.globalAlpha = 1;
 }
 
+// 탄이 많을 때(헬 1,000~2,000발) 그리기가 병목이라: 돌지 않는 탄은 변환 없이 제자리에 바로 그리고(대부분),
+// 도는 탄만 변환을 바꿈. 투명도도 바뀔 때만 설정
 function drawBullets(G, g) {
   const base = g.getTransform();
+  let alpha = 1, rotated = false;
+  g.globalAlpha = 1;
   for (const b of G.bullets) {
     const def = SHAPES[b.shape] || SHAPES.small, img = sprite(b.shape, b.color), s = def.size;
-    let a = 0;
-    if (def.oriented) a = b.cart ? Math.atan2(b.vy, b.vx) : b.ang;
-    else if (def.spin) a = b.t * 0.12;
+    const al = b.off ? 0.1 : b.alpha;   // 꺼진 탄은 자리만 아주 흐리게
+    if (al !== alpha) { g.globalAlpha = alpha = al; }
     const k = b.t < 6 ? 1 + (6 - b.t) * 0.15 : 1; // 발사 순간 살짝 크게
+    if (!def.oriented && !def.spin && k === 1) {
+      if (rotated) { g.setTransform(base); rotated = false; }
+      g.drawImage(img, b.x - s / 2, b.y - s / 2, s, s);
+      continue;
+    }
+    const a = def.oriented ? (b.cart ? Math.atan2(b.vy, b.vx) : b.ang) : def.spin ? b.t * 0.12 : 0;
     const c = Math.cos(a) * k, sn = Math.sin(a) * k;
     g.setTransform(base.a * c, base.a * sn, -base.a * sn, base.a * c, base.e + b.x * base.a, base.f + b.y * base.a);
-    g.globalAlpha = b.off ? 0.1 : b.alpha;   // 꺼진 탄은 자리만 아주 흐리게
+    rotated = true;
     g.drawImage(img, -s / 2, -s / 2, s, s);
   }
   g.setTransform(base); g.globalAlpha = 1;
@@ -1944,7 +1998,7 @@ function drawRifts(G, g) {
     }
     // 찢어진 길이(한쪽 끝에서부터)와 지금 반폭
     const k = Math.min(1, (r.t - r.warn) / r.tear), tip = -L / 2 + L * k;
-    const cw = r.live || r.closing ? r.cw : r.w * Math.min(1, k * 1.5);
+    const cw = r.live || r.shown || r.closing ? r.cw : r.w * Math.min(1, k * 1.5);
     if (cw > 0.3) {
       const pts = i => -L / 2 + L * i / r.N;
       const last = Math.max(1, Math.ceil(r.N * k));
@@ -2237,7 +2291,22 @@ function drawCutin(G, g) {
 
 function drawFieldUI(G, g) {
   drawCutin(G, g);
+  if (G.perfHud) {
+    g.save(); g.font = '10px Consolas, monospace'; g.textAlign = 'left'; g.textBaseline = 'top';
+    const txt = `FPS ${G.fps.toFixed(0)} · 처리 ${(G.msUpdate ?? 0).toFixed(1)} · 그리기 ${(G.msRender ?? 0).toFixed(1)}ms · 탄 ${G.bullets.length} (최대 ${G.bulletPeak ?? 0})`;
+    g.fillStyle = 'rgba(0,0,0,0.6)'; g.fillRect(2, H - 14, g.measureText(txt).width + 6, 13);
+    g.fillStyle = '#9fffb0'; g.fillText(txt, 5, H - 13); g.restore();
+  }
   const b = G.boss, sp = G.spell;
+  if (G.tip) {
+    const tp = G.tip, a = Math.min(1, tp.t / 15, (tp.life - tp.t) / 60);
+    g.save(); g.font = 'bold 12px sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
+    const lines = tp.text.split('\n'), tw = Math.max(...lines.map(l => g.measureText(l).width)) + 20, top = H - 64 - lines.length * 16;
+    g.globalAlpha = 0.75 * a; g.fillStyle = '#000'; g.fillRect(W / 2 - tw / 2, top, tw, lines.length * 16 + 8);
+    g.globalAlpha = a; g.fillStyle = '#ffe6a0'; lines.forEach((l, i) => g.fillText(l, W / 2, top + 12 + i * 16));
+    g.restore();
+    if (!G.paused && ++tp.t >= tp.life) G.tip = null;
+  }
   if (G.slow) {
     // 불렛타임은 화면이 푸르게, 오버클럭(직전보다 빨라짐)은 붉게. 끝이 정해진 경우만 남은 시간 막대
     // 오버클럭: 1배보다 빠르거나, 직전보다 빨라지면서 0.5배 이상(아주 느린 구간에서 평소로 돌아오는 것은 제외)
@@ -2393,7 +2462,7 @@ function drawHUD(G, g) {
     if (k > 0) { g.fillStyle = i < L ? LV[L] : LV[Math.min(4, L + 1)] + '88'; g.fillRect(bx, y + 47, 20 * k, 10); }
   }
   g.fillStyle = L >= MAX_POWER ? LV[4] : '#fff'; g.font = 'bold 11px Consolas, monospace';
-  g.fillText(`${L >= MAX_POWER ? 'MAX' : 'Lv' + L}${G.powerLock ? ' 고정' : ''}`, x + 140, y + 46);
+  g.fillText(L >= MAX_POWER ? 'MAX' : p.power.toFixed(2), x + 140, y + 46);   // 칸 = 단계, 숫자 = 실제 파워
   // 단계가 오르면 기체 위에 POWER UP
   if (G.lastLevel !== undefined && L > G.lastLevel) G.fx.push({ kind: 'text', text: L >= MAX_POWER ? 'POWER MAX' : `POWER UP · Lv${L}`, x: p.x, y: p.y - 22, t: 0, life: 50 });
   G.lastLevel = L;
@@ -2423,6 +2492,7 @@ function drawHUD(G, g) {
     ['초당 피해', dps.toFixed(0)],
     ['보스 체력', G.boss.hidden ? '-' : `${Math.ceil(G.boss.hp)} / ${G.boss.maxHp}`],
     ['FPS', `${G.fps.toFixed(0)}${G.speed !== 1 ? ` · ${G.speed}×` : ''}`],
+    ['처리 · 그리기', `${(G.msUpdate ?? 0).toFixed(1)} · ${(G.msRender ?? 0).toFixed(1)}ms`],
   ];
   g.font = font(11);
   rows.forEach(([k, v], i) => {

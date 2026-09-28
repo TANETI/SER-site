@@ -40,6 +40,7 @@
   #overlay .seg button[aria-pressed="true"] { background: #3a2e10; border-color: var(--accent); color: #ffe6a0; }
   #overlay .tiron { font-size: 13px; }
   #overlay .tstart { padding: 10px 36px; font-size: 16px; }
+  #overlay .ttip { color: #ffe6a0; font-size: 13px; margin: 4px 0 10px; }
   #overlay .row { justify-content: center; }
   /* 모바일 전용 요소는 넓은 화면에서 숨김 */
   #pad, #menuBtn, #menuClose { display: none; }
@@ -141,7 +142,7 @@
       <span class="padhint">여기를 끌어서 이동 · 누르는 동안 자동 사격 · 두 손가락 폭탄</span>
       <div class="padbtns"><button id="slowBtn" aria-pressed="false">저속</button><button id="bombBtn">폭탄</button></div>
     </div>
-    <p class="hint">방향키 이동 · <kbd>Z</kbd> 사격 · <kbd>X</kbd> 폭탄 · <kbd>Shift</kbd> 저속 · <kbd>Esc</kbd> 일시정지. 터치는 끌어서 이동(자동 사격), 두 손가락 폭탄.</p>
+    <p class="hint">방향키 이동 · <kbd>Z</kbd> 사격 · <kbd>X</kbd> 폭탄(아끼지 말 것 · 죽으면 3개로 다시 채워짐) · <kbd>Shift</kbd> 저속 · <kbd>Esc</kbd> 일시정지. 터치는 끌어서 이동(자동 사격), 두 손가락 폭탄.</p>
   </div>
   <button id="menuBtn" aria-label="설정 열기" aria-expanded="false">☰</button>
   <aside>
@@ -193,7 +194,7 @@
     <section class="card mode-room">
       <h2>연습 도구</h2>
       <div class="grid2">
-        <label class="field"><span>연습 파워</span><select id="powSel"></select></label>
+        <label class="field"><span>연습 파워 <small id="powNow"></small></span><select id="powSel"></select></label>
         <label class="field"><span>게임 속도</span><select id="speedSel">
           <option value="0.25">0.25×</option><option value="0.5">0.5×</option>
           <option value="1" selected>1×</option><option value="2">2×</option></select></label>
@@ -201,6 +202,7 @@
       <label class="check"><input type="checkbox" id="lockChk"> 파워 고정 <small>보스전에도 적용, 죽어도 유지</small></label>
       <label class="check"><input type="checkbox" id="invChk"> 무적 <small>맞은 횟수만 셈 · I</small></label>
       <label class="check"><input type="checkbox" id="loopChk" checked> 같은 패턴 반복 <small>끄면 다음 패턴으로</small></label>
+      <label class="field"><span>난수 시드 <small>비우면 매번 무작위 · 정하면 같은 패턴을 같은 난수로 재현</small></span><input id="seedIn" inputmode="numeric" placeholder="무작위"></label>
     </section>
 
     <section class="card mousecard">
@@ -250,11 +252,11 @@
     </details>
   </aside>
 </main>
-<script src="sfx.js?v=46b26984af"></script>
-<script src="bgm.js?v=46b26984af"></script>
-<script src="engine.js?v=46b26984af"></script>
-<script src="chants.js?v=46b26984af"></script>
-<script src="patterns.js?v=46b26984af"></script>
-<script src="main.js?v=46b26984af"></script>
+<script src="sfx.js?v=9b6ca98682"></script>
+<script src="bgm.js?v=9b6ca98682"></script>
+<script src="engine.js?v=9b6ca98682"></script>
+<script src="chants.js?v=9b6ca98682"></script>
+<script src="patterns.js?v=9b6ca98682"></script>
+<script src="main.js?v=9b6ca98682"></script>
 </body>
 </html>
