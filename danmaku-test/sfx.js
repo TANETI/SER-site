@@ -72,6 +72,9 @@ const SFX = {
     if (big) { this.tone('sine', this.jitter(260), 160, 0.12, 0.05); this.hiss(0.06, 0.03, 'lowpass', 1200, 400); }
     else this.tone('square', this.jitter(620, 0.08), 480, 0.03, 0.012);
   },
+  // 꿈의 재현: 왼쪽 절반은 낮은 종소리, 오른쪽 절반은 높은 종소리(서로 다른 음색)
+  dreamL()  { if (this.ok('dreamL', 0.1)) { this.tone('sine', 330, 320, 0.55, 0.12); this.tone('triangle', 165, 160, 0.55, 0.07); } },
+  dreamR()  { if (this.ok('dreamR', 0.1)) { this.tone('sine', 988, 980, 0.45, 0.09); this.tone('square', 1976, 1960, 0.12, 0.015, 0.02); } },
   // 조준 경고음: p(0~1)가 커질수록 높아짐. 짧은 간격으로 이어 불러 삐비비빅을 만듦
   bam()     { if (this.ok('bam', 0.1)) { this.tone('sine', 220, 45, 0.35, 0.3); this.hiss(0.25, 0.3, 'lowpass', 3000, 200, 1, 0, true); this.tone('square', 900, 300, 0.06, 0.05); } },
   fillIn()  { if (this.ok('fillIn', 0.1)) { this.hiss(0.2, 0.18, 'highpass', 800, 5000); this.tone('sawtooth', 120, 240, 0.15, 0.05); } },

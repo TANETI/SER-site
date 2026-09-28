@@ -235,6 +235,20 @@ function* ivyVine(s, o) {
   group.fallAt = s.frame + Math.round((o.stay ?? 150) * 0.6);
 }
 
+// NYMPH 공통 「탐색 사격」: 천사가 보이지 않아 처음에는 기체를 겨누지 못하고 화면 아래쪽을 좌우로 훑는 방향으로만 쏨.
+// 이즘의 분석이 끝나면(약 3.5~5.5초) 기체 위에 LOCK 표시와 경고음이 뜨고 그 뒤로는 기체를 조준함.
+// sweep(x, y): 잠금 전에는 훑는 방향, 잠금 뒤에는 (x, y)(기본 보스)에서 기체를 향한 방향
+function nymphScan(s) {
+  const st = { locked: false };
+  s.task(function* () {
+    yield s.lv(330, 300, 270, 240, 220);
+    st.locked = true;
+    s.say(s.player, 'LOCK', 60); s.sound('beep', 1); s.mark({ x: s.player.x, y: s.player.y, dur: 30 });
+  }());
+  st.sweep = (x = s.boss.x, y = s.boss.y) => st.locked ? Math.atan2(s.player.y - y, s.player.x - x) : Math.PI / 2 + Math.sin(s.frame * 0.025) * 0.9;
+  return st;
+}
+
 const SPELLS = [
   {
     name: '사격 시험 · 허수아비',
@@ -1038,6 +1052,152 @@ const SPELLS = [
         for (let y = top + off; y < s.H + 10; y += dy) s.fire({ x: -10, y, ang: 0, spd: v, shape: 'orb', color: 'yellow', margin: 60, data: { y0: y },
           fn: bb => { bb.y = bb.data.y0 + A * Math.sin(bb.x * k - s.frame * 0.02); } });
         yield Math.round(dx / v);
+      }
+    },
+  },
+  // ── 4스테이지 · NYMPH: 코스모(중간 보스) → 진(보스). 변신체 능력은 미정이라 코드명 분야(뇌과학·화학·수학)만 재료로 쓴 임시안 ──
+  // 공통 기믹 「탐색 사격」(nymphScan): 천사가 보이지 않아 처음에는 기체를 겨누지 못하고 화면을 훑는 방향으로만 쏨.
+  // 이즘의 분석이 끝나면 기체 위에 LOCK 표시와 함께 조준으로 바뀜(패턴마다 훑기 → 잠금 두 단계)
+  {
+    name: '논스펠 · 코스모',
+    type: 'nonspell', boss: '코스모', bossColor: '#b8a0ff', hp: 1500, time: 32, start: [192, 100],
+    *run(s) {
+      // 착각: 진짜 기체 자리와 좌우가 뒤바뀐 자리를 번갈아 노리는 보라 부채꼴 + 느린 원형탄. 잠금 전에는 훑는 방향으로
+      const scan = nymphScan(s);
+      for (let k = 0; ; k++) {
+        const tx = k % 2 ? s.W - s.player.x : s.player.x;
+        const a = scan.locked ? Math.atan2(s.player.y - s.boss.y, tx - s.boss.x) : scan.sweep();
+        s.spread(s.lv(3, 3, 5, 5, 5), a, 0.15, { spd: s.sp(2.5), shape: 'orb', color: 'purple' });
+        if (k % 3 === 2) s.ring(s.cnt(14), { offset: s.rand(0, s.TAU), spd: s.sp(1.4), shape: 'small', color: 'white' });
+        yield s.wait(32);
+        if (k % 8 === 7) yield* s.wander(50, 50);
+      }
+    },
+  },
+  {
+    name: '「꿈의 재현」(가칭)',
+    type: 'spell', boss: '코스모', bossColor: '#b8a0ff', hp: 1900, time: 44, start: [192, 150],
+    *run(s) {
+      // 꿈의 재현: 코스모가 가운데에서 원형탄을 쉬지 않고 뿜는 동안(너무 촘촘하진 않게) 화면을 세로로 반씩 나눈 왼쪽·오른쪽이
+      // 천천히 한쪽씩 깜빡임(왼쪽 낮은 종소리, 오른쪽 높은 종소리). 다 깜빡이고 1초 뒤, 깜빡인 순서 그대로 그 절반을
+      // 빠른 탄막이 위에서 아래로 휩쓸고 지나감. 순서를 기억해 휩쓸리는 절반의 반대쪽에 가 있으면 됨
+      s.task(function* () {
+        for (let k = 0; ; k++) { s.ring(s.cnt(s.lv(10, 12, 13, 14, 15)), { offset: k * 0.19, spd: s.sp(1.5), shape: 'orb', color: 'purple' }); yield s.wait(16); }
+      }());
+      yield 60;
+      const half = s.W / 2;
+      for (let w = 0; ; w++) {
+        const n = s.lv(2, 3, 3, 4, 4) + (s.surge >= 2 ? 1 : 0), seq = [];
+        for (let i = 0; i < n; i++) seq.push(Math.random() < 0.5 ? 0 : 1);
+        // 깜빡임: 천천히 한쪽씩
+        for (const side of seq) {
+          s.area({ x: side * half, y: 0, w: half, h: s.H, warn: 34, dur: 0, color: side ? '#7fd8ff' : '#ff8ad8', pulse: true });
+          s.sound(side ? 'dreamR' : 'dreamL');
+          yield s.lv(56, 50, 46, 42, 40);
+        }
+        yield 60;   // 1초 뒤
+        // 휩쓸기: 순서대로 그 절반을 위에서 아래로 빠른 탄 네 줄이 훑음(탄 사이 10px라 빠져나갈 틈 없음)
+        for (const side of seq) {
+          s.sound(side ? 'dreamR' : 'dreamL'); s.shake(3);
+          // 휩쓸기는 가운데 선을 6px 넘어 반대쪽까지 덮음(가운데 선 위에 서서 두 쪽을 다 피하지 못하게)
+          const x0 = side ? half - 6 : 5, x1 = side ? s.W - 5 : half + 6;
+          for (let r = 0; r < 4; r++) for (let x = x0; x <= x1; x += 10)
+            s.fire({ x, y: -10 - r * 12, ang: Math.PI / 2, spd: s.sp(8), shape: 'small', color: side ? 'cyan' : 'pink', marginTop: 80 });
+          yield s.lv(52, 46, 42, 40, 38);
+        }
+        yield s.wait(50);
+      }
+    },
+  },
+  {
+    name: '논스펠 · 진',
+    type: 'nonspell', boss: '진', bossColor: '#c07cff', hp: 1800, time: 34, start: [192, 100],
+    *run(s) {
+      // 결정: 보라 결정 탄 부채꼴이 날아가다 멈춰 섰다가 세 갈래로 갈라져 흩어짐 + 훑기(잠금 뒤 조준) 쌀알탄
+      const scan = nymphScan(s);
+      for (let k = 0; ; k++) {
+        const a = scan.sweep();
+        s.spread(s.lv(3, 5, 5, 7, 7), a, 0.3, { spd: s.sp(2.6), accel: -0.05, minSpd: 0, shape: 'star', color: 'purple',
+          fn: (b, s) => { if (b.spd === 0 && !b.data.split) { b.data.split = true; b.dead = true; s.spread(3, b.ang, 0.5, { x: b.x, y: b.y, spd: s.sp(1.3), shape: 'small', color: 'purple', fixed: true }); } } });
+        yield s.wait(26);
+        s.fire({ ang: scan.sweep(), spd: s.sp(3), shape: 'rice', color: 'white' });
+        yield s.wait(26);
+        if (k % 5 === 4) yield* s.wander(50, 50);
+      }
+    },
+  },
+  {
+    name: '「승화」(가칭)',
+    type: 'spell', boss: '진', bossColor: '#c07cff', hp: 2100, time: 42, start: [192, 80],
+    *run(s) {
+      // 승화: 보라 결정 탄이 화면 위쪽 여기저기에 박혀 멈춰 있다가(약 2초) 증기처럼 느리게 흩어지는 알갱이로 바뀜.
+      // 결정은 기체에서 80px 넘게 떨어진 곳에만 박힘. 잠금 뒤에는 결정이 기체 쪽으로 조금 치우쳐 박힘
+      const scan = nymphScan(s);
+      for (let w = 0; ; w++) {
+        for (let i = 0; i < s.lv(4, 5, 6, 7, 7); i++) {
+          let tx, ty, tries = 0;
+          do {
+            tx = scan.locked ? s.player.x + s.rand(-160, 160) : s.rand(30, s.W - 30);
+            ty = s.rand(60, s.H * 0.55);
+          } while (Math.hypot(tx - s.player.x, ty - s.player.y) < 80 && ++tries < 20);
+          tx = Math.max(20, Math.min(s.W - 20, tx));
+          const T = 30;
+          s.fire({ x: s.boss.x, y: s.boss.y, vx: (tx - s.boss.x) / T, vy: (ty - s.boss.y) / T, shape: 'big', color: 'purple',
+            fn: (b, s) => {
+              if (b.t === T) { b.vx = 0; b.vy = 0; }
+              if (b.t === T + 120) {
+                b.dead = true;
+                for (let j = 0; j < s.lv(6, 7, 8, 9, 10); j++) {
+                  const ph = s.rand(0, s.TAU);
+                  s.fire({ x: b.x, y: b.y, ang: s.rand(0, s.TAU), spd: s.rand(0.5, 1.0) * s.sp(1), shape: 'small', color: 'purple',
+                    fn: c => { c.ang += Math.sin(c.t * 0.05 + ph) * 0.02; } });
+                }
+              }
+            } });
+          yield 8;
+        }
+        yield s.wait(90);
+        if (w % 3 === 2) yield* s.wander(50, 50);
+      }
+    },
+  },
+  {
+    name: '「연쇄 반응」(가칭)',
+    type: 'spell', strong: true, boss: '진', bossColor: '#c07cff', hp: 2200, time: 44, start: [192, 90],
+    *run(s) {
+      // 연쇄 반응: 진이 주황 탄과 파랑 탄을 서로 반대로 도는 나선으로 뿌림. 두 색 탄이 맞닿은 자리에 예고 표시가 뜨고
+      // 약 0.4초 뒤 작은 원형 폭발(두 탄은 그 자리에서 사라짐). 잠금 뒤에는 조준탄을 섞음
+      const scan = nymphScan(s);
+      s.task(function* () {
+        for (;;) {
+          const bs = s.bullets, org = bs.filter(b => b.color === 'orange' && !b.data.gone), blu = bs.filter(b => b.color === 'blue' && !b.data.gone);
+          let n = 0;
+          for (const o of org) {
+            for (const u of blu) {
+              if (u.data.gone || Math.abs(o.x - u.x) > 9 || Math.abs(o.y - u.y) > 9) continue;
+              o.data.gone = u.data.gone = true; o.dead = u.dead = true;
+              const x = (o.x + u.x) / 2, y = (o.y + u.y) / 2;
+              if (Math.hypot(x - s.player.x, y - s.player.y) < 40) break;   // 기체 코앞에서는 터지지 않음
+              s.mark({ x, y, dur: 24 });
+              s.task(function* () { yield 24; s.ring(s.lv(6, 6, 8, 8, 10), { x, y, offset: s.rand(0, s.TAU), spd: s.sp(1.5), shape: 'small', color: 'yellow' }); }());
+              n++;
+              break;
+            }
+            if (n >= 3) break;
+          }
+          yield 2;
+        }
+      }());
+      let a = 0;
+      for (let k = 0; ; k++) {
+        a += s.spin(0.12);
+        for (let i = 0; i < 3; i++) {
+          s.fire({ ang: a + i * s.TAU / 3, spd: s.sp(1.7), angVel: 0.004, shape: 'orb', color: 'orange' });
+          s.fire({ ang: -a + i * s.TAU / 3 + 0.5, spd: s.sp(1.7), angVel: -0.004, shape: 'orb', color: 'blue' });
+        }
+        if (scan.locked && k % 12 === 6) s.spread(3, scan.sweep(), 0.2, { spd: s.sp(2.6), shape: 'rice', color: 'white', fixed: true });
+        yield s.lv(9, 8, 7, 7, 6);
+        if (k % 60 === 59) yield* s.wander(40, 50);
       }
     },
   },
@@ -2595,6 +2755,10 @@ const SURGE_EXTRA = {
   '차서린': function* (s) { for (let k = 0; ; k++) { s.spread(s.lv(7, 9, 9, 11, 11), Math.PI / 2 + (k % 2 ? 0.25 : -0.25), 0.16, { spd: s.sp(1.8), shape: 'small', color: 'cyan', fixed: true }); yield s.lv(84, 76, 72, 68, 64); } },
   // 히어로 대시: 양옆에서 기체를 향한 칼날 두 발
   '고태웅': function* (s) { for (;;) { for (const x of [4, s.W - 4]) { const y = s.rand(80, s.H * 0.6); s.fire({ x, y, ang: Math.atan2(s.player.y - y, s.player.x - x), spd: s.sp(3.4), shape: 'knife', color: 'orange' }); } yield s.lv(90, 80, 70, 64, 60); } },
+  // 코스모: 착각 — 좌우가 뒤바뀐 자리로 가는 조준탄
+  '코스모': function* (s) { for (;;) { const x = s.W - s.player.x; s.fire({ ang: Math.atan2(s.player.y - s.boss.y, x - s.boss.x), spd: s.sp(2.4), shape: 'orb', color: 'pink' }); yield s.lv(60, 50, 44, 40, 36); } },
+  // 진: 위에서 떨어지는 보라 결정이 바닥 근처에서 증기로 흩어짐
+  '진': function* (s) { for (;;) { const x = s.rand(30, s.W - 30); s.fire({ x, y: -10, ang: Math.PI / 2, spd: s.sp(1.6), shape: 'star', color: 'purple', fn: (b, s) => { if (b.t === 140) { b.dead = true; s.ring(5, { x: b.x, y: b.y, offset: s.rand(0, s.TAU), spd: s.sp(0.8), shape: 'small', color: 'purple' }); } } }); yield s.lv(70, 60, 54, 50, 46); } },
   // 검은 비가 더 내림
   '아즈라엘': function* (s) { yield* azRain(s, { every: s.lv(26, 22, 20, 18, 16), spd: 1.0, shape: 'orb', color: 'void', sway: 0.4 }); },
   // 가장자리에서 기체를 겨눈 사슬
@@ -2651,21 +2815,23 @@ const BOSS_RUNS = [
     ],
   },
   {
-    title: '3스테이지-2 · 차서린', name: '차서린', pages: [2, 2], power: 2.25, hpScale: 5.91,
-    seq: [
-      spellOf('논스펠 · 차서린 1'),
-      spellOf('「리프」(가칭)'),
-      spellOf('논스펠 · 차서린 2'),
-      spellOf('「시선」(가칭)'),
-    ],
-  },
-  {
-    title: '3스테이지-3 · 고태웅', name: '고태웅', pages: [2, 2], power: 2.5, hpScale: 5.08,
+    title: '3스테이지-2 · 고태웅', name: '고태웅', pages: [2, 2], power: 2.25, hpScale: 5.08,
     seq: [
       spellOf('논스펠 · 고태웅 1'),
       spellOf('「히어로 킥」(가칭)'),
       spellOf('논스펠 · 고태웅 2'),
       spellOf('「정의의 파도」(가칭)'),
+    ],
+  },
+  {
+    // 코스모(중간 보스, 1페이즈: 논스펠 → 꿈의 재현) → 진(보스, 2페이즈: 논스펠 → 승화 | 연쇄 반응)
+    title: '4스테이지 · NYMPH', name: 'NYMPH', pages: [2, 2, 1], power: 2.5, hpScale: 8.75, bossScale: { '코스모': 1 },
+    seq: [
+      spellOf('논스펠 · 코스모'),
+      spellOf('「꿈의 재현」(가칭)'),
+      spellOf('논스펠 · 진'),
+      spellOf('「승화」(가칭)'),
+      spellOf('「연쇄 반응」(가칭)'),
     ],
   },
   {
@@ -2818,8 +2984,8 @@ const MOB_STAGES = {
   '대책반': { T: 0, col: 'red' },
   '마리·마르코': { T: 0.05, col: 'yellow', kind: 1 },
   '김예나': { T: 0.1, col: 'pink' },
-  '차서린': { T: 0.15, col: 'blue', kind: 1 },
   '고태웅': { T: 0.2, col: 'orange' },
+  'NYMPH': { T: 0.22, col: 'purple', kind: 1 },
   '아즈라엘': { T: 0.25, col: 'white', kind: 1 },
   '예로니모': { T: 0.3, col: 'gold' },
   '리크니스': { T: 0.35, col: 'red', kind: 1 },
@@ -2835,7 +3001,7 @@ for (const r of BOSS_RUNS) {
 
 // 본게임 순서(보스전 이름). 만들어진 스테이지만 이음. 4·5스테이지는 만들면 끼워 넣음
 const STORY = {
-  main: ['대책반', '마리·마르코', '김예나', '차서린', '고태웅', '아즈라엘', '예로니모', '리크니스'],
+  main: ['대책반', '마리·마르코', '김예나', '고태웅', 'NYMPH', '아즈라엘', '예로니모', '리크니스'],
   extra: ['진심 예로니모'],
   extra2: ['이즘'],
 };

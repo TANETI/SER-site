@@ -118,7 +118,7 @@ function sprite(shape, color) {
 // 가로 띠를 잘라 스펠 컷인으로 씀. 불러오지 못하면 예전처럼 색 동그라미로 그림
 const IMG_BASE = 'https://srp.issssm.com/';
 const PORTRAIT_CODE = { '윤도연': 'YD', '고현성': 'KS', '마리': 'MR', '마르코': 'MC', '김예나': 'KY', '차서린': 'CS', '고태웅': 'KT',
-  '아즈라엘': 'AZ', '예로니모': 'JR', '리크니스': 'LY', '이즘': 'IZ', '시연': 'SY' };
+  '아즈라엘': 'AZ', '예로니모': 'JR', '리크니스': 'LY', '이즘': 'IZ', '시연': 'SY', '코스모': 'CM', '진': 'GN', '셰리': 'SH' };
 // 전투 이미지가 있는 인물과, 컷인으로 자를 가로 띠의 시작 위치(이미지 위에서부터 비율, 얼굴이 들어오게).
 // 약스펠은 102(전투), 강스펠은 103(필살기)·120(고유 클라비스) 등. 인물별로 가진 이미지만 적음(없으면 102를 씀)
 const CUTIN_BAND = { KY: 0.08, CS: 0.03, KT: 0.08, KS: 0.13, JR: 0.2, SY: 0.12 };
@@ -1080,7 +1080,7 @@ function makeAPI(G) {
     warnLine(o) { G.fx.push({ kind: 'warnline', x: o.x ?? G.boss.x, y: o.y ?? G.boss.y, x2: o.x2, y2: o.y2, t: 0, life: o.dur ?? 30, band: o.band ?? 0 }); },
     // 사각 구역 공격 {x,y,w,h,warn,dur,label,color}. warn 동안 예고, dur 동안 판정
     area(o) {
-      const a = { x: o.x, y: o.y, w: o.w, h: o.h, warn: o.warn ?? 60, dur: o.dur ?? 20, label: o.label ?? '', color: o.color || '#ff3b4a', t: 0, fog: !!o.fog, edge: o.edge, group: o.group };   // group: 같은 객체를 준 안개 띠들은 한 덩어리로 그림
+      const a = { x: o.x, y: o.y, w: o.w, h: o.h, warn: o.warn ?? 60, dur: o.dur ?? 20, label: o.label ?? '', color: o.color || '#ff3b4a', t: 0, fog: !!o.fog, edge: o.edge, group: o.group, pulse: !!o.pulse };   // pulse: 예고 동안 구역 전체가 한 번 밝게 번쩍임   // group: 같은 객체를 준 안개 띠들은 한 덩어리로 그림
       G.areas.push(a);
       return a;
     },
@@ -1511,7 +1511,7 @@ function drawAreas(G, g) {
       const fast = a.t > a.warn - 20;
       g.globalAlpha = Math.sin(a.t * (fast ? 1.2 : 0.4)) > 0 ? 0.9 : 0.4;
       g.strokeStyle = a.color; g.lineWidth = 2; g.strokeRect(a.x + 1, a.y + 1, a.w - 2, a.h - 2);
-      g.globalAlpha = 0.12; g.fillStyle = a.color; g.fillRect(a.x, a.y, a.w, a.h);
+      g.globalAlpha = a.pulse ? 0.08 + 0.3 * Math.sin(Math.PI * a.t / a.warn) : 0.12; g.fillStyle = a.color; g.fillRect(a.x, a.y, a.w, a.h);
       if (a.label !== '') {
         g.globalAlpha = 0.9; g.fillStyle = '#fff'; g.font = 'bold 18px Consolas, monospace';
         g.fillText(String(a.label), a.x + a.w / 2, a.y + a.h / 2);
