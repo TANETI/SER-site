@@ -46,25 +46,29 @@ cv.style.touchAction = 'none';
 
 // ── 패널 ──
 const spellSel = $('spellSel'), angelSel = $('angelSel');
-// 보스전(여러 패턴 연속)은 r0, r1… 단일 패턴은 번호. 단일 패턴은 보스별로 묶어 보여 줌
+// 패턴 테스트 룸 목록. 보스전(r0, r1…) 다음에 본게임 순서대로 스테이지마다 그 스테이지의 패턴, 그 뒤로 도중(잡몹 구간)·
+// 본게임에서 빠진 패턴·시험 패턴. 단일 패턴 번호는 목록에 보이는 순서대로 1부터(이전·다음 버튼과 [ ] 키도 이 순서)
 function fillSpells() {
   spellSel.innerHTML = '';
   const group = label => { const g = document.createElement('optgroup'); g.label = label; spellSel.append(g); return g; };
-  const runs = group('보스전 (패턴을 이어서, 목숨·파워 유지)');
+  const runs = group('보스전 (스테이지의 보스를 이어서)');
   BOSS_RUNS.forEach((r, i) => runs.append(new Option(r.title, 'r' + i)));
-  // 단일 패턴은 스테이지 순서로 묶고, 보스전에 쓰지 않는 시험 패턴은 맨 아래
-  const STAGE_OF = { '윤도연': '1스테이지', '고현성': '1스테이지', '마리': '2스테이지', '마르코': '2스테이지', '김예나': '3스테이지-1', '차서린': '3스테이지-2', '고태웅': '3스테이지-3', '아즈라엘': '5스테이지', '예로니모': '6스테이지',
-    '리크니스': '7스테이지', '예로니모(진심)': '엑스트라', '이즘': '엑스트라 2' };
-  const order = ['윤도연', '고현성', '마리', '마르코', '김예나', '차서린', '고태웅', '아즈라엘', '예로니모', '리크니스', '예로니모(진심)', '이즘', ''];
-  const groups = new Map([['도중', []], ...order.map(k => [k, []])]);
-  SPELLS.forEach((sp, i) => {
-    const key = sp.type === 'stage' && sp.bgm ? '도중' : sp.boss && groups.has(sp.boss) ? sp.boss : '';
-    groups.get(key).push(new Option(`${i + 1}. ${sp.name}`, i));
-  });
-  for (const [key, opts] of groups) {
-    if (!opts.length) continue;
-    group(key === '도중' ? '도중 · 잡몹 구간 (본게임에서 보스 앞)' : key ? `${STAGE_OF[key]} · ${key}${key === '윤도연' || key === '마리' ? ' (중간 보스)' : key === '마르코' ? ' (합류 · 폭주)' : ''}` : '시험 패턴 (보스전에 쓰지 않음)').append(...opts);
+  const order = [], used = new Set();
+  const add = (g, i, label) => { order.push(i); used.add(i); g.append(new Option(`${order.length}. ${label}`, i)); };
+  for (const r of BOSS_RUNS) {
+    const g = group(r.title);
+    for (const sp of r.seq) { const i = SPELLS.indexOf(sp); if (!used.has(i)) add(g, i, (r.seq.some(x => x.boss !== sp.boss) ? sp.boss + ' · ' : '') + sp.name + (sp.strong ? ' ★' : '')); }
   }
+  const stages = SPELLS.map((sp, i) => i).filter(i => SPELLS[i].type === 'stage' && SPELLS[i].bgm);
+  if (stages.length) { const g = group('도중 · 잡몹 구간 (본게임에서 보스 앞)'); for (const i of stages) add(g, i, SPELLS[i].name); }
+  // 본게임에서 빠진 보스 패턴: 보스의 스테이지 순서대로
+  const bossOrder = [...new Set(BOSS_RUNS.flatMap(r => r.seq.map(sp => sp.boss)))];
+  const cut = SPELLS.map((sp, i) => i).filter(i => !used.has(i) && SPELLS[i].boss)
+    .sort((a, b) => (bossOrder.indexOf(SPELLS[a].boss) + 99) % 99 - (bossOrder.indexOf(SPELLS[b].boss) + 99) % 99 || a - b);
+  if (cut.length) { const g = group('본게임에서 빠진 패턴'); for (const i of cut) add(g, i, `${SPELLS[i].boss} · ${SPELLS[i].name}`); }
+  const rest = SPELLS.map((sp, i) => i).filter(i => !used.has(i));
+  if (rest.length) { const g = group('시험 패턴'); for (const i of rest) add(g, i, SPELLS[i].name); }
+  G.roomOrder = order;
 }
 fillSpells();
 for (const [code, a] of Object.entries(ANGELS)) angelSel.add(new Option(a.name, code));
@@ -111,8 +115,8 @@ $('bgmRange').oninput = e => { SFX.unlock(); BGM.setVolume(+e.target.value); };
 $('bgmRange').onchange = e => settle(e.target);
 $('shakeChk').onchange = e => { G.shakeOn = e.target.checked; if (!G.shakeOn) G.shakeMag = 0; settle(e.target); };
 $('editor').addEventListener('toggle', () => { if ($('editor').open) $('code').value = spellSource(G.spell); });
-$('prevBtn').onclick = e => { G.startSingle(G.spellIndex - 1); syncPanel(); settle(e.target); };
-$('nextBtn').onclick = e => { G.startSingle(G.spellIndex + 1); syncPanel(); settle(e.target); };
+$('prevBtn').onclick = e => { G.stepSingle(-1); syncPanel(); settle(e.target); };
+$('nextBtn').onclick = e => { G.stepSingle(1); syncPanel(); settle(e.target); };
 
 // ── 모드: 스테이지 모드(본게임만, 연습 도구 없음) / 패턴 테스트 룸(패턴·보스 하나씩, 연습 도구) ──
 const STORY_INFO = { main: '1스테이지부터 · 8보스', extra: '진심 예로니모', extra2: '이즘' };
@@ -126,6 +130,7 @@ function syncStage() {
     b.querySelector('small').textContent = open ? STORY_INFO[key] : '잠김 · ' + STORY_LOCK[key];
     b.classList.toggle('on', !!(G.story && G.story.key === key));
   }
+  $('stageSkip').disabled = !(G.story && G.story.idx < G.story.list.length - 1);
 }
 for (const [code, a] of Object.entries(ANGELS)) {
   const b = document.createElement('button'); b.textContent = a.name; b.dataset.v = code;
@@ -139,6 +144,7 @@ DIFFS.forEach((d, i) => {
 });
 for (const b of $('starts').children) b.onclick = () => { G.startStory(b.dataset.story); syncPanel(); settle(b); };
 $('stageRestart').onclick = e => { G.restart(); settle(e.target); };
+$('stageSkip').onclick = e => { G.nextStage(); syncPanel(); settle(e.target); };
 // 테스트 도구(스테이지 모드): 판을 다시 시작하지 않고 바로 적용
 $('stInvChk').onchange = e => { G.invincible = e.target.checked; settle(e.target); };
 $('stLockChk').onchange = e => { G.powerLock = e.target.checked; if (G.powerLock) G.player.power = G.practicePower; settle(e.target); };
@@ -198,7 +204,7 @@ $('code').addEventListener('keydown', e => {
 });
 
 // ── 루프 ──
-G.spellIndex = 0;
+G.spellIndex = G.roomOrder[0] ?? 0;
 let savedMode = 'stage';
 try { savedMode = localStorage.getItem('danmaku.mode') === 'room' ? 'room' : 'stage'; } catch (e) { /* 기본은 스테이지 모드 */ }
 setMode(savedMode);

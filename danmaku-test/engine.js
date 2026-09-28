@@ -233,7 +233,7 @@ function shotSprite(shape, color) {
 // 탄 한 발: {x,y,vx,vy,dmg,shape,color,homing,turn,life,laser}
 // 파워 단계 L(0~4)에 따라 구성이 바뀐다. 괄호 안은 정지 표적에 붙어 쏠 때 최대 파워 기준 초당 피해량
 // 모든 기체 공통 대미지 배율. 표 안의 대미지·주석의 초당 피해량은 배율 적용 전 값
-const SHOT_DMG = 1.9965;   // 1.25 × 1.15 × 1.15 × 1.1 × 1.1
+const SHOT_DMG = 2;   // 기체 대미지 공통 배율
 function shot(out, x, y, a, spd, dmg, shape, color, extra) {
   out.push({ x, y, vx: Math.cos(a) * spd, vy: Math.sin(a) * spd, dmg: dmg * SHOT_DMG, shape, color, ...extra });
 }
@@ -299,6 +299,9 @@ function unlockStory(cleared) {
   if (!key) return;
   try { const u = JSON.parse(localStorage.getItem('danmaku.unlock') || '{}'); u[key] = true; localStorage.setItem('danmaku.unlock', JSON.stringify(u)); } catch (e) { /* 저장 못 해도 진행 */ }
 }
+
+// 패턴 테스트 룸 목록에서의 번호(목록이 없으면 패턴 번호)
+function roomNo(G) { const at = G.roomOrder ? G.roomOrder.indexOf(G.spellIndex) : -1; return at >= 0 ? at + 1 : G.spellIndex + 1; }
 
 // 오래 켜 두는 레이저(패턴 내내 켜진 빔·쓸고 가는 레이저·시선): 폭탄이나 피탄으로 지우면 패턴이 다시 만들지 않으므로 남김
 function lasting(l) { return l.kind !== 'chain' && (l.light || l.dur >= 300); }
@@ -370,6 +373,19 @@ class Game {
   // ── 패턴 수명주기 ──
   // 단일 패턴 연습: 목숨·폭탄을 채우고 시작
   startSingle(i = this.spellIndex) { this.run = null; this.story = null; this.resetLives(this.practicePower); this.start(i); }
+  // 패턴 테스트 룸 목록 순서(roomOrder, 패널이 정함)로 앞뒤 패턴
+  stepSingle(d) {
+    const ord = this.roomOrder && this.roomOrder.length ? this.roomOrder : this.spells.map((_, i) => i);
+    const at = ord.indexOf(this.spellIndex);
+    this.startSingle(ord[((at < 0 ? 0 : at) + d + ord.length) % ord.length]);
+  }
+  // 스테이지 모드: 지금 스테이지를 건너뛰고 다음 스테이지로(목숨·파워 이어받음)
+  nextStage() {
+    const st = this.story;
+    if (!st || st.idx >= st.list.length - 1) return false;
+    st.idx++; this.startRun(st.list[st.idx], true);
+    return true;
+  }
   // 보스전: 여러 패턴을 이어서, 목숨·폭탄을 이어 가며 진행
   // carry=true면 본게임에서 앞 스테이지의 목숨·파워를 이어받음(파워는 그 스테이지 기준값보다 1 넘게 낮지 않게, 폭탄은 다시 채움)
   startRun(run, carry = false) {
@@ -426,6 +442,7 @@ class Game {
     // 배경음악: 이 보스의 폴더 곡. 보스전 도중 곡이 없는 보스면 앞 곡을 이어 감. 같은 곡이면 처음으로 돌리지 않음
     // bgmRate: 곡 재생 속도(폭주 마르코 1.2). 함수면 게임 상태로 정함(김예나 시청자 수 단계)
     // 도중은 bgm(스테이지 폴더 이름)으로 곡을 찾음
+    this.bgmFollowR = 1;
     BGM.playBoss(sp.bgm || sp.boss, cont, (typeof sp.bgmRate === 'function' ? sp.bgmRate(this) : sp.bgmRate) || 1);
     // 보스전 시작이나 보스가 바뀔 때(중간 보스 → 보스) 가운데에 소개
     if (this.run && sp.boss && (!cont || !prev || prev.name !== sp.boss)) {
@@ -472,7 +489,7 @@ class Game {
       else if (this.loop) this.startRun(r);
       else this.startSingle(this.spellIndex);
     } else if (this.loop) this.startSingle(this.spellIndex);
-    else this.startSingle(this.spellIndex + 1);
+    else this.stepSingle(1);
   }
 
   moveBoss(x, y, dur, who = this.boss) {
@@ -624,6 +641,12 @@ class Game {
         this.shake(sl === 1 ? 4 : 6); SFX.spell();
       }
       this.surgeLv = sl;
+      // bgmFollow: 곡 속도가 적 탄 속도(불렛타임·오버클럭)를 따라감. 값은 이 패턴의 평소 탄 속도 배율(그때를 1배속으로)
+      if (sp.bgmFollow) {
+        // 패턴 첫 0.7초는 평소 속도로 넘어가는 중이라 1배속 유지
+        const r = this.frame < 40 ? 1 : Math.max(0.5, Math.min(2, this.slowFactor() / sp.bgmFollow));
+        if (Math.abs(r - (this.bgmFollowR ?? 1)) > 0.02) { this.bgmFollowR = r; BGM.setRate(r); }
+      }
       this.tasks.step();
       // 제한시간 10초 전부터 초읽기
       if (this.timer <= 600 && this.timer % 60 === 0 && this.timer > 0) SFX.tick(this.timer <= 180);
@@ -903,8 +926,8 @@ class Game {
     if (take('KeyI')) { this.invincible = !this.invincible; this.onChange?.(); }   // 무적(테스트 중이라 스테이지 모드에서도)
     // 패턴 전환·기체·난이도 단축키는 패턴 테스트 룸에서만(스테이지 모드는 패널에서 고름)
     if (this.mode === 'stage') { for (const c of ['BracketRight', 'BracketLeft', 'KeyD', 'Digit1', 'Digit2', 'Digit3', 'Digit4']) this.pressed.delete(c); return; }
-    if (take('BracketRight')) { this.startSingle(this.spellIndex + 1); this.onChange?.(); }
-    if (take('BracketLeft')) { this.startSingle(this.spellIndex - 1); this.onChange?.(); }
+    if (take('BracketRight')) { this.stepSingle(1); this.onChange?.(); }
+    if (take('BracketLeft')) { this.stepSingle(-1); this.onChange?.(); }
     if (take('KeyD')) { this.difficulty = (this.difficulty + 1) % DIFFS.length; this.restart(); this.onChange?.(); }
     for (const [code, a] of [['Digit1', 'AR'], ['Digit2', 'UR'], ['Digit3', 'LM'], ['Digit4', 'RH']]) if (take(code)) { this.angel = a; this.onChange?.(); }
   }
@@ -1979,7 +2002,7 @@ function drawHUD(G, g) {
   g.fillStyle = '#f5c542'; g.font = font(11, true);
   const head = G.story && G.story.idx < G.story.list.length
     ? `본게임 ${G.story.idx + 1}/${G.story.list.length} · ${G.run.name}`
-    : G.run ? `보스전 · ${G.run.name} ${G.run.idx + 1}/${G.run.seq.length}` : `단일 패턴 ${G.spellIndex + 1}/${G.spells.length}`;
+    : G.run ? `보스전 · ${G.run.name} ${G.run.idx + 1}/${G.run.seq.length}` : `단일 패턴 ${roomNo(G)}/${G.roomOrder?.length || G.spells.length}`;
   g.fillText(head, x, 18);
   g.fillStyle = '#fff'; g.font = font(12, true);
   const nameEnd = wrap(g, G.spell.name, x, 34, w, 16, 3);
