@@ -951,7 +951,9 @@ function makeAPI(G) {
     setGauge(o) { G.gauge = o; return o; },
     spin: v => v * (0.8 + 0.7 * G.heat()),   // 회전량(회전벽·도는 레이저). 격화되면 촘촘해지는 대신 더 빨리 돎(×0.8→1.5)
     get surge() { return G.surgeLevel(); },
-    get bullets() { return G.bullets; },   // 지금 화면의 적 탄(탄을 바꾸는 기믹용)   // 격화 단계 0·1·2(격화 I·II·III)
+    get bullets() { return G.bullets; },
+    // 방향 전조: 대상(안전지대 등, x·y를 가진 객체)을 따라다니며 ang 방향으로 흐르는 화살표를 frames 동안
+    arrow(target, ang, frames = 44) { G.fx.push({ kind: 'arrow', z: target, ang, t: 0, life: frames }); },   // 지금 화면의 적 탄(탄을 바꾸는 기믹용)   // 격화 단계 0·1·2(격화 I·II·III)
     arms: n => n + G.surgeLevel(),             // 회전벽 등의 줄 수: 격화 II에서 한 줄, III에서 한 줄 더(3줄 → 4줄 → 5줄)   // 회전량(회전벽·도는 레이저). 격화되면 촘촘해지는 대신 더 빨리 돎(×0.85→1.25)
     sp: v => v * SPEED[G.effDiff()] * (0.92 + 0.2 * G.heat()),                  // 탄속(격화 ×0.92→1.12)
     // 머리 위 말풍선(대사 대신 짧은 절차 표시용): who=보스·동료
@@ -1658,6 +1660,17 @@ function drawFx(G, g) {
       if (f.top) { g.fillStyle = '#c8c8d8'; g.font = `13px ${CHANT_FONT}`; g.fillText(f.top, W / 2, cy - 24); }
       g.shadowColor = '#f5c542'; g.shadowBlur = 14; g.fillStyle = '#fff'; g.font = `bold 26px ${CHANT_FONT}`; g.fillText(f.text, W / 2, cy + 2);
       g.restore(); g.textAlign = 'left'; g.textBaseline = 'top';
+    } else if (f.kind === 'arrow') {
+      // 방향 전조: 안전지대 가운데에서 그 방향으로 흘러가는 겹화살표 셋(깜빡이며 점점 또렷)
+      g.save(); g.translate(f.z.x, f.z.y); g.rotate(f.ang);
+      const al = Math.min(1, f.t / 8, (f.life - f.t) / 8);
+      g.strokeStyle = '#ffffff'; g.lineWidth = 3; g.lineCap = 'round'; g.lineJoin = 'round'; g.shadowColor = '#ffe6a0'; g.shadowBlur = 8;
+      for (let i = 0; i < 3; i++) {
+        const d = ((f.t * 1.2 + i * 12) % 36) - 6;
+        g.globalAlpha = al * (0.4 + 0.6 * (1 - Math.abs(d - 12) / 24));
+        g.beginPath(); g.moveTo(d - 6, -8); g.lineTo(d + 2, 0); g.lineTo(d - 6, 8); g.stroke();
+      }
+      g.restore();
     } else if (f.kind === 'phase') {
       // 페이즈 전환: 화면 번쩍임 → 보스에서 퍼지는 금빛 고리 두 겹 → 가운데 큰 PHASE n(위에 보스 이름)
       g.save();

@@ -63,7 +63,6 @@ const CHANTS = {
     "Ira. 분노여.",
     "Acedia. 나태여.",
     "대답하라.",
-    "내 탓이오, 내 탓이오",
     "Confiteor. Mea maxima culpa.",
     "바라본 끝에는 항상 나의 모습이었으니.",
     "Clavis Communis, 스피리투스 제10식 — CONFITEOR. 내 죄가 항상 내 앞에 있나이다",

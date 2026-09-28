@@ -2444,39 +2444,41 @@ function fillField(s, o) {
 // latin=화면 가운데 크게 뜨는 이름, hx·hy=안전지대 시작 자리, v(t)=채운 탄막 전체의 움직임,
 // call=이름을 부르는 순간부터 화면을 채우기 직전까지 나오는 그 죄다운 탄막(안전지대로 가는 길을 막지 않을 만큼 가볍게),
 // shot=채운 동안 본체가 쏘는, 안전지대 안에서도 피할 수 있는 간단한 탄
+// 일곱 죄: 호명하는 순간부터 화면을 채우기 직전까지 그 죄다운 탄막(call). 채운 뒤에는 탄막 전체의 움직임(v)만으로 버팀
 const SINS = [
   { latin: 'SUPERBIA', color: 'purple', hx: 192, hy: 190, v: t => [0, 0.5],
-    // 교만: 위에서 내려다보듯 큰 탄이 줄지어 내려옴
-    *call(s) { for (let k = 0; ; k++) { const n = s.lv(4, 5, 5, 6, 6, 7), gap = s.W / n; for (let i = 0; i < n; i++) s.fire({ x: gap * (i + (k % 2 ? 0.75 : 0.25)), y: -10, ang: Math.PI / 2, spd: s.sp(1.6), shape: 'big', color: 'purple' }); yield 40; } },
-    shot: s => s.spread(s.lv(1, 1, 3, 3, 3, 3), s.aim(), 0.12, { spd: s.sp(2.2), shape: 'knife', color: 'white' }) },
+    // 교만: 위에서 내려다보듯 큰 탄이 줄지어 내려오고, 줄 사이로 작은 탄이 떨어짐
+    *call(s) { for (let k = 0; ; k++) { const n = s.lv(5, 6, 6, 7, 7, 8), gap = s.W / n; for (let i = 0; i < n; i++) s.fire({ x: gap * (i + (k % 2 ? 0.75 : 0.25)), y: -10, ang: Math.PI / 2, spd: s.sp(1.8), shape: 'big', color: 'purple' });
+      if (s.diff >= 1) for (let i = 0; i < n; i++) s.fire({ x: gap * (i + (k % 2 ? 0.25 : 0.75)), y: -10, ang: Math.PI / 2, spd: s.sp(2.4), shape: 'small', color: 'purple' });
+      yield 34; } } },
   { latin: 'AVARITIA', color: 'gold', hx: 192, hy: 370, v: t => [0, -0.45],
-    // 탐욕: 흩뿌린 금화가 다시 본체에게 모여듦
-    *call(s) { for (;;) { s.ring(s.cnt(18), { offset: s.rand(0, s.TAU), spd: s.sp(3), accel: -0.06, minSpd: -s.sp(2.2), shape: 'orb', color: 'gold' }); yield 36; } },
-    shot: s => s.spread(s.lv(1, 1, 3, 3, 3, 3), s.aim(), 0.3, { spd: s.sp(1.8), shape: 'orb', color: 'gold' }) },
+    // 탐욕: 흩뿌린 금화가 다시 본체에게 모여듦(두 겹, 겹마다 되돌아오는 때가 다름)
+    *call(s) { for (let k = 0; ; k++) { const off = s.rand(0, s.TAU);
+      s.ring(s.cnt(22), { offset: off, spd: s.sp(3), accel: -0.06, minSpd: -s.sp(2.2), shape: 'orb', color: 'gold' });
+      s.ring(s.cnt(14), { offset: off + 0.12, spd: s.sp(2.2), accel: -0.035, minSpd: -s.sp(1.8), shape: 'small', color: 'yellow' });
+      yield 30; } } },
   { latin: 'LUXURIA', color: 'pink', hx: 192, hy: 300, v: t => [Math.cos(t * 0.021) * 1.1, 0],
-    // 색욕: 번갈아 휘어 도는 꽃잎
-    *call(s) { for (let k = 0; ; k++) { const n = s.cnt(14), dir = k % 2 ? 1 : -1; for (let i = 0; i < n; i++) s.fire({ ang: i * s.TAU / n + k * 0.2, spd: s.sp(2.2), angVel: dir * 0.012, shape: 'rice', color: 'pink' }); yield 16; } },
-    shot: s => s.spread(s.lv(1, 1, 3, 3, 3, 3), s.aim(), 0.25, { spd: s.sp(2), shape: 'rice', color: 'pink' }) },
+    // 색욕: 번갈아 휘어 도는 꽃잎(더 촘촘하게)
+    *call(s) { for (let k = 0; ; k++) { const n = s.cnt(18), dir = k % 2 ? 1 : -1; for (let i = 0; i < n; i++) s.fire({ ang: i * s.TAU / n + k * 0.2, spd: s.sp(2.3), angVel: dir * 0.013, shape: 'rice', color: 'pink' }); yield 14; } } },
   { latin: 'INVIDIA', color: 'green', hx: 192, hy: 310, holes: 2, v: t => [t < 150 ? 0.45 : -0.45, 0],
-    // 질투: 좌우를 뒤집은 자리의 나와 진짜 나를 번갈아 노림
-    *call(s) { for (let k = 0; ; k++) { const x = k % 2 ? s.W - s.player.x : s.player.x; s.spread(s.lv(3, 3, 5, 5, 5, 7), Math.atan2(s.player.y - s.boss.y, x - s.boss.x), 0.12, { spd: s.sp(3), shape: 'orb', color: 'green' }); yield 16; } },
-    shot: s => s.spread(s.lv(1, 1, 3, 3, 3, 3), s.aim(), 0.25, { spd: s.sp(2), shape: 'small', color: 'green' }) },
+    // 질투: 좌우를 뒤집은 자리의 나와 진짜 나를 번갈아 노림(더 넓고 빠르게)
+    *call(s) { for (let k = 0; ; k++) { const x = k % 2 ? s.W - s.player.x : s.player.x; s.spread(s.lv(5, 5, 7, 7, 7, 9), Math.atan2(s.player.y - s.boss.y, x - s.boss.x), 0.12, { spd: s.sp(3.3), shape: 'orb', color: 'green', fixed: true }); yield 14; } } },
   { latin: 'GULA', color: 'orange', hx: 192, hy: 290, v: t => [-Math.sin(t * 0.021), Math.cos(t * 0.021)],
-    // 탐식: 솟구쳤다 떨어지는 덩어리
-    *call(s) { for (;;) { s.fire({ vx: s.rand(-2.4, 2.4), vy: s.rand(-5, -3), ay: 0.06, shape: s.pick(['orb', 'small', 'big']), color: 'orange', marginTop: 200 }); yield s.lv(6, 5, 4, 4, 3, 3); } },
-    shot: s => s.spread(s.lv(1, 1, 3, 3, 3, 3), s.aim(), 0.25, { spd: s.sp(2), shape: 'orb', color: 'orange' }) },
+    // 탐식: 솟구쳤다 떨어지는 덩어리(더 자주, 가끔 한꺼번에 게워 냄)
+    *call(s) { for (let k = 0; ; k++) {
+      s.fire({ vx: s.rand(-2.4, 2.4), vy: s.rand(-5, -3), ay: 0.06, shape: s.pick(['orb', 'small', 'big']), color: 'orange', marginTop: 200 });
+      if (k % 25 === 24) for (let i = 0; i < s.lv(6, 8, 10, 10, 12, 12); i++) s.fire({ vx: s.rand(-3, 3), vy: s.rand(-6, -3.5), ay: 0.06, shape: 'small', color: 'orange', marginTop: 200 });
+      yield s.lv(5, 4, 3, 3, 3, 2); } } },
   // 분노: 채운 뒤에는 1초마다 삐 소리 뒤 한 방향으로 확 끌려감
   { latin: 'IRA', color: 'red', hx: 192, hy: 290, v: t => {
       const k = t % 60, dirs = [[1, 0], [0, 1], [-1, 0], [0, -1], [-1, 0]], d = dirs[Math.floor(t / 60) % 5];
       return k >= 40 ? [d[0] * 1.6, d[1] * 1.6] : [0, 0];
     },
-    // 분노: 빠른 칼날 연사 + 원형 폭발
-    *call(s) { for (;;) { const a = s.aim(); for (let k = 0; k < s.lv(4, 5, 6, 7, 8, 9); k++) { s.fire({ ang: a, spd: s.sp(6.5), shape: 'knife', color: 'red' }); yield 3; } s.ring(s.cnt(20), { offset: s.rand(0, s.TAU), spd: s.sp(2.4), shape: 'rice', color: 'red' }); yield 30; } },
-    shot: s => s.spread(s.lv(1, 1, 3, 3, 3, 3), s.aim(), 0.15, { spd: s.sp(2.6), shape: 'knife', color: 'red' }) },
+    // 분노: 빠른 칼날 연사 두 줄기 + 원형 폭발
+    *call(s) { for (;;) { const a = s.aim(); for (let k = 0; k < s.lv(5, 6, 7, 8, 9, 10); k++) { for (const d of [-0.1, 0.1]) s.fire({ ang: a + d, spd: s.sp(6.5), shape: 'knife', color: 'red' }); yield 3; } s.ring(s.cnt(24), { offset: s.rand(0, s.TAU), spd: s.sp(2.5), shape: 'rice', color: 'red' }); yield 26; } } },
   { latin: 'ACEDIA', color: 'blue', hx: 230, hy: 250, small: 6, v: t => [-0.15, 0.2],
-    // 나태: 뿌린 탄이 멈췄다가 한참 뒤 느릿느릿 흩어짐
-    *call(s) { for (;;) { const n = s.cnt(16), off = s.rand(0, s.TAU); for (let i = 0; i < n; i++) s.fire({ ang: off + i * s.TAU / n, spd: s.sp(3), accel: -0.1, minSpd: 0, shape: 'orb', color: 'blue', fn: b => { if (b.t === 90) { b.accel = 0.01; b.maxSpd = s.sp(1.2); b.ang += s.rand(-0.5, 0.5); } } }); yield 34; } },
-    shot: s => s.ring(s.lv(6, 8, 10, 10, 12, 12), { offset: s.rand(0, s.TAU), spd: s.sp(1.2), shape: 'small', color: 'blue' }) },
+    // 나태: 뿌린 탄이 멈췄다가 한참 뒤 느릿느릿 흩어짐(더 많이)
+    *call(s) { for (;;) { const n = s.cnt(22), off = s.rand(0, s.TAU); for (let i = 0; i < n; i++) s.fire({ ang: off + i * s.TAU / n, spd: s.sp(3), accel: -0.1, minSpd: 0, shape: 'orb', color: 'blue', fn: b => { if (b.t === 90) { b.accel = 0.01; b.maxSpd = s.sp(1.3); b.ang += s.rand(-0.5, 0.5); } } }); yield 28; } } },
 ];
 
 SPELLS.push({
@@ -2501,7 +2503,18 @@ SPELLS.push({
       const r = R - (sin.small || 0);
       const holes = sin.holes === 2 ? [{ x: sin.hx - 90, y: sin.hy, r }, { x: sin.hx + 90, y: sin.hy, r }] : [{ x: sin.hx, y: sin.hy, r }];
       const zones = holes.map(h => s.safeZone({ x: h.x, y: h.y, r, dur: preview + hold + 10 }));
-      yield preview;
+      // 전조: 안전지대가 움직이기 시작하거나 방향을 바꾸기 약 0.6초 전에 그 방향 화살표를 안전지대에 띄움
+      let said = null;
+      const foretell = t => {
+        const [vx, vy] = sin.v(Math.max(0, t + 36)), m = Math.hypot(vx, vy);
+        if (m < 0.05) { said = null; return; }
+        const ang = Math.atan2(vy, vx);
+        if (said !== null && Math.abs(((ang - said + Math.PI * 3) % s.TAU) - Math.PI) < 1.2) return;
+        said = ang;
+        for (const z of zones) s.arrow(z, ang, 44);
+        s.sound('beep', 0.4);
+      };
+      for (let t = -preview; t < 0; t++) { if (t >= -36) foretell(t); yield 1; }
       call.return();
       const motion = { vx: 0, vy: 0 };
       const list = fillField(s, { holes, motion, pad: 160, spacing: s.lv(20, 19, 18, 17, 16, 16), color: sin.color });
@@ -2510,7 +2523,7 @@ SPELLS.push({
         motion.vx = vx; motion.vy = vy;
         for (const z of zones) { z.x += vx; z.y += vy; }
         if (i === 5 && t % 60 === 36) s.sound('beep', 0.8);
-        if (t % s.lv(70, 64, 56, 50, 46, 42) === 30) sin.shot(s);
+        foretell(t);
         yield 1;
       }
       s.pop(list);
@@ -2518,14 +2531,14 @@ SPELLS.push({
     }
     s.clear();
     // 대답하라 ~ 호명: 응답한 이름에 못박혀 잠시 둔해진 채 일곱 색의 탄을 버팀
-    yield* s.chant(C.slice(13, 17), { by: s.boss, step: 36, hold: 0 });
+    yield* s.chant(C.slice(13, 16), { by: s.boss, step: 36, hold: 0 });
     s.player.stun = 150;
     s.impact(10);
     s.task(function* () {
       const colors = ['purple', 'gold', 'pink', 'green', 'orange', 'red', 'blue'];
       for (let k = 0; ; k++) { s.ring(s.cnt(21), { offset: k * 0.15, spd: s.sp(1.5), shape: 'small', color: colors[k % 7] }); yield s.wait(26); }
     }());
-    yield* s.chant([C[17]], { by: s.boss, step: 60 });
+    yield* s.chant([C[16]], { by: s.boss, step: 60 });
     for (;;) yield 60;
   },
 });
