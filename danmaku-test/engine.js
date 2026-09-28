@@ -261,7 +261,9 @@ function shot(out, x, y, a, spd, dmg, shape, color, extra) {
 }
 const UP = -Math.PI / 2;
 // 거리 감쇠가 있는 탄은 멀리 갈수록 약해짐(남은 수명 비율 기준)
-function shotDamage(s) { return s.falloff ? s.dmg * (0.45 + 0.85 * (1 - s.t / s.life)) : s.dmg; }
+// 사기치기(테스트 도구): 켜면 자기 탄·폭탄의 대미지가 5배(보스·잡몹·보호막·깨는 탄 모두)
+const CHEAT_MUL = 5;
+function shotDamage(s) { return (s.falloff ? s.dmg * (0.45 + 0.85 * (1 - s.t / s.life)) : s.dmg) * (typeof G !== 'undefined' && G.cheat ? CHEAT_MUL : 1); }
 
 // 모든 기체는 기본으로 유도탄을 쏜다(유도탄 모양·색은 기체마다). 기체의 특색은 본체 탄의 퍼짐·개수·속도·모양에서 나온다.
 // 표는 파워 단계 [0, 1, 2, 3, 4]. n=발 수, iv=발사 간격(틱), dmg=한 발 대미지(공통 배율 적용 전)
@@ -761,7 +763,7 @@ class Game {
     if (this.phase === 'title') return;   // 시작 화면: 게임은 멈춰 있음
     if (this.story && ['intro', 'active', 'result'].includes(this.phase)) {
       const st = this.story; st.frames++;
-      if (this.invincible || this.powerLock || this.skipStage || this.speed !== 1) st.tools = true;
+      if (this.invincible || this.powerLock || this.skipStage || this.cheat || this.speed !== 1) st.tools = true;
       st.diff = Math.min(st.diff, this.difficulty);   // 도중에 난이도를 낮추면 낮은 쪽으로 채점
     }
     this.updatePlayer();
@@ -907,7 +909,7 @@ class Game {
           b.dead = true; this.fx.push({ kind: 'spark', x: b.x, y: b.y, t: 0, life: 20, color: b.color });
         }
         if (bm.r > 100) this.lasers = this.lasers.filter(l => lasting(l));
-        if (bm.t < 100) { this.damageBoss(14); for (const e of this.enemies) e.hp -= 14; }
+        if (bm.t < 100) { const bd = 14 * (this.cheat ? CHEAT_MUL : 1); this.damageBoss(bd); for (const e of this.enemies) e.hp -= bd; }
       }
       if (bm.t >= 100) p.bomb = null;
     }
@@ -2624,7 +2626,7 @@ function drawHUD(G, g) {
   }
 
   // 켜져 있는 연습 옵션 표시
-  const tags = [G.autoFire && '자동 사격', G.invincible && '무적', G.powerLock && '파워 고정', SFX.muted && '소리 끔', G.paused && '일시정지'].filter(Boolean);
+  const tags = [G.autoFire && '자동 사격', G.invincible && '무적', G.cheat && '사기치기 ×5', G.powerLock && '파워 고정', SFX.muted && '소리 끔', G.paused && '일시정지'].filter(Boolean);
   let tx = x;
   g.font = font(10, true);
   for (const t of tags) {

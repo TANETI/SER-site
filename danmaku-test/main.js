@@ -188,6 +188,7 @@ function syncPanel() {
   $('powSel').value = G.practicePower;
   $('lockChk').checked = $('stLockChk').checked = G.powerLock;
   $('invChk').checked = $('stInvChk').checked = G.invincible;
+  $('cheatChk').checked = $('stCheatChk').checked = !!G.cheat;
   $('stPowSel').value = G.practicePower;
   $('skipChk').checked = G.skipStage;
   $('sndChk').checked = !SFX.muted;
@@ -224,6 +225,8 @@ $('powSel').onchange = e => { G.practicePower = +e.target.value; if (!G.run || G
 $('lockChk').onchange = e => { G.powerLock = e.target.checked; G.restart(); settle(e.target); };
 $('speedSel').onchange = e => { G.speed = +e.target.value; settle(e.target); };
 $('invChk').onchange = e => { G.invincible = e.target.checked; settle(e.target); };
+// 사기치기: 딜량 5배(본게임에서 쓰면 테스트 도구 사용으로 기록)
+$('cheatChk').onchange = $('stCheatChk').onchange = e => { G.cheat = e.target.checked; syncPanel(); settle(e.target); };
 $('loopChk').onchange = e => { G.loop = e.target.checked; settle(e.target); };
 $('restartBtn').onclick = e => { G.restart(); settle(e.target); };
 $('sndChk').onchange = e => { SFX.setMuted(!e.target.checked); settle(e.target); };
@@ -348,7 +351,7 @@ G.onStoryClear = res => {
     `<table class="parts">${parts.filter(([, v]) => v).map(([k, v]) => `<tr><td>${k}</td><td>${v > 0 ? '+' : ''}${v.toLocaleString()}</td></tr>`).join('')}` +
     `<tr><td>난이도 배율</td><td>×${SCORE_DIFF[res.diff]}</td></tr>${res.iron ? `<tr><td>철인 모드</td><td>+${res.iron.toLocaleString()}</td></tr>` : ''}</table>` +
     `<div class="big">${res.score.toLocaleString()}점</div>` +
-    (res.tools ? `<div class="note">테스트 도구(무적·파워 고정·건너뛰기·스테이지 바로 가기·게임 속도)를 쓴 판이라 정식 기록이 아니에요 · 순위표와 해금에서 빠짐</div>` : '') +
+    (res.tools ? `<div class="note">테스트 도구(무적·사기치기·파워 고정·건너뛰기·스테이지 바로 가기·게임 속도)를 쓴 판이라 정식 기록이 아니에요 · 순위표와 해금에서 빠짐</div>` : '') +
     `<table class="board">${board.map((r, i) => `<tr class="${r.me ? 'me' : ''}"><td>${i + 1}위</td><td>${esc(r.n)}</td><td class="rec">${DIFFS[r.diff]}${r.iron ? '·철인' : ''}</td><td class="rec">${recText(r)}</td><td>${r.v.toLocaleString()}</td></tr>`).join('')}</table>` +
     (nextKey ? `<div class="sub">${MODE_NAME[nextKey]}${nextKey === 'extra3' ? '이' : '가'} 열렸습니다</div>` : '') +
     `<div class="row"><button class="primary" data-act="again">다시 도전</button><button data-act="title">시작 화면으로</button></div>`,
