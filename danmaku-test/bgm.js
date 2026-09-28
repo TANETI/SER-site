@@ -150,10 +150,10 @@ const BGM = {
     const pos = this.pos0 + (c.currentTime - lat - this.t0) * this.rate;
     const spb = 60 / g.bpm, i0 = Math.floor((pos - g.offset) / spb);
     const shift = g.shifts ? g.shifts[Math.max(0, Math.min(g.shifts.length - 1, Math.floor(i0 / g.seg)))] || 0 : 0;   // 구간 맞춤(자동 분석)
-    const i = Math.floor((pos - g.offset - shift) / spb);
+    const u = (pos - g.offset - shift) / spb, i = Math.floor(u);
     const loud = info.loud ? info.loud[Math.max(0, Math.min(info.loud.length - 1, Math.floor(pos / info.loudStep)))] : 1;
     const quiet = SFX.muted || this.volume <= 0 || c.state !== 'running' || (this.gain && this.gain.gain.value < 0.35) || loud < 0.15;
-    return { i, down: ((i % 4) + 4) % 4 === 0, quiet };
+    return { i, f: u - i, down: ((i % 4) + 4) % 4 === 0, quiet };
   },
 
   load(name) {

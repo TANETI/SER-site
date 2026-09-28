@@ -17,7 +17,7 @@ const MAX_POWER = 4, P_SMALL = 0.02, P_BIG = 0.25, DEATH_POWER_LOSS = 0.5;
 // 하드 이상은 완만하게: 노말 대비 하드 1.1배, 베리하드 약 1.19배, 헬 1.25배(제한시간도 같은 배율)
 const HP_MUL = [0.6, 0.7, 0.77, 0.83, 0.875, 0.9];
 // 보스 체력 전체 배율(제한시간에는 영향 없음)
-const BOSS_HP = 0.727;   // 0.9에서 5% 너프(0.855) 뒤 다시 15% 너프(2026-09-28, 잡는 데 오래 걸림)
+const BOSS_HP = 0.654;   // 0.9에서 5% 너프(0.855) → 15% 너프(0.727) → 10% 너프(2026-09-28)
 // 패턴에 적힌 체력·제한시간에 곱하는 배율(내구 스펠·잡몹 구간·허수아비 제외).
 // 보스전은 스테이지마다 hpScale로 길이를 따로 맞춤(BOSS_RUNS). 단일 패턴 연습은 이 기본값
 const HP_SCALE = 2.2;
@@ -1386,6 +1386,8 @@ function makeAPI(G) {
     riftSide(r, x, y) { return r.nx * x + r.ny * y - r.c < 0 ? -1 : 1; },
     // 붉은 안개(판정 없음). 사각 {x,y,w,h} 또는 덩어리 {x,y,r,vx,vy}. fade 동안 짙어짐, life가 되면 사라짐(끝 40프레임은 옅어짐)
     mist(o = {}) { const m = { x: o.x, y: o.y, w: o.w, h: o.h, r: o.r, vx: o.vx ?? 0, vy: o.vy ?? 0, t: 0, fade: o.fade ?? 40, life: o.life ?? 600, void: !!o.void }; G.mists.push(m); return m; },   // void: 지워진 공간(검보랏빛 공허)
+    // 지금 곡의 박 { i: 박 번호, f: 박 안 위치(0~1), down: 마디 첫 박, quiet: 곡이 안 들림 }. 곡이 없거나 분석 전이면 null
+    beat() { return BGM.beatAt(); },
     // 기체 이동 범위 제한 {x,y,w,h}. null이면 풀림(패턴이 끝나면 자동으로 풀림)
     setBounds(b) { G.bounds = b; },
     // 판정 없는 빨간 예고선: {x,y,x2,y2,dur}
