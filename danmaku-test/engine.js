@@ -303,6 +303,24 @@ function unlockStory(cleared) {
 // 패턴 테스트 룸 목록에서의 번호(목록이 없으면 패턴 번호)
 function roomNo(G) { const at = G.roomOrder ? G.roomOrder.indexOf(G.spellIndex) : -1; return at >= 0 ? at + 1 : G.spellIndex + 1; }
 
+// 본게임 최종 점수(만점 10000). 클리어 4000 + 시간 보너스(최대 2500) + 노미스 1500 + 노봄 1000 + 노컨티뉴 1000
+// − 미스 200·폭탄 80·컨티뉴 500씩, 그 뒤 난이도 배율(이지 0.5, 노말 0.65, 하드 0.8, 베리하드 0.9, 헬 1).
+// 시간 보너스: 기준 시간(노말 약 25분, 난이도별 보스 체력 배율만큼 길게) 안이면 만점, 기준의 두 배에서 0
+const SCORE_DIFF = [0.5, 0.65, 0.8, 0.9, 1];
+function finalScore(st) {
+  const d = st.diff ?? 1, sec = st.frames / 60;
+  const scale = st.list.length / 8;   // 본편 8스테이지 기준
+  const target = 25 * 60 * scale * HP_MUL[d] / HP_MUL[1];
+  const time = Math.round(2500 * Math.max(0, Math.min(1, (2 * target - sec) / target)));
+  const parts = [
+    ['클리어', 4000], ['시간 보너스', time],
+    ['노미스', st.miss === 0 ? 1500 : 0], ['노봄', st.bombs === 0 ? 1000 : 0], ['노컨티뉴', st.continues === 0 ? 1000 : 0],
+    ['미스', -200 * st.miss], ['폭탄', -80 * st.bombs], ['컨티뉴', -500 * st.continues],
+  ];
+  const raw = Math.max(0, Math.min(10000, parts.reduce((a, [, v]) => a + v, 0)));
+  return { diff: d, sec, target, parts, raw, mul: SCORE_DIFF[d], score: Math.round(raw * SCORE_DIFF[d]), miss: st.miss, bombs: st.bombs, continues: st.continues, tools: st.tools };
+}
+
 // 오래 켜 두는 레이저(패턴 내내 켜진 빔·쓸고 가는 레이저·시선): 폭탄이나 피탄으로 지우면 패턴이 다시 만들지 않으므로 남김
 function lasting(l) { return l.kind !== 'chain' && (l.light || l.dur >= 300); }
 
@@ -379,10 +397,18 @@ class Game {
     const at = ord.indexOf(this.spellIndex);
     this.startSingle(ord[((at < 0 ? 0 : at) + d + ord.length) % ord.length]);
   }
+  // 스테이지 클리어 화면에서 다음 스테이지로
+  continueStage() {
+    const st = this.story;
+    if (this.phase !== 'stageclear' || !st) return;
+    st.idx++; this.startRun(st.list[st.idx], true);
+    this.onChange?.();
+  }
   // 스테이지 모드: 지금 스테이지를 건너뛰고 다음 스테이지로(목숨·파워 이어받음)
   nextStage() {
     const st = this.story;
     if (!st || st.idx >= st.list.length - 1) return false;
+    st.tools = true;
     st.idx++; this.startRun(st.list[st.idx], true);
     return true;
   }
@@ -404,7 +430,8 @@ class Game {
   startStory(key) {
     const list = (STORY[key] || []).map(name => BOSS_RUNS.find(r => r.name === name)).filter(Boolean);
     if (!list.length) return;
-    this.story = { key, list, idx: 0 };
+    // 본게임 기록: 플레이 시간(프레임)·미스·폭탄·컨티뉴, 테스트 도구를 썼는지(tools)
+    this.story = { key, list, idx: 0, frames: 0, miss: 0, bombs: 0, continues: 0, tools: false, diff: this.difficulty };
     this.score = 0; this.graze = 0;
     this.startRun(list[0]);
   }
@@ -483,8 +510,9 @@ class Game {
       else if (this.story) {
         // 본게임: 다음 스테이지로. 마지막이면 클리어 기록(엑스트라 해금)을 남기고 클리어 화면
         const st = this.story;
-        if (++st.idx < st.list.length) this.startRun(st.list[st.idx], true);
-        else { unlockStory(st.key); this.phase = 'storyclear'; this.phaseT = 99999; this.onUnlock?.(); }
+        // 스테이지를 깨면 잠깐 멈추고 '다음 스테이지로' 버튼(Z·Enter). 마지막이면 채점 화면
+        if (st.idx < st.list.length - 1) { this.phase = 'stageclear'; this.phaseT = 99999; SFX.stageClear(); this.onStageClear?.(st.list[st.idx], st.list[st.idx + 1]); }
+        else { unlockStory(st.key); this.phase = 'storyclear'; this.phaseT = 99999; SFX.stageClear(); st.result = finalScore(st); this.onUnlock?.(); this.onStoryClear?.(st.result); }
       }
       else if (this.loop) this.startRun(r);
       else this.startSingle(this.spellIndex);
@@ -608,6 +636,11 @@ class Game {
   update() {
     const p = this.player, sp = this.spell;
     this.bgT++;
+    if (this.story && ['intro', 'active', 'result'].includes(this.phase)) {
+      const st = this.story; st.frames++;
+      if (this.invincible || this.powerLock || this.skipStage || this.speed !== 1) st.tools = true;
+      st.diff = Math.min(st.diff, this.difficulty);   // 도중에 난이도를 낮추면 낮은 쪽으로 채점
+    }
     this.updatePlayer();
 
     const b = this.boss;
@@ -714,6 +747,7 @@ class Game {
       // 봄: 0.5초 차지(무적) 후 확산하며 탄 소거
       if (p.bombs > 0 || this.invincible) {
         if (!this.invincible) p.bombs--;
+        if (this.story) this.story.bombs++;
         p.bomb = { t: 0 }; p.inv = Math.max(p.inv, 30 + 150); this.stats.bombs++;
         SFX.bomb();
         p.bomb.shook = false;
@@ -774,10 +808,12 @@ class Game {
     p.x = W / 2; p.y = H - 48; p.inv = 150; p.respawn = 150; p.bomb = null;
     // 한 번 죽을 때마다 목숨 하나. 폭탄은 다시 3개로
     p.lives--; p.bombs = START_BOMBS;
+    if (this.story) this.story.miss++;
     const lost = this.powerLock ? 0 : Math.min(p.power, DEATH_POWER_LOSS);
     p.power = +(p.power - lost).toFixed(2);
     if (lost > 0) this.dropItems(p.x, p.y - 30, 5, 0);
     if (p.lives <= 0) {
+      if (this.story) this.story.continues++;
       this.tasks.clear(); this.clearBullets(false);
       this.phase = 'gameover'; this.phaseT = 240;
     }
@@ -926,6 +962,7 @@ class Game {
   // 메타 키는 즉시 처리하고 지움. 나머지(X 등)는 다음 틱이 가져감.
   handleKeys() {
     const take = c => this.pressed.delete(c);
+    if (this.phase === 'stageclear' && (take('KeyZ') || take('Enter'))) { this.continueStage(); return; }
     if (take('Escape')) this.paused = !this.paused;
     if (take('KeyR')) this.restart();
     if (take('KeyM')) { SFX.setMuted(!SFX.muted); this.onChange?.(); }
@@ -1967,16 +2004,9 @@ function drawFieldUI(G, g) {
     g.fillText(`피탄 ${r.stats.miss + r.stats.hits} · 봄 ${r.stats.bombs}`, W / 2, 178);
     g.textAlign = 'left';
   }
-  if (G.phase === 'storyclear') {
-    const key = G.story && G.story.key, nextKey = UNLOCK_NEXT[key];
-    g.fillStyle = 'rgba(0,0,0,0.6)'; g.fillRect(0, 0, W, H);
-    g.fillStyle = '#f5c542'; g.textAlign = 'center'; g.font = 'bold 24px system-ui, "Malgun Gothic", sans-serif';
-    g.fillText(key === 'main' ? '본편 클리어!' : key === 'extra' ? '엑스트라 클리어!' : '엑스트라 2 클리어!', W / 2, H / 2 - 30);
-    g.fillStyle = '#fff'; g.font = '13px system-ui, "Malgun Gothic", sans-serif';
-    g.fillText(`점수 ${G.score.toLocaleString()}`, W / 2, H / 2 + 2);
-    if (nextKey) g.fillText(nextKey === 'extra' ? '엑스트라가 열렸습니다' : '엑스트라 2가 열렸습니다', W / 2, H / 2 + 24);
-    g.fillText('R 처음부터 다시', W / 2, H / 2 + 46);
-    g.textAlign = 'left';
+  if (G.phase === 'stageclear' || G.phase === 'storyclear') {
+    // 클리어 화면(글자·버튼은 게임 화면 위 겹침 화면이 그림)
+    g.fillStyle = G.phase === 'storyclear' ? 'rgba(6,6,12,0.88)' : 'rgba(0,0,0,0.6)'; g.fillRect(0, 0, W, H);
   }
   if (G.phase === 'gameover') {
     g.fillStyle = 'rgba(0,0,0,0.6)'; g.fillRect(0, 0, W, H);

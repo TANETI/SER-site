@@ -1079,16 +1079,22 @@ const SPELLS = [
     type: 'spell', boss: '코스모', bossColor: '#b8a0ff', hp: 1900, time: 44, start: [192, 150],
     *run(s) {
       // 꿈의 재현: 코스모가 가운데에서 원형탄을 쉬지 않고 뿜는 동안(너무 촘촘하진 않게) 화면을 세로로 반씩 나눈 왼쪽·오른쪽이
-      // 천천히 한쪽씩 깜빡임(왼쪽 낮은 종소리, 오른쪽 높은 종소리). 다 깜빡이고 1초 뒤, 깜빡인 순서 그대로 그 절반을
+      // 천천히 한쪽씩 깜빡임(왼쪽 낮은 종소리, 오른쪽 높은 종소리). 깜빡임·휩쓸기 동안은 원형탄을 절반으로 줄임. 다 깜빡이고 1초 뒤, 깜빡인 순서 그대로 그 절반을
       // 빠른 탄막이 위에서 아래로 휩쓸고 지나감. 순서를 기억해 휩쓸리는 절반의 반대쪽에 가 있으면 됨
+      // 원형탄: 깜빡임·휩쓸기가 이어지는 동안(busy)은 두 번에 한 번만 쏴서 가운데를 건너갈 틈을 줌
+      const st = { busy: false };
       s.task(function* () {
-        for (let k = 0; ; k++) { s.ring(s.cnt(s.lv(10, 12, 13, 14, 15)), { offset: k * 0.19, spd: s.sp(1.5), shape: 'orb', color: 'purple' }); yield s.wait(16); }
+        for (let k = 0; ; k++) {
+          if (!st.busy || k % 2 === 0) s.ring(s.cnt(s.lv(10, 11, 12, 13, 14)), { offset: k * 0.19, spd: s.sp(1.5), shape: 'orb', color: 'purple' });
+          yield s.wait(16);
+        }
       }());
       yield 60;
       const half = s.W / 2;
       for (let w = 0; ; w++) {
         const n = s.lv(2, 3, 3, 4, 4) + (s.surge >= 2 ? 1 : 0), seq = [];
         for (let i = 0; i < n; i++) seq.push(Math.random() < 0.5 ? 0 : 1);
+        st.busy = true;
         // 깜빡임: 천천히 한쪽씩
         for (const side of seq) {
           s.area({ x: side * half, y: 0, w: half, h: s.H, warn: 34, dur: 0, color: side ? '#7fd8ff' : '#ff8ad8', pulse: true });
@@ -1105,6 +1111,7 @@ const SPELLS = [
             s.fire({ x, y: -10 - r * 12, ang: Math.PI / 2, spd: s.sp(8), shape: 'small', color: side ? 'cyan' : 'pink', marginTop: 80 });
           yield s.lv(52, 46, 42, 40, 38);
         }
+        st.busy = false;
         yield s.wait(50);
       }
     },

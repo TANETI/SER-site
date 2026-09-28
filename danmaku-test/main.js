@@ -7,7 +7,7 @@ G.spells = SPELLS;
 
 // ── 입력 ──
 const GAME_KEYS = new Set(['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'KeyZ', 'KeyX', 'ShiftLeft', 'ShiftRight',
-  'Escape', 'KeyR', 'KeyI', 'KeyM', 'KeyD', 'BracketLeft', 'BracketRight', 'Period', 'Digit1', 'Digit2', 'Digit3', 'Digit4']);
+  'Escape', 'KeyR', 'KeyI', 'KeyM', 'KeyD', 'BracketLeft', 'BracketRight', 'Period', 'Digit1', 'Digit2', 'Digit3', 'Digit4', 'Enter']);
 const typing = e => e.target instanceof HTMLTextAreaElement;
 addEventListener('pointerdown', () => SFX.unlock());
 addEventListener('keydown', e => {
@@ -171,6 +171,38 @@ function setMode(mode) {
 $('tabStage').onclick = e => { if (G.mode !== 'stage') setMode('stage'); settle(e.target); };
 $('tabRoom').onclick = e => { if (G.mode !== 'room') setMode('room'); settle(e.target); };
 
+// ── 스테이지 클리어·최종 채점 화면(게임 화면 위에 겹침) ──
+// 가짜 순위표: 이름과 점수만. 1등 이즘(헬 만점), 2등 김예나(헬 만점에서 15% 감점 + 183), 그 아래 피트·시연·고태웅,
+// 마리(이지 겨우 클리어), 꼴찌 정나은(이지 3스테이지에서 탈락)
+const BOARD = [['이즘', 10000], ['김예나', 8683], ['피트', 7412], ['시연', 6038], ['고태웅', 4521], ['마리', 1550], ['정나은', 620, '이지 · 3스테이지 탈락']];
+const overlay = $('overlay');
+const esc = t => String(t).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const mmss = sec => `${Math.floor(sec / 60)}분 ${String(Math.floor(sec % 60)).padStart(2, '0')}초`;
+function showOverlay(html, onBtn) {
+  overlay.innerHTML = html; overlay.hidden = false;
+  for (const b of overlay.querySelectorAll('button[data-act]')) b.onclick = e => { onBtn(b.dataset.act); settle(e.target); };
+}
+G.onStageClear = (cur, next) => showOverlay(
+  `<h3>${esc(cur.title.split(' · ')[0])} 클리어!</h3><div class="sub">다음: ${esc(next.title)}</div>` +
+  `<button class="primary" data-act="next">다음 스테이지로 ▶ <small>(Z)</small></button>`,
+  () => G.continueStage());
+G.onStoryClear = res => {
+  const key = G.story && G.story.key, title = key === 'main' ? '본편 클리어!' : key === 'extra' ? '엑스트라 클리어!' : '엑스트라 2 클리어!';
+  const nextKey = UNLOCK_NEXT[key];
+  const board = BOARD.map(([n, v, note]) => ({ n, v, note })).concat({ n: '나', v: res.score, me: true }).sort((a, b) => b.v - a.v || (a.me ? 1 : -1));
+  showOverlay(
+    `<h3>${title}</h3>` +
+    `<div class="sub">${DIFFS[res.diff]} · 플레이 시간 ${mmss(res.sec)} (기준 ${mmss(res.target)}) · 미스 ${res.miss} · 폭탄 ${res.bombs} · 컨티뉴 ${res.continues}</div>` +
+    `<table class="parts">${res.parts.filter(([, v]) => v).map(([k, v]) => `<tr><td>${k}</td><td>${v > 0 ? '+' : ''}${v.toLocaleString()}</td></tr>`).join('')}` +
+    `<tr><td>난이도 배율</td><td>×${res.mul}</td></tr></table>` +
+    `<div class="big">${res.score.toLocaleString()}점</div>` +
+    (res.tools ? `<div class="note">테스트 도구(무적·파워 고정·건너뛰기·게임 속도)를 쓴 기록이에요</div>` : '') +
+    `<table class="board">${board.map((r, i) => `<tr class="${r.me ? 'me' : ''}"><td>${i + 1}위</td><td>${esc(r.n)}${r.note ? ` <small class="sub">${esc(r.note)}</small>` : ''}</td><td>${r.v.toLocaleString()}</td></tr>`).join('')}</table>` +
+    (nextKey ? `<div class="sub">${nextKey === 'extra' ? '엑스트라' : '엑스트라 2'}가 열렸습니다</div>` : '') +
+    `<button class="primary" data-act="again">처음부터 다시</button>`,
+    () => { overlay.hidden = true; G.startStory(key); syncPanel(); });
+};
+
 // ── 코드 편집 ──
 function spellSource(sp) {
   const { run, ...meta } = sp;
@@ -211,6 +243,7 @@ setMode(savedMode);
 let last = performance.now(), audioBusy = false;
 requestAnimationFrame(function tick(now) {
   G.frameTick(now - last); last = now;
+  if (!overlay.hidden && G.phase !== 'stageclear' && G.phase !== 'storyclear') overlay.hidden = true;
   // 일시정지 동안은 소리(배경음악 포함)를 멈췄다가 풀면 그 자리부터 이어 감.
   // 일시정지 중 다른 키로 소리가 다시 켜져도 여기서 다시 멈춤
   const ctx = SFX.ctx;

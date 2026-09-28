@@ -72,6 +72,8 @@ const SFX = {
     if (big) { this.tone('sine', this.jitter(260), 160, 0.12, 0.05); this.hiss(0.06, 0.03, 'lowpass', 1200, 400); }
     else this.tone('square', this.jitter(620, 0.08), 480, 0.03, 0.012);
   },
+  // 스테이지 클리어: 올라가는 짧은 팡파르
+  stageClear() { if (this.ok('stageClear', 0.5)) [523, 659, 784, 1047, 784, 1047, 1319].forEach((f, i) => this.tone(i < 4 ? 'triangle' : 'square', f, f, i === 6 ? 0.6 : 0.16, i < 4 ? 0.09 : 0.04, i * 0.09, true)); },
   // 꿈의 재현: 왼쪽 절반은 낮은 종소리, 오른쪽 절반은 높은 종소리(서로 다른 음색)
   dreamL()  { if (this.ok('dreamL', 0.1)) { this.tone('sine', 330, 320, 0.55, 0.12); this.tone('triangle', 165, 160, 0.55, 0.07); } },
   dreamR()  { if (this.ok('dreamR', 0.1)) { this.tone('sine', 988, 980, 0.45, 0.09); this.tone('square', 1976, 1960, 0.12, 0.015, 0.02); } },
