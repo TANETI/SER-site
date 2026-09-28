@@ -303,21 +303,21 @@ function unlockStory(cleared) {
 // 패턴 테스트 룸 목록에서의 번호(목록이 없으면 패턴 번호)
 function roomNo(G) { const at = G.roomOrder ? G.roomOrder.indexOf(G.spellIndex) : -1; return at >= 0 ? at + 1 : G.spellIndex + 1; }
 
-// 본게임 최종 점수(만점 10000). 클리어 4000 + 시간 보너스(최대 2500) + 노미스 1500 + 노봄 1000 + 노컨티뉴 1000
-// − 미스 200·폭탄 80·컨티뉴 500씩, 그 뒤 난이도 배율(이지 0.5, 노말 0.65, 하드 0.8, 베리하드 0.9, 헬 1).
+// 본게임 최종 점수(만점 100000). 클리어 45000 + 시간 보너스(최대 25000) + 노미스·노봄·노컨티뉴 각 10000
+// − 미스 1000·폭탄 500·컨티뉴 4000씩, 그 뒤 난이도 배율(이지 0.6, 노말 0.8, 하드 0.9, 베리하드 0.95, 헬 1).
 // 시간 보너스: 기준 시간(노말 약 25분, 난이도별 보스 체력 배율만큼 길게) 안이면 만점, 기준의 두 배에서 0
-const SCORE_DIFF = [0.5, 0.65, 0.8, 0.9, 1];
+const SCORE_DIFF = [0.6, 0.8, 0.9, 0.95, 1];
 function finalScore(st) {
   const d = st.diff ?? 1, sec = st.frames / 60;
   const scale = st.list.length / 8;   // 본편 8스테이지 기준
   const target = 25 * 60 * scale * HP_MUL[d] / HP_MUL[1];
-  const time = Math.round(2500 * Math.max(0, Math.min(1, (2 * target - sec) / target)));
+  const time = Math.round(25000 * Math.max(0, Math.min(1, (2 * target - sec) / target)));
   const parts = [
-    ['클리어', 4000], ['시간 보너스', time],
-    ['노미스', st.miss === 0 ? 1500 : 0], ['노봄', st.bombs === 0 ? 1000 : 0], ['노컨티뉴', st.continues === 0 ? 1000 : 0],
-    ['미스', -200 * st.miss], ['폭탄', -80 * st.bombs], ['컨티뉴', -500 * st.continues],
+    ['클리어', 45000], ['시간 보너스', time],
+    ['노미스', st.miss === 0 ? 10000 : 0], ['노봄', st.bombs === 0 ? 10000 : 0], ['노컨티뉴', st.continues === 0 ? 10000 : 0],
+    ['미스', -1000 * st.miss], ['폭탄', -500 * st.bombs], ['컨티뉴', -4000 * st.continues],
   ];
-  const raw = Math.max(0, Math.min(10000, parts.reduce((a, [, v]) => a + v, 0)));
+  const raw = Math.max(0, Math.min(100000, parts.reduce((a, [, v]) => a + v, 0)));
   return { diff: d, sec, target, parts, raw, mul: SCORE_DIFF[d], score: Math.round(raw * SCORE_DIFF[d]), miss: st.miss, bombs: st.bombs, continues: st.continues, tools: st.tools };
 }
 
