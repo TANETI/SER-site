@@ -783,7 +783,7 @@ class Game {
     if (sp && sp.beat && (this.phase === 'intro' || this.phase === 'active') && !this.paused) {
       const bt = BGM.beatAt();
       if (bt) {
-        if (this.beatI !== undefined && bt.i > this.beatI) this.shake(BEAT_SHAKE * sp.beat * (bt.down ? 1.6 : 1));
+        if (this.beatI !== undefined && bt.i > this.beatI && !bt.quiet) this.shake(BEAT_SHAKE * sp.beat * (bt.down ? 1.6 : 1));   // 곡이 안 들리는 동안은 박만 셈
         this.beatI = bt.i;
       } else this.beatI = undefined;
     }
@@ -1444,7 +1444,7 @@ function render(G) {
 
   g.save();
   // 흔들림은 경기 화면에만. 오른쪽 정보창은 가만히 둠
-  const sm = G.shakeMag;
+  const sm = G.paused || G.phase === 'title' ? 0 : G.shakeMag;   // 일시정지·시작 화면에서는 흔들지 않음(게임이 멈춰 세기가 줄지 않으므로)
   g.translate(ox + (sm ? (Math.random() * 2 - 1) * sm : 0), oy + (sm ? (Math.random() * 2 - 1) * sm : 0));
   g.beginPath(); g.rect(0, 0, W, H); g.clip();
   drawBackground(G, g);

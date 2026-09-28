@@ -135,22 +135,25 @@ const BGM = {
     this.src = null; this.gain = null; this.cur = null;
   },
 
-  // 지금 곡의 박: { i: 몇 번째 박(첫 마디 첫 박이 0), down: 마디 첫 박인지 }. 곡이 없거나 분석 전이면 null.
-  // 들리는 소리에 맞게 출력 지연만큼 늦춰 셈
+  // 지금 곡의 박: { i: 몇 번째 박(첫 마디 첫 박이 0), down: 마디 첫 박인지, quiet: 지금 곡이 안 들리는지 }. 곡이 없거나 분석 전이면 null.
+  // 들리는 소리에 맞게 출력 지연만큼 늦춰 셈. quiet: 음소거·음량 0·소리 멈춤(일시정지)·페이드 중이거나, 곡 자체가 조용한 구간
   beatAt() {
     const c = SFX.ctx, name = this.cur;
     if (!c || !this.src || !name || !this.buffers[name]) return null;
-    let g = BGM_BEATS[name] || this.beats[name];
-    if (!g) {
-      if (g === undefined) { this.beats[name] = null; setTimeout(() => { this.beats[name] = analyzeBeat(this.buffers[name]); console.info('박자 분석', name, this.beats[name]); }, 0); }
+    const info = this.beats[name];
+    if (!info) {
+      if (info === undefined) { this.beats[name] = null; setTimeout(() => { this.beats[name] = analyzeBeat(this.buffers[name]); const r = this.beats[name]; console.info('박자 분석', name, { bpm: r.bpm, offset: r.offset }); }, 0); }
       return null;
     }
+    const g = BGM_BEATS[name] || info;
     const lat = (c.outputLatency || c.baseLatency || 0);
     const pos = this.pos0 + (c.currentTime - lat - this.t0) * this.rate;
     const spb = 60 / g.bpm, i0 = Math.floor((pos - g.offset) / spb);
     const shift = g.shifts ? g.shifts[Math.max(0, Math.min(g.shifts.length - 1, Math.floor(i0 / g.seg)))] || 0 : 0;   // 구간 맞춤(자동 분석)
     const i = Math.floor((pos - g.offset - shift) / spb);
-    return { i, down: ((i % 4) + 4) % 4 === 0 };
+    const loud = info.loud ? info.loud[Math.max(0, Math.min(info.loud.length - 1, Math.floor(pos / info.loudStep)))] : 1;
+    const quiet = SFX.muted || this.volume <= 0 || c.state !== 'running' || (this.gain && this.gain.gain.value < 0.35) || loud < 0.15;
+    return { i, down: ((i % 4) + 4) % 4 === 0, quiet };
   },
 
   load(name) {
@@ -169,13 +172,18 @@ const BGM = {
 function analyzeBeat(buf) {
   const sr = buf.sampleRate, hop = 512, d0 = buf.getChannelData(0), d1 = buf.numberOfChannels > 1 ? buf.getChannelData(1) : d0;
   const n = Math.floor(d0.length / hop), fps = sr / hop, a = Math.exp(-2 * Math.PI * 150 / sr);
-  const env = new Float32Array(n);
+  const env = new Float32Array(n), energy = new Float32Array(n);
   let lp = 0;
   for (let i = 0; i < n; i++) {
     let e = 0, el = 0;
     for (let j = i * hop, end = j + hop; j < end; j++) { const x = (d0[j] + d1[j]) * 0.5; lp = a * lp + (1 - a) * x; e += x * x; el += lp * lp; }
-    env[i] = Math.log(1e-9 + e + 4 * el);
+    env[i] = Math.log(1e-9 + e + 4 * el); energy[i] = e / hop;
   }
+  // 소리 세기(0.1초마다 RMS, 곡의 80번째 백분위를 1로): 곡이 조용한 구간에서는 박동을 쉼
+  const loudStep = 0.1, per = Math.max(1, Math.round(loudStep * fps)), loud = [];
+  for (let i = 0; i < n; i += per) { let s = 0; for (let j = i; j < Math.min(n, i + per); j++) s += energy[j]; loud.push(Math.sqrt(s / per)); }
+  const ref = [...loud].sort((p, q) => p - q)[Math.floor(loud.length * 0.8)] || 1;
+  for (let i = 0; i < loud.length; i++) loud[i] = +(loud[i] / ref).toFixed(3);
   const on = new Float32Array(n);
   for (let i = 1; i < n; i++) on[i] = Math.max(0, env[i] - env[i - 1]);
   // 곡 앞뒤 3초는 빼고 봄(페이드·무음)
@@ -215,5 +223,5 @@ function analyzeBeat(buf) {
     for (const c of [0, best.P / 2]) for (let d = c - 0.12 * best.P; d <= c + 0.12 * best.P; d += 0.25) { const s = segScore(d); if (s > bs) { bs = s; bd = d; } }
     segs.push(bs > base * 1.15 ? +(bd / fps).toFixed(3) : 0);
   }
-  return { bpm: Math.round(best.bpm * 1000) / 1000, offset: +(ph0 / fps).toFixed(3), seg: SEG, shifts: segs };
+  return { bpm: Math.round(best.bpm * 1000) / 1000, offset: +(ph0 / fps).toFixed(3), seg: SEG, shifts: segs, loudStep, loud };
 }
