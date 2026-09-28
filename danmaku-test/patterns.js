@@ -2847,15 +2847,16 @@ SPELLS.push({
     // 기체는 넘어갈 수 없음(적 탄은 지나감). 그 위로 티폰이 직접 베어 들어옴: 기체를 지나는 선에 폭 넓은 베기 예고 → 찢어지며
     // 그 띠 위에 있으면 피탄, 잠깐 벌어졌다가 쩌저적 닫힘. 탄막은 가볍게 곁들임(탄막 내용은 미정이라 임시)
     const { W, H } = s;
-    s.rift({ x: W / 2 + s.rand(-30, 30), y: H / 2, ang: Math.PI / 2 + s.pick([-1, 1]) * s.rand(0.15, 0.4), warn: 60, tear: 22, w: 7 });
+    // 스펠 내내 열린 균열은 반폭 3.5px(예전 7에서 절반: 공간 제약이 너무 심했음). 베기(잠깐 열리는 균열)는 그대로
+    s.rift({ x: W / 2 + s.rand(-30, 30), y: H / 2, ang: Math.PI / 2 + s.pick([-1, 1]) * s.rand(0.15, 0.4), warn: 60, tear: 22, w: 3.5 });
     yield 34;
-    s.rift({ x: W / 2, y: H * 0.5 + s.rand(-20, 30), ang: s.pick([-1, 1]) * s.rand(0.15, 0.35), warn: 60, tear: 22, w: 7 });
+    s.rift({ x: W / 2, y: H * 0.5 + s.rand(-20, 30), ang: s.pick([-1, 1]) * s.rand(0.15, 0.35), warn: 60, tear: 22, w: 3.5 });
     // 난이도에 따라 스펠 내내 열린 균열을 더함(이지·노말 2줄, 하드·베리하드 3줄, 헬 4줄): 더하는 균열은 대각선(오른쪽 아래·왼쪽 아래로 번갈아),
     // 가운데에서 조금 비켜 지나가 네 조각을 다시 가름
     const more = s.lv(0, 0, 1, 1, 2), diag = s.pick([Math.PI / 4, Math.PI * 3 / 4]);
     for (let k = 0; k < more; k++) {
       yield 34;
-      s.rift({ x: W / 2 + s.rand(-70, 70), y: H / 2 + s.rand(-50, 50), ang: (k % 2 ? Math.PI - diag : diag) + s.rand(-0.15, 0.15), warn: 60, tear: 22, w: 7 });
+      s.rift({ x: W / 2 + s.rand(-70, 70), y: H / 2 + s.rand(-50, 50), ang: (k % 2 ? Math.PI - diag : diag) + s.rand(-0.15, 0.15), warn: 60, tear: 22, w: 3.5 });
     }
     yield 90;
     // 곁들이는 탄막
