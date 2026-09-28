@@ -2391,7 +2391,7 @@ const SPELLS = [
       // 오버클럭 쿨타임: 하단 게이지가 약 4초에 걸쳐 차오름 → 가득 차면 0.75초 경고(말풍선·빨라지는 경고음) → 1.8초 동안 오버클럭
       // → 3초 동안 아주 느려짐 → 평소 속도로 돌아오고 게이지가 다시 참
       const gauge = s.setGauge({ v: 0, color: '#ff4a5a' });
-      s.task(function* () {
+      const cycle = () => s.task(function* () {
         for (;;) {
           for (let t = 0; t < 240; t++) { gauge.v = t / 240; yield 1; }
           gauge.v = 1; gauge.flash = true;
@@ -2404,6 +2404,26 @@ const SPELLS = [
           yield 180;
           s.bulletTime(slowK, 1e9);
         }
+      }());
+      let cyc = cycle();
+      // 발악: 격화 III에 닿으면 하던 오버클럭 주기를 멈추고 1초 경고 뒤 8초 동안 오버클럭(게이지가 8초에 걸쳐 줄어듦).
+      // 처음부터 최고 속도가 아니라 5초에 걸쳐 평소 속도에서 오버클럭 속도까지 서서히 빨라지고, 남은 3초는 최고 속도.
+      // 끝나면 3초 동안 아주 느려졌다가 평소 주기로 돌아감
+      s.task(function* () {
+        while (s.surge < 2) yield 1;
+        cyc.return();
+        gauge.v = 1; gauge.flash = true;
+        s.say(s.boss, 'OVERCLOCK!!', 60); s.shake(6);
+        for (let t = 0; t < 60; t += 6) { s.sound('beep', t / 60); yield 6; }
+        for (let t = 0; t < 480; t++) {
+          if (t % 10 === 0 && t <= 300) s.bulletTime(slowK + (fastK - slowK) * t / 300, 1e9);
+          gauge.v = 1 - t / 480; yield 1;
+        }
+        gauge.flash = false; gauge.v = 0;
+        s.bulletTime(calmK, 1e9);
+        yield 180;
+        s.bulletTime(slowK, 1e9);
+        cyc = cycle();
       }());
       // 기준 탄의 y를 따라 다음 줄을 정확히 cell 위에 붙임(폭탄 등으로 지워지면 지금 속도로 어림)
       let last = null, refY = 0;

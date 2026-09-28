@@ -641,10 +641,11 @@ class Game {
         this.shake(sl === 1 ? 4 : 6); SFX.spell();
       }
       this.surgeLv = sl;
-      // bgmFollow: 곡 속도가 적 탄 속도를 따라감. 값은 이 패턴의 평소 탄 속도 배율(그때 1배속). 평소보다 빠르면 1.5배속,
-      // 느리면 0.75배속을 목표로 하고, 곡은 프레임당 0.008씩(약 1초에 걸쳐) 서서히 옮겨 감. 패턴 첫 0.7초는 1배속
+      // bgmFollow: 곡 속도가 적 탄 속도를 따라감. 값은 이 패턴의 평소 탄 속도 배율(그때 1배속). 1.5배속~0.75배속 사이에서 탄 속도에 비례하고, 곡은 프레임당 0.008씩(약 1초에 걸쳐) 서서히 옮겨 감. 패턴 첫 0.7초는 1배속
       if (sp.bgmFollow) {
-        const ratio = this.slowFactor() / sp.bgmFollow, want = this.frame < 40 ? 1 : ratio > 1.05 ? 1.5 : ratio < 0.95 ? 0.75 : 1;
+        // 탄 속도 비율에 비례: 3배 이상이면 1.5배속, 0.4배 이하면 0.75배속, 그 사이는 비례해서
+        const ratio = this.slowFactor() / sp.bgmFollow;
+        const want = this.frame < 40 ? 1 : ratio >= 1 ? 1 + 0.5 * Math.min(1, (ratio - 1) / 2) : 1 - 0.25 * Math.min(1, (1 - ratio) / 0.6);
         const cur = this.bgmFollowR ?? 1, r = cur + Math.max(-0.008, Math.min(0.008, want - cur));
         this.bgmFollowR = r;
         if (Math.abs(r - (this.bgmSentR ?? 1)) > 0.02 || (r === want && r !== this.bgmSentR)) { this.bgmSentR = r; BGM.setRate(r); }
