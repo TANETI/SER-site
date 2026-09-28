@@ -2221,7 +2221,7 @@ const SPELLS = [
       // 덩어리 중심이 처음 약 1.7초 동안 조금씩(프레임당 0.02) 꺾으며 속도 1.3으로 움직이고 그 뒤로는 곧게 날아감
       for (let w = 1; ; w++) {
         const n = s.lv(3, 3, 4, 4, 4), gap = 14, st = { x: s.boss.x, y: s.boss.y, ang: s.aim() + s.rand(-0.3, 0.3), rot: s.rand(0, s.TAU), f: -1, age: 0 };
-        const spin = (w % 2 ? 1 : -1) * s.spin(0.04), spd = s.sp(1.3);
+        const spin = (w % 2 ? 1 : -1) * s.spin(0.02), spd = s.sp(1.3);   // 도는 속도는 예전(0.04)의 절반
         const tick = () => {
           if (st.f === s.frame) return;
           st.f = s.frame; st.age++;
