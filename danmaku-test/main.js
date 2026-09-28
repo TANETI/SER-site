@@ -199,6 +199,10 @@ DIFFS.forEach((d, i) => {
 for (const b of $('starts').children) b.onclick = () => { overlay.hidden = true; G.startStory(b.dataset.story, $('ironChk').checked); syncPanel(); settle(b); };
 $('ironChk').onchange = e => { title.iron = e.target.checked; if (G.phase === 'title') showTitle(); settle(e.target); };
 $('stageRestart').onclick = e => { G.restart(); settle(e.target); };
+// 테스트 도구: 본편 스테이지로 바로 가기
+$('jumpSel').add(new Option('스테이지 고르기…', ''));
+STORY.main.forEach((name, i) => { const r = BOSS_RUNS.find(x => x.name === name); if (r) $('jumpSel').add(new Option(r.title, i)); });
+$('jumpSel').onchange = e => { const v = e.target.value; e.target.value = ''; if (v === '') return; overlay.hidden = true; G.jumpStage(+v); syncPanel(); settle(e.target); };
 $('stageSkip').onclick = e => { G.nextStage(); syncPanel(); settle(e.target); };
 // 테스트 도구(스테이지 모드): 판을 다시 시작하지 않고 바로 적용
 $('stInvChk').onchange = e => { G.invincible = e.target.checked; settle(e.target); };

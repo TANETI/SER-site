@@ -313,6 +313,8 @@ const SCORE_DIFF = [0.7, 1, 1.1, 1.2, 1.5];
 const MAX_CONTINUES = 2, CONTINUE_EVERY = 3, CONTINUE_WAIT = 600;
 // 철인 모드(하드부터, 컨티뉴 없음): 클리어하면 난이도 배율을 곱한 뒤 5000점 추가(헬 철인 만점 105000)
 const IRON_BONUS = 5000;
+// 발악: 격화 III에 닿은 뒤 버티는 시간(프레임)
+const DESPERATE_FRAMES = 900;
 function finalScore(st) {
   const d = st.diff ?? 1, sec = st.frames / 60;
   const scale = st.list.length / 8;   // 본편 8스테이지 기준
@@ -370,6 +372,8 @@ class Game {
     const sp = this.spell;
     if (!sp) return 0.5;
     if (sp.type === 'stage') return 0.5;
+    // 발악 중에는 체력이 멈추므로 격화는 15초에 걸쳐 2/3에서 끝(1)까지 오름
+    if (this.desperate) return Math.min(1, 2 / 3 + this.desperate.t / this.desperate.dur / 3);
     const p = sp.survival ? 1 - this.timer / this.timerMax : 1 - this.boss.hp / this.boss.maxHp;
     return Math.max(0, Math.min(1, p));
   }
@@ -420,6 +424,16 @@ class Game {
     BGM.fadeOut(1);
     this.phase = 'title'; this.phaseT = 99999;
     this.onTitle?.();
+  }
+  // 테스트 도구: 본편의 i번째 스테이지로 바로(목숨·폭탄은 새로, 파워는 그 스테이지 기준값). 테스트 도구 사용으로 기록
+  jumpStage(i) {
+    const iron = !!(this.story && this.story.iron);
+    this.startStory('main', iron);
+    const st = this.story;
+    if (!st || i < 0 || i >= st.list.length) return;
+    st.idx = i; st.tools = true;
+    this.startRun(st.list[i]);
+    this.onChange?.();
   }
   // 스테이지 클리어 화면에서 다음 스테이지로
   continueStage() {
@@ -541,7 +555,7 @@ class Game {
     this.cutin = sp.type === 'spell' && !sp.follow && code && CUTIN_CODES.has(code) ? { code, t: 0, strong: !!sp.strong, shot: sp.strong ? strongShot : '102' } : null;
     if (this.cutin && this.cutin.strong) this.shake(4);
     if (this.banner) SFX.spell();
-    this.result = null; this.timeFlash = null;
+    this.result = null; this.timeFlash = null; this.desperate = null;
     if (b.hidden) { b.x = W / 2; b.y = -200; b.move = null; }
   }
 
@@ -725,6 +739,14 @@ class Game {
       this.frame++;
       // 격화 단계가 오르면 보스 옆에 알림
       const sl = this.surgeLevel();
+      // 발악: 격화 III에 닿으면(내구 스펠·도중 제외) 체력바가 사라지고 보스는 더 맞지 않으며 15초를 버티면 그 패턴을 깬 것으로 침
+      if (sl >= 2 && !this.desperate && !sp.survival && sp.type !== 'stage' && !this.boss.hidden) {
+        this.desperate = { t: 0, dur: DESPERATE_FRAMES };
+        this.timer = this.timerMax = DESPERATE_FRAMES;
+        this.fx.push({ kind: 'phase', text: '발악!', sub: `${sp.boss} · 15초 버티기`, x: this.boss.x, y: this.boss.y, t: 0, life: 110 });
+        this.shake(8); SFX.boom();
+      }
+      if (this.desperate) this.desperate.t++;
       if (sl > (this.surgeLv ?? 0) && !this.boss.hidden) {
         this.fx.push({ kind: 'text', text: sl === 1 ? '격화 II' : '격화 III', x: this.boss.x, y: this.boss.y - 40, t: 0, life: 70 });
         this.fx.push({ kind: 'burst', x: this.boss.x, y: this.boss.y, t: 0, life: 40, color: sl === 1 ? '#f5c542' : '#ff5e7a' });
@@ -747,7 +769,7 @@ class Game {
       this.tasks.step();
       // 제한시간 10초 전부터 초읽기
       if (this.timer <= 600 && this.timer % 60 === 0 && this.timer > 0) SFX.tick(this.timer <= 180);
-      if (--this.timer <= 0) this.endSpell('timeout');
+      if (--this.timer <= 0) this.endSpell(this.desperate ? 'defeat' : 'timeout');   // 발악을 버티면 격파로 침
       else if (!b.hidden && !sp.survival && b.hp <= 0) this.endSpell('defeat');
     } else if (this.phase === 'result') {
       this.result.t++;
@@ -853,7 +875,7 @@ class Game {
 
   damageBoss(d) {
     const b = this.boss;
-    if (b.hidden || this.phase !== 'active' || this.spell.survival) return;
+    if (b.hidden || this.phase !== 'active' || this.spell.survival || this.desperate) return;   // 발악 중에는 맞지 않음
     b.hp = Math.max(0, b.hp - d); this.stats.dmgNow += d; this.score += Math.round(d * 10);
     SFX.hit();
   }
@@ -2036,7 +2058,7 @@ function drawFieldUI(G, g) {
   g.font = '12px system-ui, "Malgun Gothic", sans-serif'; g.textBaseline = 'top';
   // 페이지 체력바: 한 페이지(여러 패턴)가 한 막대. 오른쪽부터 줄어들고, 표시선이 패턴 사이 경계(왼쪽일수록 뒤 패턴)
   const run = G.run, bars = run && run.bars, bw = W - 60;
-  if (!b.hidden && !sp.survival) {
+  if (!b.hidden && !sp.survival && !G.desperate) {
     let fill = b.hp / b.maxHp, marks = [];
     if (bars && run.idx >= 0) {
       // 보스 하나가 체력바 하나: 지금 보스가 이어서 나오는 패턴 전부. 표시선은 페이즈(pages) 경계에만
@@ -2057,14 +2079,14 @@ function drawFieldUI(G, g) {
   }
   if (!(run && bars) && !b.hidden) {
     g.fillStyle = '#f5c542'; g.font = 'bold 10px system-ui, "Malgun Gothic", sans-serif'; g.textBaseline = 'top'; g.textAlign = 'left';
-    g.fillText(`격화 ${['I', 'II', 'III'][G.surgeLevel()]}`, 8, 12);
+    g.fillText(G.desperate ? '발악 · 버티기' : `격화 ${['I', 'II', 'III'][G.surgeLevel()]}`, 8, 12);
   }
   if (run && bars && run.idx >= 0) {
     // 이 보스의 몇 번째 페이지인지(페이지의 보스 = 그 페이지 마지막 패턴의 보스)
     const pageBoss = pg => { let last = -1; bars.forEach((v, i) => { if (v === pg) last = i; }); return run.seq[last].boss; };
     const cur = bars[run.idx], boss = pageBoss(cur), all = [...new Set(bars)].filter(pg => pageBoss(pg) === boss);
     g.fillStyle = '#f5c542'; g.font = 'bold 10px system-ui, "Malgun Gothic", sans-serif'; g.textBaseline = 'top'; g.textAlign = 'left';
-    g.fillText(`PHASE ${all.indexOf(cur) + 1}/${all.length} · 격화 ${['I', 'II', 'III'][G.surgeLevel()]}`, 8, 16);
+    g.fillText(`PHASE ${all.indexOf(cur) + 1}/${all.length} · ${G.desperate ? '발악 · 버티기' : '격화 ' + ['I', 'II', 'III'][G.surgeLevel()]}`, 8, 16);
   }
   // 시간
   const sec = Math.max(0, G.timer) / 60;
