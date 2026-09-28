@@ -71,7 +71,13 @@
     #overlay td { padding: 1px 4px; }
     #overlay .big { font-size: 26px; }
     #overlay .angels { grid-template-columns: repeat(2, 1fr); }
+    .mousecard, #mouseHint { display: none !important; }
   }
+  #mouseHint { position: absolute; left: 1px; width: 60%; bottom: 10px; text-align: center; pointer-events: none; color: #ffe6a0; font-size: 13px; text-shadow: 0 0 6px #000; }
+  #mouseHint[hidden] { display: none; }
+  #sensPresets button { font-size: 12px; }
+  #sensPresets button[aria-pressed="true"] { background: #3a2e10; border-color: var(--accent); color: #ffe6a0; }
+  #sensRange { width: 100%; }
   .hint { margin: 6px 2px 0; color: var(--dim); font-size: 12px; }
   aside { flex: 0 1 340px; min-width: 280px; display: flex; flex-direction: column; gap: 10px; }
   @media (min-width: 1000px) { aside { position: sticky; top: 16px; } }
@@ -129,6 +135,7 @@
     <div class="screenwrap">
       <canvas id="screen" width="1280" height="960"></canvas>
       <div id="overlay" hidden></div>
+      <div id="mouseHint" hidden>게임 화면을 클릭하면 마우스 조작 시작 · Esc로 풀림</div>
     </div>
     <div id="pad" aria-label="이동 패널">
       <span class="padhint">여기를 끌어서 이동 · 누르는 동안 자동 사격 · 두 손가락 폭탄</span>
@@ -195,6 +202,14 @@
       <label class="check"><input type="checkbox" id="loopChk" checked> 같은 패턴 반복 <small>끄면 다음 패턴으로</small></label>
     </section>
 
+    <section class="card mousecard">
+      <h2>마우스 조작</h2>
+      <label class="check"><input type="checkbox" id="mouseChk"> 마우스로 조작 <small>게임 화면을 클릭하면 커서가 잠기고 기체가 마우스를 따라 움직임 · 왼쪽 사격 · 오른쪽 집중 사격 · 휠 클릭 폭탄 · Esc로 풀림</small></label>
+      <div class="field"><span>감도 <b id="sensVal"></b> <small>(Shift를 누르면 절반)</small></span>
+        <input type="range" id="sensRange" min="0.25" max="3" step="0.05" aria-label="마우스 감도"></div>
+      <div class="seg" id="sensPresets"></div>
+    </section>
+
     <section class="card">
       <h2>소리와 화면</h2>
       <label class="check"><input type="checkbox" id="sndChk" checked> 소리 켜기 <small>M</small></label>
@@ -220,7 +235,7 @@
         <dt><kbd>Z</kbd> <kbd>X</kbd></dt><dd>사격 · 폭탄</dd>
         <dt><kbd>Esc</kbd> <kbd>R</kbd></dt><dd>일시정지 · 처음부터</dd>
         <dt><kbd>M</kbd> <kbd>C</kbd></dt><dd>소리 끄고 켜기 · 자동 사격 켜고 끄기</dd>
-        <dt>마우스</dt><dd>게임 화면 안에서 기체가 커서를 따라감 · 왼쪽 버튼 사격 · 오른쪽 클릭 폭탄</dd>
+        <dt>마우스</dt><dd>게임 화면 클릭으로 잠금 · 움직인 만큼 기체 이동 · 왼쪽 버튼 사격 · 오른쪽 버튼 집중 사격(저속) · 휠 클릭 폭탄 · Esc 풀림</dd>
         <dt class="mode-room"><kbd>[</kbd> <kbd>]</kbd> <kbd>.</kbd></dt><dd class="mode-room">이전·다음 패턴 · 정지 중 한 프레임</dd>
         <dt class="mode-room"><kbd>1</kbd>~<kbd>4</kbd> <kbd>D</kbd></dt><dd class="mode-room">기체 · 난이도</dd>
         <dt><kbd>I</kbd></dt><dd>무적 켜고 끄기(테스트용)</dd>
@@ -234,11 +249,11 @@
     </details>
   </aside>
 </main>
-<script src="sfx.js?v=229ec15bb2"></script>
-<script src="bgm.js?v=229ec15bb2"></script>
-<script src="engine.js?v=229ec15bb2"></script>
-<script src="chants.js?v=229ec15bb2"></script>
-<script src="patterns.js?v=229ec15bb2"></script>
-<script src="main.js?v=229ec15bb2"></script>
+<script src="sfx.js?v=c0a47176c1"></script>
+<script src="bgm.js?v=c0a47176c1"></script>
+<script src="engine.js?v=c0a47176c1"></script>
+<script src="chants.js?v=c0a47176c1"></script>
+<script src="patterns.js?v=c0a47176c1"></script>
+<script src="main.js?v=c0a47176c1"></script>
 </body>
 </html>

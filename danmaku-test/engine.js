@@ -805,17 +805,9 @@ class Game {
     const spd = (focus ? 1.6 : 3.6) * ramp * (p.stun > 0 ? 0.45 : 1), n = dx && dy ? Math.SQRT1_2 : 1;
     if (p.stun > 0) p.stun--;
     const ox = p.x, oy = p.y;
-    // 마우스: 커서가 게임 화면 안에 있고 방향키를 누르지 않았으면 커서를 따라감(고속 3.6·저속 1.6px/프레임까지)
-    const mt = this.mouseTarget;
-    if (mt && !dx && !dy) {
-      const mx = mt.x - p.x, my = mt.y - p.y, d = Math.hypot(mx, my), v = Math.min(d, (focus ? 1.6 : 3.6) * (p.stun > 0 ? 0.45 : 1));
-      if (d > 0.5) { p.x = Math.max(8, Math.min(W - 8, p.x + mx / d * v)); p.y = Math.max(16, Math.min(H - 16, p.y + my / d * v)); }
-      p.tilt = Math.abs(mx) > 2 ? Math.sign(mx) : 0;
-    } else {
-      p.x = Math.max(8, Math.min(W - 8, p.x + dx * spd * n));
-      p.y = Math.max(16, Math.min(H - 16, p.y + dy * spd * n));
-      p.tilt = dx;
-    }
+    p.x = Math.max(8, Math.min(W - 8, p.x + dx * spd * n));
+    p.y = Math.max(16, Math.min(H - 16, p.y + dy * spd * n));
+    p.tilt = dx;
     p.vx = p.x - ox; p.vy = p.y - oy;
     if (p.inv > 0) p.inv--;
     if (p.respawn > 0) p.respawn--;

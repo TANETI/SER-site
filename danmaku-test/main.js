@@ -48,22 +48,77 @@ function attachDrag(el, gain, types) {
   el.style.touchAction = 'none';
 }
 attachDrag(cv, 1, ['touch']);
-// 마우스: 게임 화면 안에서는 기체가 커서를 따라감. 왼쪽 버튼을 누르고 있으면 사격, 오른쪽 클릭은 폭탄. 화면 밖으로 나가면 멈춤
-function fieldPoint(e) {
-  const r = cv.getBoundingClientRect(), k = (G.mobile ? W : 640) / r.width;
-  const x = (e.clientX - r.left) * k - (G.mobile ? 0 : FX), y = (e.clientY - r.top) * k - (G.mobile ? MH : FY);
-  return x >= 0 && x <= W && y >= 0 && y <= H ? { x, y } : null;
-}
-cv.addEventListener('pointermove', e => { if (e.pointerType === 'mouse') G.mouseTarget = fieldPoint(e); });
-cv.addEventListener('pointerleave', e => { if (e.pointerType === 'mouse') { G.mouseTarget = null; G.keys.delete('KeyZ'); } });
-cv.addEventListener('pointerdown', e => {
-  if (e.pointerType !== 'mouse') return;
+// 마우스 조작(켜고 끌 수 있음): 게임 화면을 클릭하면 커서가 게임에 잠기고(창 밖으로 나가지 않음) 기체가 마우스를 움직인 만큼
+// 그대로 움직임. 감도 1이면 커서가 화면에서 움직였을 거리와 같음. Shift(저속)를 누르면 감도 절반.
+// 잠긴 동안 왼쪽 버튼은 사격, 오른쪽 버튼은 집중 사격(누르는 동안 Shift와 같음: 저속 + 사격), 가운데 버튼(휠 클릭)은 폭탄.
+// Esc로 잠금이 풀리면 일시정지, 다시 클릭하면 이어서
+const MOUSE_PRESETS = [['정밀', 0.5], ['보통', 1], ['빠름', 1.5], ['아주 빠름', 2]];
+const locked = () => document.pointerLockElement === cv;
+let pausedByLock = false;
+cv.addEventListener('mousedown', e => {
+  if (!G.mouseMode || G.mobile) return;
   SFX.unlock();
-  if (e.button === 0 && fieldPoint(e)) G.keys.add('KeyZ');
-  if (e.button === 2) G.pressed.add('KeyX');
+  if (!locked()) {
+    // 잠그고 시작(시작·클리어 화면처럼 겹침 화면이 떠 있을 때는 잠그지 않음)
+    if (overlay.hidden) { try { const r = cv.requestPointerLock(); if (r && r.catch) r.catch(() => {}); } catch (err) { /* 못 잠가도 진행 */ } }
+    return;
+  }
+  if (e.button === 0) mouseBtn.left = true;
+  if (e.button === 2) mouseBtn.right = true;
+  if (e.button === 1) { e.preventDefault(); G.pressed.add('KeyX'); }
+  syncMouseButtons();
 });
-addEventListener('pointerup', e => { if (e.pointerType === 'mouse' && e.button === 0) G.keys.delete('KeyZ'); });
+addEventListener('mouseup', e => {
+  if (e.button === 0) mouseBtn.left = false;
+  if (e.button === 2) mouseBtn.right = false;
+  syncMouseButtons();
+});
+// 마우스 버튼 → 사격(Z)·저속(Shift). 키보드로 누른 것과 겹치지 않게 마우스가 켠 것만 끔
+const mouseBtn = { left: false, right: false, z: false, shift: false };
+function syncMouseButtons() {
+  const z = locked() && (mouseBtn.left || mouseBtn.right), sh = locked() && mouseBtn.right;
+  if (z !== mouseBtn.z) { if (z) G.keys.add('KeyZ'); else G.keys.delete('KeyZ'); mouseBtn.z = z; }
+  if (sh !== mouseBtn.shift) { if (sh) G.keys.add('ShiftLeft'); else G.keys.delete('ShiftLeft'); mouseBtn.shift = sh; }
+}
+document.addEventListener('mousemove', e => {
+  if (!locked()) return;
+  const k = (G.mobile ? W : 640) / cv.getBoundingClientRect().width * G.mouseSens * (G.keys.has('ShiftLeft') || G.keys.has('ShiftRight') ? 0.5 : 1);
+  const p = G.player;
+  if (!p || G.phase === 'title') return;
+  p.x = Math.max(8, Math.min(W - 8, p.x + e.movementX * k));
+  p.y = Math.max(16, Math.min(H - 16, p.y + e.movementY * k));
+});
+document.addEventListener('pointerlockchange', () => {
+  if (locked()) { if (pausedByLock) { G.paused = false; pausedByLock = false; } }
+  else { mouseBtn.left = mouseBtn.right = false; syncMouseButtons(); if (!G.paused && ['active', 'intro'].includes(G.phase)) { G.paused = true; pausedByLock = true; } }
+  syncMouseHint();
+});
 cv.addEventListener('contextmenu', e => e.preventDefault());
+function syncMouseHint() {
+  $('mouseHint').hidden = !(G.mouseMode && !G.mobile && !locked() && overlay.hidden);
+}
+function setMouseSens(v) {
+  G.mouseSens = Math.max(0.25, Math.min(3, v));
+  $('sensRange').value = G.mouseSens; $('sensVal').textContent = G.mouseSens.toFixed(2) + '×';
+  for (const b of $('sensPresets').children) b.setAttribute('aria-pressed', Math.abs(+b.dataset.v - G.mouseSens) < 0.001);
+  try { localStorage.setItem('danmaku.mouseSens', String(G.mouseSens)); } catch (err) { /* 저장 못 해도 진행 */ }
+}
+for (const [name, v] of MOUSE_PRESETS) {
+  const b = document.createElement('button'); b.textContent = `${name} ${v}`; b.dataset.v = v;
+  b.onclick = () => { setMouseSens(v); b.blur(); };
+  $('sensPresets').append(b);
+}
+$('sensRange').oninput = e => setMouseSens(+e.target.value);
+$('sensRange').onchange = e => e.target.blur();
+$('mouseChk').onchange = e => {
+  G.mouseMode = e.target.checked;
+  if (!G.mouseMode && locked()) document.exitPointerLock();
+  try { localStorage.setItem('danmaku.mouse', G.mouseMode ? '1' : ''); } catch (err) { /* 저장 못 해도 진행 */ }
+  syncMouseHint(); e.target.blur();
+};
+try { G.mouseMode = localStorage.getItem('danmaku.mouse') !== ''; } catch (err) { G.mouseMode = true; }
+{ let v = 1; try { v = +(localStorage.getItem('danmaku.mouseSens') || 1); } catch (err) { /* 기본 1 */ } setMouseSens(v || 1); }
+$('mouseChk').checked = G.mouseMode;
 attachDrag($('pad'), 1.3, ['touch', 'pen', 'mouse']);
 // 모바일 이동 패널의 버튼: 폭탄, 저속(누를 때마다 켜고 끔)
 $('bombBtn').addEventListener('pointerdown', e => { e.preventDefault(); e.stopPropagation(); SFX.unlock(); G.pressed.add('KeyX'); });
@@ -370,6 +425,7 @@ let last = performance.now(), audioBusy = false;
 requestAnimationFrame(function tick(now) {
   G.frameTick(now - last); last = now;
   syncContinue();
+  syncMouseHint();
   if (!overlay.hidden && !['stageclear', 'storyclear', 'storyfail', 'gameover', 'title'].includes(G.phase)) overlay.hidden = true;
   // 일시정지 동안은 소리(배경음악 포함)를 멈췄다가 풀면 그 자리부터 이어 감.
   // 일시정지 중 다른 키로 소리가 다시 켜져도 여기서 다시 멈춤
