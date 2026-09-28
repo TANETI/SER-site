@@ -1470,7 +1470,7 @@ const SPELLS = [
         s.chain({ x, y, ang: Math.atan2(ty - y, tx - x), len: 720, warn: s.lv(70, 60, 50), shoot: 12, hold: 16, retract: 110 });
       }
       for (let w = 0; ; w++) {
-        const n = Math.min(s.lv(4, 5, 5) + w, s.lv(5, 6, 7));   // 사슬 수 두 개씩 늘림
+        const n = Math.min(s.lv(5, 6, 6) + w, s.lv(7, 8, 9));   // 사슬 수를 두 차례 늘림(처음 +3, 최대 +4)
         for (let i = 0; i < n; i++) {
           edgeChain(i === 0 ? { x: s.player.x, y: s.player.y } : null);   // 첫 사슬은 플레이어 조준
           yield 5;
@@ -1708,7 +1708,7 @@ const SPELLS = [
         }());
       }
       for (let w = 0; ; w++) {
-        const n = Math.min(s.lv(4, 5, 5) + w, s.lv(5, 6, 6, 7, 7));   // 사슬 수 두 개씩 늘림
+        const n = Math.min(s.lv(5, 6, 6) + w, s.lv(7, 8, 8, 9, 9));   // 사슬 수를 두 차례 늘림(처음 +3, 최대 +4)
         for (let i = 0; i < n; i++) { edgeChain(i === 0 ? { x: s.player.x, y: s.player.y } : null); yield 6; }
         yield s.lv(64, 56, 48, 46, 44);
         for (let k = 0; k < 8; k++) {
@@ -2537,6 +2537,18 @@ SPELLS.push({
     s.task(function* () {
       const colors = ['purple', 'gold', 'pink', 'green', 'orange', 'red', 'blue'];
       for (let k = 0; ; k++) { s.ring(s.cnt(21), { offset: k * 0.15, spd: s.sp(1.5), shape: 'small', color: colors[k % 7] }); yield s.wait(26); }
+    }());
+    // 발악 사슬: 화면 가장자리 여기저기서 기체를 겨눈 사슬이 3점사(헬 6점사)로 쇄도. 천천히 뻗어 비킬 수 있음
+    s.task(function* () {
+      yield 150;   // 둔해진(stun) 동안은 사슬 없음
+      for (;;) {
+        for (let k = 0; k < s.lv(3, 3, 3, 3, 6); k++) {
+          const side = s.randInt(0, 2), x = side === 0 ? -8 : side === 1 ? s.W + 8 : s.rand(20, s.W - 20), y = side === 2 ? -8 : s.rand(20, s.H * 0.6);
+          s.chain({ x, y, ang: Math.atan2(s.player.y - y, s.player.x - x), len: 760, warn: 44, shoot: 40, hold: 12, retract: 60 });
+          yield 22;   // 점사 사이
+        }
+        yield s.lv(110, 100, 90, 85, 80);
+      }
     }());
     yield* s.chant([C[16]], { by: s.boss, step: 60 });
     for (;;) yield 60;
