@@ -12,6 +12,7 @@
 //   strong: true,                            // 선택. 강스펠(화려한 컷인, 필살기 이미지). 없으면 약스펠(작은 컷인)
 //   cutinShot: '120',                         // 선택. 강스펠 컷인 이미지 번호(기본 103, 없으면 102)
 //   bgmRate: 1.2,                            // 선택. 배경음악 재생 속도(폭주 마르코처럼 같은 곡을 빠르게)
+//   beat: 1,                                 // 선택. 배경음악 박마다 화면이 짧게 흔들리는 세기(차서린 0.5, 폭주 마르코 1, NUNC 1.1, 티폰 0.7·1.5)
 //   bgmFollow: 0.25,                         // 선택. 곡 속도가 적 탄 속도를 따라감. 값은 평소 탄 속도 배율. 빨라지면 1.5배속, 느려지면 0.75배속으로 서서히 옮겨 감
 //   *run(s) { ... }                          // 제너레이터. yield n = n프레임 대기
 // }
@@ -628,7 +629,7 @@ const SPELLS = [
   },
   {
     name: '논스펠 · 마르코 (폭주)',
-    type: 'nonspell', boss: '마르코', bossColor: '#e0c89a', bgmRate: 1.2, hp: 1530, time: 36, start: [192, 100],
+    type: 'nonspell', boss: '마르코', bossColor: '#e0c89a', bgmRate: 1.2, beat: 1, hp: 1530, time: 36, start: [192, 100],
     *run(s) {
       // 마리가 쓰러지자 마르코 폭주. 성큼성큼 다가서며 묵직한 조준탄을 연달아 쏘고 발을 구름
       marcoRage(s);
@@ -643,7 +644,7 @@ const SPELLS = [
   },
   {
     name: '파테르 제1식 — 나의 의로운 오른손으로 너를 붙들리라',
-    type: 'spell', boss: '마르코', bossColor: '#e0c89a', bgmRate: 1.2, hp: 1790, time: 50, start: [192, 100],
+    type: 'spell', boss: '마르코', bossColor: '#e0c89a', bgmRate: 1.2, beat: 1, hp: 1790, time: 50, start: [192, 100],
     *run(s) {
       marcoRage(s);
       for (;;) {
@@ -676,7 +677,7 @@ const SPELLS = [
   },
   {
     name: '논스펠 · 마르코 2 (폭주)',
-    type: 'nonspell', boss: '마르코', bossColor: '#e0c89a', bgmRate: 1.2, hp: 2000, time: 36, start: [192, 100],
+    type: 'nonspell', boss: '마르코', bossColor: '#e0c89a', bgmRate: 1.2, beat: 1, hp: 2000, time: 36, start: [192, 100],
     *run(s) {
       // 뛰어올랐다 내리찍는 발구름: 착지 자리에서 처음엔 느린 충격파가 두 겹 퍼지고, 그 사이로 조준탄
       marcoRage(s);
@@ -695,7 +696,7 @@ const SPELLS = [
   },
   {
     name: '파테르 제2식 — 능히 일어나지 못하게 하리니',
-    type: 'spell', strong: true, boss: '마르코', bossColor: '#e0c89a', bgmRate: 1.2, hp: 2130, time: 58, start: [192, 100],
+    type: 'spell', strong: true, boss: '마르코', bossColor: '#e0c89a', bgmRate: 1.2, beat: 1, hp: 2130, time: 58, start: [192, 100],
     *run(s) {
       // 폭주한 마르코의 마지막 스펠: 달려드는 제압. 플레이어가 1초 전에 있던 자리로 끝까지 돌진하고, 착지한 자리에서 충격파
       marcoRage(s);
@@ -855,7 +856,7 @@ const SPELLS = [
   },
   {
     name: '논스펠 · 차서린 1',
-    type: 'nonspell', boss: '차서린', bossColor: '#9fc8ff', hp: 1900, time: 36, start: [192, 100],
+    type: 'nonspell', boss: '차서린', bossColor: '#9fc8ff', beat: 0.5, hp: 1900, time: 36, start: [192, 100],
     *run(s) {
       // 4박: 박자(24프레임)마다 작은 원형탄, 강박(1박)에는 큰 탄 조준 부채꼴
       for (let beat = 0; ; beat++) {
@@ -872,7 +873,7 @@ const SPELLS = [
   },
   {
     name: '「리프」(가칭)',
-    type: 'spell', boss: '차서린', bossColor: '#9fc8ff', hp: 2300, time: 42, start: [192, 90],
+    type: 'spell', boss: '차서린', bossColor: '#9fc8ff', beat: 0.5, hp: 2300, time: 42, start: [192, 90],
     *run(s) {
       // 기타 리프: 같은 네 마디를 되풀이. 박자마다 칼날(피크) 부채꼴이 왼쪽→오른쪽→왼쪽으로 한 칸씩 옮겨 가고,
       // 마디 끝 강박에 원형탄. 되풀이되므로 박자를 익히면 틈이 보임
@@ -893,7 +894,7 @@ const SPELLS = [
   },
   {
     name: '논스펠 · 차서린 2',
-    type: 'nonspell', boss: '차서린', bossColor: '#9fc8ff', hp: 2000, time: 36, start: [192, 80],
+    type: 'nonspell', boss: '차서린', bossColor: '#9fc8ff', beat: 0.5, hp: 2000, time: 36, start: [192, 80],
     *run(s) {
       // 음파: 물결 모양으로 늘어선 탄 줄이 화면 아래로 천천히 퍼져 내려감. 물결 위 한 칸이 틈.
       // 줄 사이 약 90px(노말). 다음 줄의 틈은 앞 줄 틈에서 150px 안쪽에만 나와 줄이 오기 전에 옮겨 갈 수 있음.
@@ -923,7 +924,7 @@ const SPELLS = [
   },
   {
     name: '「시선」(가칭)',
-    type: 'spell', strong: true, boss: '차서린', bossColor: '#9fc8ff', hp: 2860, time: 53, start: [192, 90],
+    type: 'spell', strong: true, boss: '차서린', bossColor: '#9fc8ff', beat: 0.5, hp: 2860, time: 53, start: [192, 90],
     *run(s) {
       // 아인(눈·보다·빛): 화면 양옆 높이에 눈 표식 둘이 뜨고 플레이어를 바라봄 → 예고선 뒤 그 시선을 따라 빛줄기.
       // 두 눈이 번갈아 보므로 한쪽을 피한 자리를 다른 쪽이 노림. 박자에 맞춘 원형탄이 함께
@@ -1596,7 +1597,7 @@ const SPELLS = [
   },
   {
     name: 'Clavis Collata — NUNC DIMITTIS · 후반',
-    type: 'spell', follow: true, boss: '예로니모', bossColor: '#e8e0c8', hp: 2600, time: 48, start: [192, 90],
+    type: 'spell', beat: 1.1, follow: true, boss: '예로니모', bossColor: '#e8e0c8', hp: 2600, time: 48, start: [192, 90],
     *run(s) {
       // NUNC DIMITTIS 뒤 단계(앞 단계와 한 체력바, 다시 선언하지 않음). 쇄도하는 쇠사슬: 화면 가장자리(위·왼쪽·오른쪽) 여기저기서 황금 사슬이 기체의 0.5초 전 자리를 향해 짧은 예고선 뒤 연달아 뻗음.
       // 계속 움직이지 않으면 걸림(으아악! 도망쳐!). 가끔 사슬 머리 한두 개가 뱀처럼 기체를 쫓아오며 고리를 흘림(머리 속도 2로 고정, 고속 이동으로 떼어 놓을 수 있음).
@@ -1675,7 +1676,7 @@ const SPELLS = [
   },
   {
     name: 'Clavis Collata — NUNC DIMITTIS',
-    type: 'spell', strong: true, cutinShot: '120', boss: '예로니모', bossColor: '#e8e0c8', hp: 3000, time: 52, start: [192, 100],
+    type: 'spell', beat: 1.1, strong: true, cutinShot: '120', boss: '예로니모', bossColor: '#e8e0c8', hp: 3000, time: 52, start: [192, 100],
     *run(s) {
       // 전조: 고유 클라비스 영창. 읊는 동안은 느린 원형탄만
       const light = s.task(function* () {
@@ -1904,7 +1905,7 @@ const SPELLS = [
   },
   {
     name: 'Clavis Collata — NUNC DIMITTIS',
-    type: 'spell', strong: true, cutinShot: '120', extra: true, boss: '예로니모(진심)', bossColor: '#e8e0c8', hp: 3000, time: 52, start: [192, 100],
+    type: 'spell', beat: 1.1, strong: true, cutinShot: '120', extra: true, boss: '예로니모(진심)', bossColor: '#e8e0c8', hp: 3000, time: 52, start: [192, 100],
     *run(s) {
       // 사슬이 걷힌 자리에 고리가 남아 양옆으로 천천히 흩어짐. 사슬이 늘어날수록 남는 고리도 늘어 화면이 조여듦
       const light = s.task(function* () {
@@ -1944,7 +1945,7 @@ const SPELLS = [
   },
   {
     name: 'Clavis Collata — NUNC DIMITTIS · 후반',
-    type: 'spell', follow: true, extra: true, boss: '예로니모(진심)', bossColor: '#e8e0c8', hp: 2800, time: 50, start: [192, 90],
+    type: 'spell', beat: 1.1, follow: true, extra: true, boss: '예로니모(진심)', bossColor: '#e8e0c8', hp: 2800, time: 50, start: [192, 90],
     *run(s) {
       // 진심 NUNC DIMITTIS 뒤 단계(앞 단계와 한 체력바, 다시 선언하지 않음). 6스테이지 뒤 단계에 # 모양 사슬 우리를 더함. 쇄도하는 쇠사슬: 화면 가장자리(위·왼쪽·오른쪽) 여기저기서 황금 사슬이 기체의 0.5초 전 자리를 향해 짧은 예고선 뒤 연달아 뻗음.
       // 계속 움직이지 않으면 걸림(으아악! 도망쳐!). 가끔 사슬 머리 한두 개가 뱀처럼 기체를 쫓아오며 고리를 흘림(기체보다 느려 떼어 놓을 수 있음).
@@ -2824,7 +2825,7 @@ SPELLS.push({
 const TY_COLOR = '#e0507e';
 SPELLS.push({
   name: '「차원절단」',
-  type: 'spell', boss: '티폰', bossColor: TY_COLOR, hp: 3600, time: 50, start: [192, 80],
+  type: 'spell', boss: '티폰', bossColor: TY_COLOR, beat: 0.7, hp: 3600, time: 50, start: [192, 80],
   *run(s) {
     // 화면을 두 번 크게 갈라(세로에 가까운 균열 하나, 가로에 가까운 균열 하나) 네 조각으로 나눔. 균열은 이 스펠 내내 열려 있고
     // 기체는 넘어갈 수 없음(적 탄은 지나감). 그 위로 티폰이 직접 베어 들어옴: 기체를 지나는 선에 폭 넓은 베기 예고 → 찢어지며
@@ -2857,7 +2858,7 @@ SPELLS.push({
   },
 }, {
   name: '「붉은 안개」',
-  type: 'spell', boss: '티폰', bossColor: TY_COLOR, hp: 4200, time: 60, start: [192, 70],
+  type: 'spell', boss: '티폰', bossColor: TY_COLOR, beat: 0.7, hp: 4200, time: 60, start: [192, 70],
   *run(s) {
     // 되풀이: 세로·가로 중 하나로 화면을 반으로 차원절단. 절단에 앞서 한쪽 면(A)에 붉은 안개가 끼고 그 안에서 피하기 어려운 탄막이 쏟아짐.
     // 균열은 A에서 반대쪽(B)으로 넘어가려는 탄을 삼킴. 세로로 가를 때는 티폰이 B 쪽 위로 옮겨 감(기체가 B에서도 때릴 수 있게).
@@ -2937,7 +2938,7 @@ SPELLS.push({
 }, {
   name: '「종언의 시」',
   // 2페이즈 곡: bgm/티폰 2페이즈/ 폴더(1페이즈는 bgm/티폰/). 폴더가 비어 있으면 1페이즈 곡이 이어짐
-  type: 'spell', boss: '티폰', bossColor: TY_COLOR, bgm: '티폰 2페이즈', hp: 4200, time: 60, start: [192, 70],
+  type: 'spell', boss: '티폰', bossColor: TY_COLOR, bgm: '티폰 2페이즈', beat: 1.5, desperateBgmRate: 1.2, hp: 4200, time: 60, start: [192, 70],
   *run(s) {
     // 화면을 무수히 잘게 잘랐다 붙이길 되풀이. 균열은 벌어지는 순간 그 위에 있으면 피탄이고, 열린 동안 넘어갈 수 없음.
     // 모든 균열이 비켜 가는 자리(생존 가능한 위치)가 하나 있고, 자를 때마다 조금씩만 옮겨 감(거의 정해져 있음).

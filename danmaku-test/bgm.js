@@ -11,6 +11,11 @@
 const BGM_LOOPS = {
   // '김예나/theme.wav': { loopStart: 4.2 },
 };
+// 박자(화면 박동용): '보스/파일명': { bpm, offset(첫 마디 첫 박 시각, 초) }. 적지 않은 곡은 처음 불러올 때 곡을 분석해 자동으로 잡음
+// (자동 결과는 개발자 도구 콘솔에 '박자 분석'으로 찍힘. 어긋나면 여기에 적어 고정)
+const BGM_BEATS = {
+  // '차서린/Guitar vs.mp3': { bpm: 128, offset: 0.12 },
+};
 const BGM_EXT = /\.(mp3|wav|ogg|m4a|opus)$/i;
 const BGM_FADE_IN = 1, BGM_FADE_OUT = 2;   // 곡 끝에서 반복할 때의 페이드(초)
 // 다른 보스의 폴더 곡을 함께 쓰는 보스(마리는 마르코 곡). 속도는 패턴의 bgmRate(폭주 마르코 1.2배속)
@@ -18,7 +23,7 @@ const BGM_SHARE = { '마리': '마르코' };
 
 const BGM = {
   volume: 0.5, want: null, cur: null, src: null, gain: null, out: null,
-  buffers: {}, loading: {}, failed: {}, lists: {}, missAt: {}, manifest: undefined,
+  buffers: {}, loading: {}, failed: {}, lists: {}, missAt: {}, manifest: undefined, beats: {},
 
   // 보스 이름으로 곡을 고름. 폴더가 비어 있으면 keep=true일 때 지금 곡을 그대로 두고(중간에 곡 없는 보스),
   // 아니면 지금 곡을 줄이고 멈춤. 같은 곡이 이미 나오고 있으면 처음으로 돌리지 않고 이어 감
@@ -130,6 +135,24 @@ const BGM = {
     this.src = null; this.gain = null; this.cur = null;
   },
 
+  // 지금 곡의 박: { i: 몇 번째 박(첫 마디 첫 박이 0), down: 마디 첫 박인지 }. 곡이 없거나 분석 전이면 null.
+  // 들리는 소리에 맞게 출력 지연만큼 늦춰 셈
+  beatAt() {
+    const c = SFX.ctx, name = this.cur;
+    if (!c || !this.src || !name || !this.buffers[name]) return null;
+    let g = BGM_BEATS[name] || this.beats[name];
+    if (!g) {
+      if (g === undefined) { this.beats[name] = null; setTimeout(() => { this.beats[name] = analyzeBeat(this.buffers[name]); console.info('박자 분석', name, this.beats[name]); }, 0); }
+      return null;
+    }
+    const lat = (c.outputLatency || c.baseLatency || 0);
+    const pos = this.pos0 + (c.currentTime - lat - this.t0) * this.rate;
+    const spb = 60 / g.bpm, i0 = Math.floor((pos - g.offset) / spb);
+    const shift = g.shifts ? g.shifts[Math.max(0, Math.min(g.shifts.length - 1, Math.floor(i0 / g.seg)))] || 0 : 0;   // 구간 맞춤(자동 분석)
+    const i = Math.floor((pos - g.offset - shift) / spb);
+    return { i, down: ((i % 4) + 4) % 4 === 0 };
+  },
+
   load(name) {
     if (this.loading[name] || this.failed[name] || !SFX.ctx) return;
     this.loading[name] = true;
@@ -140,3 +163,57 @@ const BGM = {
       .catch(e => { this.failed[name] = true; this.loading[name] = false; console.warn('배경음악을 불러오지 못함:', name, e); });
   },
 };
+
+// 박자 자동 분석: 저역(킥·베이스)을 강조한 소리 세기가 갑자기 커지는 순간(온셋)을 모아, 70~180BPM 중 박이 가장 잘 겹치는 빠르기와
+// 첫 박 자리를 찾음(90~160BPM 쪽을 조금 우대해 반·두 배 빠르기로 잘못 잡는 것을 줄임). 마디 첫 박은 네 박마다 온셋이 가장 센 자리
+function analyzeBeat(buf) {
+  const sr = buf.sampleRate, hop = 512, d0 = buf.getChannelData(0), d1 = buf.numberOfChannels > 1 ? buf.getChannelData(1) : d0;
+  const n = Math.floor(d0.length / hop), fps = sr / hop, a = Math.exp(-2 * Math.PI * 150 / sr);
+  const env = new Float32Array(n);
+  let lp = 0;
+  for (let i = 0; i < n; i++) {
+    let e = 0, el = 0;
+    for (let j = i * hop, end = j + hop; j < end; j++) { const x = (d0[j] + d1[j]) * 0.5; lp = a * lp + (1 - a) * x; e += x * x; el += lp * lp; }
+    env[i] = Math.log(1e-9 + e + 4 * el);
+  }
+  const on = new Float32Array(n);
+  for (let i = 1; i < n; i++) on[i] = Math.max(0, env[i] - env[i - 1]);
+  // 곡 앞뒤 3초는 빼고 봄(페이드·무음)
+  const i0 = Math.min(n - 1, Math.round(3 * fps)), i1 = Math.max(i0 + 1, n - Math.round(3 * fps));
+  // 박 자리의 온셋 평균(사이 값은 이웃 프레임을 섞어 읽음)
+  const score = (P, ph) => { let s = 0, k = 0; for (let t = ph + Math.ceil((i0 - ph) / P) * P; t < i1 - 1; t += P, k++) { const f = Math.floor(t), r = t - f; s += on[f] * (1 - r) + on[f + 1] * r; } return k ? s / k : 0; };
+  let best = { s: -1 };
+  for (let bpm = 70; bpm <= 180; bpm += 0.25) {
+    const P = fps * 60 / bpm, w = Math.exp(-0.5 * (Math.log2(bpm / 125) / 0.6) ** 2);
+    for (let ph = 0; ph < P; ph += 1) { const s = score(P, ph) * (0.7 + 0.3 * w); if (s > best.s) best = { s, bpm, P, ph }; }
+  }
+  // 정밀 탐색: 거친 결과 ±0.6BPM을 0.02 간격, 첫 박 자리는 1/4 프레임 간격으로(곡 끝까지 박이 밀리지 않게).
+  // 정수 BPM에 0.08 안으로 가까우면 정수로 맞춤
+  const coarse = best.bpm;
+  best = { s: -1 };
+  for (let bpm = coarse - 0.6; bpm <= coarse + 0.6; bpm += 0.02) {
+    const P = fps * 60 / bpm;
+    for (let ph = 0; ph < P; ph += 0.25) { const s = score(P, ph); if (s > best.s) best = { s, bpm, P, ph }; }
+  }
+  if (Math.abs(best.bpm - Math.round(best.bpm)) < 0.08) {
+    const bpm = Math.round(best.bpm), P = fps * 60 / bpm;
+    let bs = -1, bph = 0;
+    for (let ph = 0; ph < P; ph += 0.25) { const s = score(P, ph); if (s > bs) { bs = s; bph = ph; } }
+    best = { s: bs, bpm, P, ph: bph };
+  }
+  // 마디 첫 박: 네 박 간격으로 온셋 합이 가장 큰 자리
+  let bestJ = 0, bestS = -1;
+  for (let j = 0; j < 4; j++) { const s = score(best.P * 4, best.ph + j * best.P); if (s > bestS) { bestS = s; bestJ = j; } }
+  const ph0 = best.ph + bestJ * best.P;
+  // 구간 맞춤: 16박마다 그 구간에서 박이 가장 잘 겹치는 자리를 다시 찾음(전체 박 자리 ±12% 안, 또는 반 박 밀린 자리).
+  // 곡 중간에 강한 소리가 뒷박으로 옮겨 가거나 조금씩 밀려도 따라감. 뚜렷이(15% 넘게) 나을 때만 옮김
+  const segs = [], SEG = 16;
+  for (let s0 = 0; ph0 + s0 * best.P < n; s0 += SEG) {
+    const segScore = d => { let s = 0, k = 0; for (let j = s0; j < s0 + SEG; j++) { const t = ph0 + d + j * best.P; if (t < 0 || t >= n - 1) continue; const f = Math.floor(t), r = t - f; s += on[f] * (1 - r) + on[f + 1] * r; k++; } return k ? s / k : 0; };
+    const base = segScore(0);
+    let bd = 0, bs = base;
+    for (const c of [0, best.P / 2]) for (let d = c - 0.12 * best.P; d <= c + 0.12 * best.P; d += 0.25) { const s = segScore(d); if (s > bs) { bs = s; bd = d; } }
+    segs.push(bs > base * 1.15 ? +(bd / fps).toFixed(3) : 0);
+  }
+  return { bpm: Math.round(best.bpm * 1000) / 1000, offset: +(ph0 / fps).toFixed(3), seg: SEG, shifts: segs };
+}

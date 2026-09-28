@@ -333,6 +333,8 @@ const SCORE_DIFF = [0.7, 1, 1.1, 1.2, 1.5];
 const MAX_CONTINUES = 2, CONTINUE_EVERY = 3, CONTINUE_WAIT = 600;
 // 철인 모드(하드부터, 컨티뉴 없음): 클리어하면 난이도 배율을 곱한 뒤 5000점 추가(헬 철인 만점 105000)
 const IRON_BONUS = 5000;
+// 박동: beat가 있는 패턴은 배경음악 박마다 화면이 짧게 흔들림(세기 = 이 값 × beat, 마디 첫 박은 1.6배). 화면 흔들림 설정을 따름
+const BEAT_SHAKE = 2.2;
 // 발악: 격화 III에 닿은 뒤 버티는 시간(프레임)
 const DESPERATE_FRAMES = 900;
 function finalScore(st) {
@@ -777,6 +779,14 @@ class Game {
     for (const z of this.zones) z.t++;
     this.zones = this.zones.filter(z => z.t < z.dur);
 
+    // 박동: 곡의 박이 바뀔 때마다 흔들림(패턴 소개·진행 중에만)
+    if (sp && sp.beat && (this.phase === 'intro' || this.phase === 'active') && !this.paused) {
+      const bt = BGM.beatAt();
+      if (bt) {
+        if (this.beatI !== undefined && bt.i > this.beatI) this.shake(BEAT_SHAKE * sp.beat * (bt.down ? 1.6 : 1));
+        this.beatI = bt.i;
+      } else this.beatI = undefined;
+    }
     if (this.phase === 'intro') {
       if (--this.phaseT <= 0) {
         this.phase = 'active';
@@ -792,6 +802,7 @@ class Game {
         this.desperate = { t: 0, dur: DESPERATE_FRAMES };
         this.timer = this.timerMax = DESPERATE_FRAMES;
         this.timerPulse = 72;   // 문구 없이 제한시간 표시를 한 번 크게 강조
+        if (sp.desperateBgmRate) { BGM.wantRate = sp.desperateBgmRate; BGM.setRate(sp.desperateBgmRate); }   // 발악 동안 곡을 빠르게(티폰 1.2배속)
         this.shake(6); SFX.boom();
       }
       if (this.desperate) this.desperate.t++;
