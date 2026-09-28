@@ -372,7 +372,7 @@ const SPELLS = [
         for (let i = 0; i < s.lv(3, 4, 5, 5, 6); i++) {
           let tx, ty, tries = 0;
           do { tx = s.rand(40, s.W - 40); ty = s.rand(220, s.H - 40); } while (Math.hypot(tx - s.player.x, ty - s.player.y) < 60 && ++tries < 20);
-          const T = 50, g = 0.12;
+          const T = 78, g = 0.05;   // 날아가는 시간 약 1.3초(예전 50프레임은 너무 빨랐음). 포물선 높이는 예전과 비슷하게(g·T²/8 ≈ 38px)
           s.mark({ x: tx, y: ty, dur: T });
           s.fire({
             vx: (tx - s.boss.x) / T, vy: (ty - s.boss.y) / T - 0.5 * g * T, ay: g, shape: 'big', color: '#f0e6a0', marginTop: 200,
