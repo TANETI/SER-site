@@ -1585,7 +1585,8 @@ const SPELLS = [
     name: '파테르 제2식 — 능히 일어나지 못하게 하리니',
     type: 'spell', boss: '예로니모', bossColor: '#e8e0c8', hp: 3200, time: 52, start: [192, 100],
     *run(s) {
-      // 예로니모의 파테르 제2식: 돌진해 멈춘 자리에서 황금 사슬을 사방으로 뻗어 붙들어 둠(사슬 사이 대각선 방향이 틈).
+      // 예로니모의 파테르 제2식: 기체 근처(기체에서 70~110px 떨어진 곳, 보스 쪽으로 치우침)로 돌진해 멈춘 자리에서 황금 사슬을
+      // 사방으로 뻗어 붙들어 둠(사슬 사이 대각선 방향이 틈). 돌진은 판마다 2~3번이고 돌진 사이 쉬는 틈이 김.
       // 사슬이 뻗어 있는 동안 조준탄이 이어지고, 걷힐 때 원형탄 두 겹
       for (;;) {
         const light = s.task(function* () {
@@ -1594,26 +1595,26 @@ const SPELLS = [
         yield* castGap(s);
         yield* s.chant('PATER2', { by: s.boss, step: 50 });
         light.return();
-        for (let k = 0; k < s.lv(3, 4, 4, 5, 5); k++) {
-          const px = s.player.x, py = s.player.y, d = Math.hypot(px - s.boss.x, py - s.boss.y) || 1;
-          const stop = Math.max(0, d - 110);
-          const tx = s.boss.x + (px - s.boss.x) / d * stop, ty = Math.min(s.boss.y + (py - s.boss.y) / d * stop, s.H - 160);
+        for (let k = 0; k < s.lv(2, 2, 3, 3, 3); k++) {
+          // 돌진할 자리: 기체에서 보스 쪽으로 ±1라디안 안의 방향으로 70~110px 떨어진 곳(화면 아래쪽 160px 안으로는 내려가지 않음)
+          const px = s.player.x, py = s.player.y, th = Math.atan2(s.boss.y - py, s.boss.x - px) + s.rand(-1, 1), r = s.rand(70, 110);
+          const tx = Math.max(30, Math.min(s.W - 30, px + Math.cos(th) * r)), ty = Math.max(60, Math.min(s.H - 160, py + Math.sin(th) * r));
           s.warnLine({ x: s.boss.x, y: s.boss.y, x2: tx, y2: ty, band: 32, dur: s.lv(48, 40, 34) });
           yield* hardAim(s, s.lv(48, 40, 34), 'yellow');
           s.boss.contact = true;
           yield* s.moveTo(tx, ty, 20);
           s.boss.contact = false;
           s.impact(7);
-          const n = s.lv(6, 8, 10, 10, 12), off = s.rand(0, s.TAU), warn = s.lv(45, 40, 34);
+          const n = s.lv(6, 9, 11, 11, 13), off = s.rand(0, s.TAU), warn = s.lv(45, 40, 34);   // 사슬 수: 이지 그대로, 노말부터 하나씩 더
           for (let i = 0; i < n; i++) s.chain({ x: tx, y: ty, ang: off + i * s.TAU / n, len: 520, warn, shoot: 10, hold: 14, retract: 70 });
           // 하드부터: 첫 사슬이 뻗은 뒤 그 사이(반 칸 돌아간 자리)로 두 번째 사슬이 한 번 더 뻗음
           if (s.diff >= 2) s.task(function* () { yield warn + 14; for (let i = 0; i < n; i++) s.chain({ x: tx, y: ty, ang: off + (i + 0.5) * s.TAU / n, len: 520, warn: 30, shoot: 10, hold: 10, retract: 60 }); }());
           yield warn + 30;   // 사슬이 뻗은 동안은 본체가 쏘지 않음(사슬에 집중)
           s.ring(s.cnt(24), { offset: off + Math.PI / n, spd: 0.5, accel: 0.03, maxSpd: s.sp(2.3), shape: 'orb', color: 'gold' });
           s.ring(s.cnt(14), { offset: off, spd: 0.3, accel: 0.02, maxSpd: s.sp(1.4), shape: 'small', color: 'yellow' });
-          yield 24;
-          s.move(s.rand(140, 244), s.rand(80, 110), 36);
-          yield 30;
+          yield 40;
+          s.move(s.rand(140, 244), s.rand(80, 110), 40);
+          yield 60;   // 돌진 사이 쉬는 틈
         }
         yield 30;
       }

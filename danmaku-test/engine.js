@@ -5,6 +5,8 @@ const TAU = Math.PI * 2;
 const W = 384, H = 448;          // 플레이 영역
 const FX = 32, FY = 16;          // 화면(640×480) 안 플레이 영역 위치
 const SC = 2;                    // 캔버스 내부 배율
+// 모바일(좁은 화면): 캔버스에 플레이 영역만 그리고 위에 얇은 정보 줄(MH). 캔버스는 W × (H + MH)
+const MH = 24;
 const HIT_R = 2.0, GRAZE_R = 18;   // 기체 피격 반지름(2.4에서 줄임). 판정점 표시도 이 값을 따름
 const START_LIVES = 3, START_BOMBS = 3;
 // 노말 이하는 목숨 하나 더
@@ -309,6 +311,8 @@ function roomNo(G) { const at = G.roomOrder ? G.roomOrder.indexOf(G.spellIndex) 
 const SCORE_DIFF = [0.7, 1, 1.1, 1.2, 1.5];
 // 컨티뉴: 본게임에서 최대 2회, 보스 3명마다 1회 보충. 게임 오버 뒤 10초 안에 이어 하지 않으면 탈락
 const MAX_CONTINUES = 2, CONTINUE_EVERY = 3, CONTINUE_WAIT = 600;
+// 철인 모드(하드부터, 컨티뉴 없음): 클리어하면 난이도 배율을 곱한 뒤 5000점 추가(헬 철인 만점 105000)
+const IRON_BONUS = 5000;
 function finalScore(st) {
   const d = st.diff ?? 1, sec = st.frames / 60;
   const scale = st.list.length / 8;   // 본편 8스테이지 기준
@@ -320,7 +324,8 @@ function finalScore(st) {
     ['미스', -700 * st.miss], ['폭탄', -350 * st.bombs], ['컨티뉴', -2700 * st.continues],
   ];
   const raw = Math.max(0, parts.reduce((a, [, v]) => a + v, 0));
-  return { diff: d, sec, target, parts, raw, mul: SCORE_DIFF[d], score: Math.min(100000, Math.round(raw * SCORE_DIFF[d])), miss: st.miss, bombs: st.bombs, continues: st.continues, tools: st.tools };
+  const iron = st.iron ? IRON_BONUS : 0;
+  return { diff: d, sec, target, parts, raw, mul: SCORE_DIFF[d], iron, score: Math.min(100000, Math.round(raw * SCORE_DIFF[d])) + iron, miss: st.miss, bombs: st.bombs, continues: st.continues, tools: st.tools };
 }
 
 // 탈락(게임 오버로 끝난 판) 점수: 시간·노미스·노봄·노컨티뉴 보너스 없이 기본 5000 + 진행도(깬 스테이지 / 전체 × 28500)
@@ -406,6 +411,16 @@ class Game {
     const at = ord.indexOf(this.spellIndex);
     this.startSingle(ord[((at < 0 ? 0 : at) + d + ord.length) % ord.length]);
   }
+  // 시작 화면(스테이지 모드 첫 화면): 게임을 멈춘 채 모드·기체·난이도를 고름. 패널(main.js)이 겹침 화면을 그림
+  toTitle() {
+    if (!this.spell) this.startSingle(this.roomOrder?.[0] ?? 0);   // 처음 켰을 때: 그릴 것이 있게 패턴 하나를 깔아 둠
+    this.story = null; this.run = null;
+    this.tasks.clear(); this.bullets = []; this.lasers = []; this.enemies = []; this.areas = []; this.fx = []; this.items = [];
+    this.boss.hidden = true; this.cutin = null; this.banner = null; this.slow = null;
+    BGM.fadeOut(1);
+    this.phase = 'title'; this.phaseT = 99999;
+    this.onTitle?.();
+  }
   // 스테이지 클리어 화면에서 다음 스테이지로
   continueStage() {
     const st = this.story;
@@ -436,12 +451,14 @@ class Game {
     this.start(this.spells.indexOf(staged ? run.stage : run.seq[0]));
   }
   // 본게임: 스테이지(보스전)를 차례로. 게임 오버면 그 스테이지부터 다시(컨티뉴, 점수는 0부터)
-  startStory(key) {
+  // iron: 철인 모드(컨티뉴 없음, 하드부터). 클리어하면 추가 점수
+  startStory(key, iron = false) {
     const list = (STORY[key] || []).map(name => BOSS_RUNS.find(r => r.name === name)).filter(Boolean);
     if (!list.length) return;
+    iron = iron && this.difficulty >= 2;
     // 본게임 기록: 플레이 시간(프레임)·미스·폭탄·컨티뉴, 테스트 도구를 썼는지(tools)
     // contLeft: 남은 컨티뉴(최대 2, 처음 2). 보스를 3명 쓰러뜨릴 때마다 1 보충(같은 보스는 한 번만 셈). beaten: 쓰러뜨린 보스
-    this.story = { key, list, idx: 0, frames: 0, miss: 0, bombs: 0, continues: 0, tools: false, diff: this.difficulty, contLeft: MAX_CONTINUES, beaten: new Set() };
+    this.story = { key, list, idx: 0, frames: 0, miss: 0, bombs: 0, continues: 0, tools: false, diff: this.difficulty, contLeft: iron ? 0 : MAX_CONTINUES, beaten: new Set(), iron };
     this.score = 0; this.graze = 0;
     this.startRun(list[0]);
   }
@@ -463,7 +480,7 @@ class Game {
     this.onStoryClear?.(st.result);
   }
   restart() {
-    if (this.story && (this.story.idx >= this.story.list.length || this.phase === 'storyclear' || this.phase === 'storyfail')) return this.startStory(this.story.key);   // 클리어·탈락 뒤 R: 처음부터
+    if (this.story && (this.story.idx >= this.story.list.length || this.phase === 'storyclear' || this.phase === 'storyfail')) return this.toTitle();   // 클리어·탈락 뒤 R: 시작 화면
     if (this.story && this.phase === 'gameover') return this.useContinue();   // 게임 오버에서 R: 컨티뉴
     if (this.story) { this.score = 0; this.graze = 0; this.startRun(this.story.list[this.story.idx]); }
     else if (this.run) this.startRun(this.run); else this.startSingle();
@@ -539,7 +556,7 @@ class Game {
         // 본게임: 다음 스테이지로. 마지막이면 클리어 기록(엑스트라 해금)을 남기고 클리어 화면
         const st = this.story;
         // 스테이지를 깨면 잠깐 멈추고 '다음 스테이지로' 버튼(Z·Enter). 마지막이면 채점 화면
-        if (st.idx < st.list.length - 1) { this.phase = 'stageclear'; this.phaseT = 99999; SFX.stageClear(); this.onStageClear?.(st.list[st.idx], st.list[st.idx + 1]); }
+        if (st.idx < st.list.length - 1) { this.phase = 'stageclear'; this.phaseT = 99999; this.clearAt = performance.now(); SFX.stageClear(); this.onStageClear?.(st.list[st.idx], st.list[st.idx + 1]); }
         else { unlockStory(st.key); this.phase = 'storyclear'; this.phaseT = 99999; SFX.stageClear(); st.result = finalScore(st); this.onUnlock?.(); this.onStoryClear?.(st.result); }
       }
       else if (this.loop) this.startRun(r);
@@ -605,7 +622,7 @@ class Game {
       const nx = this.run.seq[this.run.idx + 1], st = this.story, id = this.run.name + '/' + sp.boss;
       if ((!nx || nx.boss !== sp.boss) && !st.beaten.has(id)) {
         st.beaten.add(id);
-        if (st.beaten.size % CONTINUE_EVERY === 0 && st.contLeft < MAX_CONTINUES) {
+        if (!st.iron && st.beaten.size % CONTINUE_EVERY === 0 && st.contLeft < MAX_CONTINUES) {
           st.contLeft++;
           this.fx.push({ kind: 'text', text: '컨티뉴 +1', x: W / 2, y: 96, t: 0, life: 90 });
           SFX.extend();
@@ -676,6 +693,7 @@ class Game {
   update() {
     const p = this.player, sp = this.spell;
     this.bgT++;
+    if (this.phase === 'title') return;   // 시작 화면: 게임은 멈춰 있음
     if (this.story && ['intro', 'active', 'result'].includes(this.phase)) {
       const st = this.story; st.frames++;
       if (this.invincible || this.powerLock || this.skipStage || this.speed !== 1) st.tools = true;
@@ -765,10 +783,18 @@ class Game {
     const spd = (focus ? 1.6 : 3.6) * ramp * (p.stun > 0 ? 0.45 : 1), n = dx && dy ? Math.SQRT1_2 : 1;
     if (p.stun > 0) p.stun--;
     const ox = p.x, oy = p.y;
-    p.x = Math.max(8, Math.min(W - 8, p.x + dx * spd * n));
-    p.y = Math.max(16, Math.min(H - 16, p.y + dy * spd * n));
+    // 마우스: 커서가 게임 화면 안에 있고 방향키를 누르지 않았으면 커서를 따라감(고속 3.6·저속 1.6px/프레임까지)
+    const mt = this.mouseTarget;
+    if (mt && !dx && !dy) {
+      const mx = mt.x - p.x, my = mt.y - p.y, d = Math.hypot(mx, my), v = Math.min(d, (focus ? 1.6 : 3.6) * (p.stun > 0 ? 0.45 : 1));
+      if (d > 0.5) { p.x = Math.max(8, Math.min(W - 8, p.x + mx / d * v)); p.y = Math.max(16, Math.min(H - 16, p.y + my / d * v)); }
+      p.tilt = Math.abs(mx) > 2 ? Math.sign(mx) : 0;
+    } else {
+      p.x = Math.max(8, Math.min(W - 8, p.x + dx * spd * n));
+      p.y = Math.max(16, Math.min(H - 16, p.y + dy * spd * n));
+      p.tilt = dx;
+    }
     p.vx = p.x - ox; p.vy = p.y - oy;
-    p.tilt = dx;
     if (p.inv > 0) p.inv--;
     if (p.respawn > 0) p.respawn--;
     if (p.flash > 0) p.flash--;
@@ -781,7 +807,7 @@ class Game {
     } else p.options = [];
 
     const L = Math.max(0, Math.min(4, Math.floor(p.power)));
-    if (k.has('KeyZ') && !p.bomb) { SHOT_TYPES[this.angel](p, this.shots, focus, L); p.fireT++; } else p.fireT = 0;
+    if ((k.has('KeyZ') || this.autoFire) && !p.bomb) { SHOT_TYPES[this.angel](p, this.shots, focus, L); p.fireT++; } else p.fireT = 0;
 
     if (this.pressed.has('KeyX') && !p.bomb && this.phase === 'active') {
       // 봄: 0.5초 차지(무적) 후 확산하며 탄 소거
@@ -1002,11 +1028,16 @@ class Game {
   // 메타 키는 즉시 처리하고 지움. 나머지(X 등)는 다음 틱이 가져감.
   handleKeys() {
     const take = c => this.pressed.delete(c);
-    if (this.phase === 'stageclear' && (take('KeyZ') || take('Enter'))) { this.continueStage(); return; }
+    if (this.phase === 'title') { if (take('KeyZ') || take('Enter')) this.onTitleStart?.(); take('KeyR'); take('Escape'); return; }
+    if (this.phase === 'stageclear') {
+      const z = take('KeyZ') || take('Enter');
+      if (z && performance.now() - (this.clearAt || 0) > 500) { this.continueStage(); return; }
+    }
     if (this.phase === 'gameover' && this.story && (take('KeyZ') || take('Enter'))) { this.useContinue(); return; }
     if (take('Escape')) this.paused = !this.paused;
     if (take('KeyR')) this.restart();
     if (take('KeyM')) { SFX.setMuted(!SFX.muted); this.onChange?.(); }
+    if (take('KeyC')) { this.autoFire = !this.autoFire; this.fx.push({ kind: 'text', text: this.autoFire ? '자동 사격 켬' : '자동 사격 끔', x: this.player.x, y: this.player.y - 20, t: 0, life: 50 }); this.onChange?.(); }
     if (take('KeyI')) { this.invincible = !this.invincible; this.onChange?.(); }   // 무적(테스트 중이라 스테이지 모드에서도)
     // 패턴 전환·기체·난이도 단축키는 패턴 테스트 룸에서만(스테이지 모드는 패널에서 고름)
     if (this.mode === 'stage') { for (const c of ['BracketRight', 'BracketLeft', 'KeyD', 'Digit1', 'Digit2', 'Digit3', 'Digit4']) this.pressed.delete(c); return; }
@@ -1225,11 +1256,12 @@ function render(G) {
   const g = G.g;
   g.setTransform(SC, 0, 0, SC, 0, 0);
   g.fillStyle = '#12121c'; g.fillRect(0, 0, 640, 480);
+  const ox = G.mobile ? 0 : FX, oy = G.mobile ? MH : FY;   // 플레이 영역 위치(모바일은 정보 줄 아래)
 
   g.save();
   // 흔들림은 경기 화면에만. 오른쪽 정보창은 가만히 둠
   const sm = G.shakeMag;
-  g.translate(FX + (sm ? (Math.random() * 2 - 1) * sm : 0), FY + (sm ? (Math.random() * 2 - 1) * sm : 0));
+  g.translate(ox + (sm ? (Math.random() * 2 - 1) * sm : 0), oy + (sm ? (Math.random() * 2 - 1) * sm : 0));
   g.beginPath(); g.rect(0, 0, W, H); g.clip();
   drawBackground(G, g);
   drawBoss(G, g);
@@ -1248,7 +1280,28 @@ function render(G) {
   drawFieldUI(G, g);
   g.restore();
 
-  drawHUD(G, g);
+  if (G.mobile) drawMobileHUD(G, g); else drawHUD(G, g);
+}
+
+// 모바일 정보 줄: 목숨·폭탄·파워(왼쪽), 본게임 진행·컨티뉴·점수(오른쪽)
+function drawMobileHUD(G, g) {
+  const p = G.player, L = Math.floor(p.power);
+  g.fillStyle = '#12121c'; g.fillRect(0, 0, W, MH);
+  g.fillStyle = 'rgba(255,255,255,0.08)'; g.fillRect(0, MH - 1, W, 1);
+  g.textBaseline = 'middle'; g.textAlign = 'left'; g.font = 'bold 11px system-ui, "Malgun Gothic", sans-serif';
+  let x = 6;
+  for (let i = 0; i < Math.max(p.lives, livesFor(G.difficulty)); i++) { g.fillStyle = i < p.lives ? '#ff6b9a' : '#3a3a4a'; g.fillText('♥', x, MH / 2); x += 11; }
+  x += 4;
+  for (let i = 0; i < Math.max(p.bombs, START_BOMBS); i++) { g.fillStyle = i < p.bombs ? '#7fe0a0' : '#3a3a4a'; g.fillText('✦', x, MH / 2); x += 11; }
+  x += 4;
+  g.fillStyle = '#f5c542'; g.fillText(L >= MAX_POWER ? 'P MAX' : `P ${p.power.toFixed(2)}`, x, MH / 2);
+  g.textAlign = 'right'; g.fillStyle = '#fff'; g.fillText(G.score.toLocaleString(), W - 6, MH / 2);
+  if (G.story) {
+    g.fillStyle = '#8e8ea6'; g.font = '10px system-ui, "Malgun Gothic", sans-serif';
+    const sw = g.measureText(G.score.toLocaleString() + '  ').width + 18;
+    g.fillText(`${G.story.idx + 1}/${G.story.list.length} · ${G.story.iron ? '철인' : 'C' + G.story.contLeft}`, W - 6 - sw, MH / 2);
+  }
+  g.textAlign = 'left'; g.textBaseline = 'top';
 }
 
 function drawBackground(G, g) {
@@ -2045,6 +2098,9 @@ function drawFieldUI(G, g) {
     g.fillText(`피탄 ${r.stats.miss + r.stats.hits} · 봄 ${r.stats.bombs}`, W / 2, 178);
     g.textAlign = 'left';
   }
+  if (G.phase === 'title') {
+    g.fillStyle = 'rgba(6,6,12,0.9)'; g.fillRect(0, 0, W, H);
+  }
   if (G.phase === 'stageclear' || G.phase === 'storyclear') {
     // 클리어 화면(글자·버튼은 게임 화면 위 겹침 화면이 그림)
     g.fillStyle = G.phase === 'storyclear' ? 'rgba(6,6,12,0.88)' : 'rgba(0,0,0,0.6)'; g.fillRect(0, 0, W, H);
@@ -2081,12 +2137,12 @@ function drawHUD(G, g) {
 
   // 무엇을 하고 있는지: 모드와 패턴 이름
   g.fillStyle = '#f5c542'; g.font = font(11, true);
-  const head = G.story && G.story.idx < G.story.list.length
+  const head = G.phase === 'title' ? '스테이지 모드' : G.story && G.story.idx < G.story.list.length
     ? `본게임 ${G.story.idx + 1}/${G.story.list.length} · ${G.run.name}`
     : G.run ? `보스전 · ${G.run.name} ${G.run.idx + 1}/${G.run.seq.length}` : `단일 패턴 ${roomNo(G)}/${G.roomOrder?.length || G.spells.length}`;
   g.fillText(head, x, 18);
   g.fillStyle = '#fff'; g.font = font(12, true);
-  const nameEnd = wrap(g, G.spell.name, x, 34, w, 16, 3);
+  const nameEnd = wrap(g, G.phase === 'title' ? '시작 화면' : G.spell.name, x, 34, w, 16, 3);
   g.fillStyle = '#8e8ea6'; g.font = font(11);
   g.fillText(`${ANGELS[G.angel].name} · ${DIFFS[G.difficulty]}`, x, nameEnd + 4);
 
@@ -2125,7 +2181,7 @@ function drawHUD(G, g) {
     g.font = font(12); g.fillStyle = '#8e8ea6'; g.fillText('스펠카드', x, y); g.fillText('남은 페이즈', x, y + 20); g.fillText('컨티뉴', x, y + 40);
     g.fillStyle = '#fff'; g.font = font(13, true); g.textAlign = 'right';
     g.fillText(`${sc.got} / ${sc.tried}`, x + w, y); g.fillText(String(left), x + w, y + 20);
-    g.fillText(`${G.story.contLeft} / ${MAX_CONTINUES}`, x + w, y + 40); g.textAlign = 'left';
+    g.fillText(G.story.iron ? '철인 모드' : `${G.story.contLeft} / ${MAX_CONTINUES}`, x + w, y + 40); g.textAlign = 'left';
   } else {
   // 개발 정보(작게)
   g.fillStyle = '#6e6e86'; g.font = font(10, true); g.fillText('개발 정보', x, y); y += 16;
@@ -2146,7 +2202,7 @@ function drawHUD(G, g) {
   }
 
   // 켜져 있는 연습 옵션 표시
-  const tags = [G.invincible && '무적', G.powerLock && '파워 고정', SFX.muted && '소리 끔', G.paused && '일시정지'].filter(Boolean);
+  const tags = [G.autoFire && '자동 사격', G.invincible && '무적', G.powerLock && '파워 고정', SFX.muted && '소리 끔', G.paused && '일시정지'].filter(Boolean);
   let tx = x;
   g.font = font(10, true);
   for (const t of tags) {

@@ -7,14 +7,14 @@ G.spells = SPELLS;
 
 // ── 입력 ──
 const GAME_KEYS = new Set(['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'KeyZ', 'KeyX', 'ShiftLeft', 'ShiftRight',
-  'Escape', 'KeyR', 'KeyI', 'KeyM', 'KeyD', 'BracketLeft', 'BracketRight', 'Period', 'Digit1', 'Digit2', 'Digit3', 'Digit4', 'Enter']);
+  'Escape', 'KeyR', 'KeyI', 'KeyM', 'KeyD', 'BracketLeft', 'BracketRight', 'Period', 'Digit1', 'Digit2', 'Digit3', 'Digit4', 'Enter', 'KeyC']);
 const typing = e => e.target instanceof HTMLTextAreaElement;
 addEventListener('pointerdown', () => SFX.unlock());
 addEventListener('keydown', e => {
   SFX.unlock();
   if (typing(e) || !GAME_KEYS.has(e.code)) return;
   e.preventDefault();
-  if (!e.repeat) G.pressed.add(e.code);
+  if (!e.repeat || ['stageclear', 'title', 'gameover'].includes(G.phase)) G.pressed.add(e.code);
   G.keys.add(e.code);
 });
 addEventListener('keyup', e => G.keys.delete(e.code));
@@ -22,27 +22,76 @@ addEventListener('blur', () => G.keys.clear());
 // 탭이 가려지면 자동 일시정지
 document.addEventListener('visibilitychange', () => { if (document.hidden) G.paused = true; });
 
-// 터치: 화면을 누른 채 끌면 끈 만큼 기체가 움직이고(1:1) 자동 사격. 두 손가락으로 누르면 폭탄
+// 터치: 화면(또는 모바일 이동 패널)을 누른 채 끌면 끈 만큼 기체가 움직이고 자동 사격. 두 손가락으로 누르면 폭탄.
+// 게임 화면에서는 1:1, 이동 패널에서는 1.3배(엄지를 조금만 움직여도 되게)
 const cv = $('screen');
 let touch = null;
+function attachDrag(el, gain, types) {
+  el.addEventListener('pointerdown', e => {
+    if (!types.includes(e.pointerType)) return;
+    e.preventDefault();
+    if (touch && touch.id !== e.pointerId) { G.pressed.add('KeyX'); return; }
+    touch = { id: e.pointerId, x: e.clientX, y: e.clientY };
+    G.keys.add('KeyZ');
+    try { el.setPointerCapture(e.pointerId); } catch (err) { /* 캡처 못 해도 이동은 됨 */ }
+  });
+  el.addEventListener('pointermove', e => {
+    if (!touch || e.pointerId !== touch.id) return;
+    const k = (G.mobile ? W : 640) / cv.getBoundingClientRect().width * gain;
+    G.player.x = Math.max(8, Math.min(W - 8, G.player.x + (e.clientX - touch.x) * k));
+    G.player.y = Math.max(16, Math.min(H - 16, G.player.y + (e.clientY - touch.y) * k));
+    touch.x = e.clientX; touch.y = e.clientY;
+  });
+  const end = e => { if (touch && e.pointerId === touch.id) { touch = null; G.keys.delete('KeyZ'); } };
+  el.addEventListener('pointerup', end);
+  el.addEventListener('pointercancel', end);
+  el.style.touchAction = 'none';
+}
+attachDrag(cv, 1, ['touch']);
+// 마우스: 게임 화면 안에서는 기체가 커서를 따라감. 왼쪽 버튼을 누르고 있으면 사격, 오른쪽 클릭은 폭탄. 화면 밖으로 나가면 멈춤
+function fieldPoint(e) {
+  const r = cv.getBoundingClientRect(), k = (G.mobile ? W : 640) / r.width;
+  const x = (e.clientX - r.left) * k - (G.mobile ? 0 : FX), y = (e.clientY - r.top) * k - (G.mobile ? MH : FY);
+  return x >= 0 && x <= W && y >= 0 && y <= H ? { x, y } : null;
+}
+cv.addEventListener('pointermove', e => { if (e.pointerType === 'mouse') G.mouseTarget = fieldPoint(e); });
+cv.addEventListener('pointerleave', e => { if (e.pointerType === 'mouse') { G.mouseTarget = null; G.keys.delete('KeyZ'); } });
 cv.addEventListener('pointerdown', e => {
-  if (e.pointerType !== 'touch') return;
-  e.preventDefault();
-  if (touch && touch.id !== e.pointerId) { G.pressed.add('KeyX'); return; }
-  touch = { id: e.pointerId, x: e.clientX, y: e.clientY };
-  G.keys.add('KeyZ');
+  if (e.pointerType !== 'mouse') return;
+  SFX.unlock();
+  if (e.button === 0 && fieldPoint(e)) G.keys.add('KeyZ');
+  if (e.button === 2) G.pressed.add('KeyX');
 });
-cv.addEventListener('pointermove', e => {
-  if (!touch || e.pointerId !== touch.id) return;
-  const k = 640 / cv.getBoundingClientRect().width;
-  G.player.x = Math.max(8, Math.min(W - 8, G.player.x + (e.clientX - touch.x) * k));
-  G.player.y = Math.max(16, Math.min(H - 16, G.player.y + (e.clientY - touch.y) * k));
-  touch.x = e.clientX; touch.y = e.clientY;
+addEventListener('pointerup', e => { if (e.pointerType === 'mouse' && e.button === 0) G.keys.delete('KeyZ'); });
+cv.addEventListener('contextmenu', e => e.preventDefault());
+attachDrag($('pad'), 1.3, ['touch', 'pen', 'mouse']);
+// 모바일 이동 패널의 버튼: 폭탄, 저속(누를 때마다 켜고 끔)
+$('bombBtn').addEventListener('pointerdown', e => { e.preventDefault(); e.stopPropagation(); SFX.unlock(); G.pressed.add('KeyX'); });
+$('slowBtn').addEventListener('pointerdown', e => {
+  e.preventDefault(); e.stopPropagation();
+  const on = !G.keys.has('ShiftLeft');
+  if (on) G.keys.add('ShiftLeft'); else G.keys.delete('ShiftLeft');
+  $('slowBtn').setAttribute('aria-pressed', on);
 });
-const endTouch = e => { if (touch && e.pointerId === touch.id) { touch = null; G.keys.delete('KeyZ'); } };
-cv.addEventListener('pointerup', endTouch);
-cv.addEventListener('pointercancel', endTouch);
-cv.style.touchAction = 'none';
+// 모바일: 좁은 화면이면 캔버스에 플레이 영역만(정보는 위쪽 얇은 줄), 설정은 오른쪽 위 ☰ 버튼으로 여는 패널
+const narrow = matchMedia('(max-width: 760px)');
+function applyLayout() {
+  G.mobile = narrow.matches;
+  cv.width = G.mobile ? W * SC : 1280; cv.height = G.mobile ? (H + MH) * SC : 960;
+  document.body.classList.toggle('mobile', G.mobile);
+  if (!G.mobile) setMenu(false);
+}
+let pausedByMenu = false;
+function setMenu(open) {
+  document.body.classList.toggle('menu-open', open);
+  $('menuBtn').setAttribute('aria-expanded', open);
+  if (open && !G.paused) { G.paused = true; pausedByMenu = true; }
+  if (!open && pausedByMenu) { G.paused = false; pausedByMenu = false; }
+}
+$('menuBtn').onclick = e => { setMenu(!document.body.classList.contains('menu-open')); e.target.blur(); };
+$('menuClose').onclick = () => setMenu(false);
+narrow.addEventListener('change', applyLayout);
+applyLayout();
 
 // ── 패널 ──
 const spellSel = $('spellSel'), angelSel = $('angelSel');
@@ -85,6 +134,8 @@ function syncPanel() {
   $('stPowSel').value = G.practicePower;
   $('skipChk').checked = G.skipStage;
   $('sndChk').checked = !SFX.muted;
+  $('autoChk').checked = !!G.autoFire;
+  try { localStorage.setItem('danmaku.autofire', G.autoFire ? '1' : ''); } catch (e) { /* 저장 못 해도 진행 */ }
   $('shakeChk').checked = G.shakeOn;
   $('speedSel').value = G.speed;
   if ($('editor').open) $('code').value = spellSource(G.spell);
@@ -113,6 +164,8 @@ $('volRange').oninput = e => { SFX.unlock(); SFX.setVolume(+e.target.value); SFX
 $('volRange').onchange = e => settle(e.target);
 $('bgmRange').oninput = e => { SFX.unlock(); BGM.setVolume(+e.target.value); };
 $('bgmRange').onchange = e => settle(e.target);
+$('autoChk').onchange = e => { G.autoFire = e.target.checked; syncPanel(); settle(e.target); };
+try { G.autoFire = !!localStorage.getItem('danmaku.autofire'); } catch (e) { G.autoFire = false; }
 $('shakeChk').onchange = e => { G.shakeOn = e.target.checked; if (!G.shakeOn) G.shakeMag = 0; settle(e.target); };
 $('editor').addEventListener('toggle', () => { if ($('editor').open) $('code').value = spellSource(G.spell); });
 $('prevBtn').onclick = e => { G.stepSingle(-1); syncPanel(); settle(e.target); };
@@ -131,6 +184,7 @@ function syncStage() {
     b.classList.toggle('on', !!(G.story && G.story.key === key));
   }
   $('stageSkip').disabled = !(G.story && G.story.idx < G.story.list.length - 1);
+  $('ironChk').disabled = G.difficulty < 2; if (G.difficulty < 2) $('ironChk').checked = false;
 }
 for (const [code, a] of Object.entries(ANGELS)) {
   const b = document.createElement('button'); b.textContent = a.name; b.dataset.v = code;
@@ -142,7 +196,8 @@ DIFFS.forEach((d, i) => {
   b.onclick = () => { G.difficulty = i; G.restart(); syncPanel(); settle(b); };
   $('diffSeg').append(b);
 });
-for (const b of $('starts').children) b.onclick = () => { G.startStory(b.dataset.story); syncPanel(); settle(b); };
+for (const b of $('starts').children) b.onclick = () => { overlay.hidden = true; G.startStory(b.dataset.story, $('ironChk').checked); syncPanel(); settle(b); };
+$('ironChk').onchange = e => { title.iron = e.target.checked; if (G.phase === 'title') showTitle(); settle(e.target); };
 $('stageRestart').onclick = e => { G.restart(); settle(e.target); };
 $('stageSkip').onclick = e => { G.nextStage(); syncPanel(); settle(e.target); };
 // 테스트 도구(스테이지 모드): 판을 다시 시작하지 않고 바로 적용
@@ -161,9 +216,9 @@ function setMode(mode) {
   $('tabRoom').setAttribute('aria-selected', mode === 'room');
   try { localStorage.setItem('danmaku.mode', mode); } catch (e) { /* 저장 못 해도 진행 */ }
   if (mode === 'stage') {
-    // 스테이지 모드는 게임 속도를 1×로 되돌리고 본편부터(무적·파워 고정은 테스트 도구로 그대로 씀)
+    // 스테이지 모드는 게임 속도를 1×로 되돌리고 시작 화면부터(무적·파워 고정은 테스트 도구로 그대로 씀)
     G.speed = 1;
-    G.startStory('main');
+    G.toTitle();
   } else G.startSingle(G.spellIndex);
   G.paused = false;
   syncPanel();
@@ -177,21 +232,26 @@ $('tabRoom').onclick = e => { if (G.mode !== 'room') setMode('room'); settle(e.t
 // 마리(노말 4스테이지에서 탈락), 정나은(이지 3스테이지에서 탈락), 고태웅(베리하드 1스테이지에서 탈락).
 // cleared: 탈락 전까지 깬 스테이지 수(본편 순서: 1, 2, 3-1, 3-2, 4, 5, 6, 7)
 const BOARD = [
-  { n: '이즘', diff: 4, miss: 0, bombs: 0, cont: 0, sec: 22 * 60 + 48 },
+  { n: '이즘', diff: 4, miss: 0, bombs: 0, cont: 0, sec: 22 * 60 + 48, iron: true },
   { n: '김예나', diff: 4, miss: 4, bombs: 0, cont: 0, sec: 38 * 60 + 23 },
   { n: '피트', diff: 3, miss: 1, bombs: 0, cont: 0, sec: 31 * 60 },
   { n: '시연', diff: 2, miss: 2, bombs: 1, cont: 0, sec: 27 * 60 + 30 },
   { n: '마리', diff: 1, miss: 4, bombs: 7, cont: 0, sec: 18 * 60 + 42, fail: '4스테이지', cleared: 4 },
   { n: '정나은', diff: 0, miss: 4, bombs: 6, cont: 0, sec: 11 * 60 + 37, fail: '3스테이지', cleared: 2 },
   { n: '고태웅', diff: 3, miss: 3, bombs: 2, cont: 0, sec: 4 * 60 + 9, fail: '1스테이지', cleared: 0 },
-].map(r => ({ ...r, v: r.fail ? failScore(r) : finalScore({ diff: r.diff, frames: r.sec * 60, miss: r.miss, bombs: r.bombs, continues: r.cont, list: { length: 8 } }).score }));
+].map(r => ({ ...r, v: r.fail ? failScore(r) : finalScore({ diff: r.diff, frames: r.sec * 60, miss: r.miss, bombs: r.bombs, continues: r.cont, iron: r.iron, list: { length: 8 } }).score }));
 const recText = r => `${r.fail ? `FAIL(${r.fail})` : 'CLEAR'} / 미스 ${r.miss} / 봄 ${r.bombs} / ${Math.floor(r.sec / 60)}:${String(Math.floor(r.sec % 60)).padStart(2, '0')}`;
 const overlay = $('overlay');
 const esc = t => String(t).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const mmss = sec => `${Math.floor(sec / 60)}분 ${String(Math.floor(sec % 60)).padStart(2, '0')}초`;
 function showOverlay(html, onBtn) {
   overlay.innerHTML = html; overlay.hidden = false;
-  for (const b of overlay.querySelectorAll('button[data-act]')) b.onclick = e => { onBtn(b.dataset.act); settle(e.target); };
+  for (const b of overlay.querySelectorAll('button[data-act]')) {
+    let done = false;
+    const go = e => { if (done || b.disabled) return; done = true; e.preventDefault(); onBtn(b.dataset.act); settle(b); };
+    b.addEventListener('pointerdown', e => { if (e.button === 0) go(e); });
+    b.addEventListener('click', go);
+  }
 }
 G.onStageClear = (cur, next) => showOverlay(
   `<h3>${esc(cur.title.split(' · ')[0])} 클리어!</h3><div class="sub">다음: ${esc(next.title)}</div>` +
@@ -205,19 +265,19 @@ G.onStoryClear = res => {
   const parts = res.fail
     ? [['기본', 5000], [`진행도 (${res.cleared}/${res.total} 스테이지)`, Math.round(28500 * res.cleared / res.total)], ['미스', -300 * res.miss], ['폭탄', -150 * res.bombs]]
     : res.parts;
-  const me = { n: '나', v: res.score, me: true, diff: res.diff, miss: res.miss, bombs: res.bombs, cont: res.continues, sec: res.sec, fail: res.fail ? res.stage : undefined };
+  const me = { n: '나', v: res.score, me: true, iron: !!(G.story && G.story.iron), diff: res.diff, miss: res.miss, bombs: res.bombs, cont: res.continues, sec: res.sec, fail: res.fail ? res.stage : undefined };
   const board = BOARD.concat(me).sort((a, b) => b.v - a.v || (a.me ? 1 : -1));
   showOverlay(
     `<h3>${title}</h3>` +
     `<div class="sub">${DIFFS[res.diff]} · 플레이 시간 ${mmss(res.sec)}${res.fail ? '' : ` (기준 ${mmss(res.target)})`} · 미스 ${res.miss} · 폭탄 ${res.bombs} · 컨티뉴 ${res.continues}</div>` +
     `<table class="parts">${parts.filter(([, v]) => v).map(([k, v]) => `<tr><td>${k}</td><td>${v > 0 ? '+' : ''}${v.toLocaleString()}</td></tr>`).join('')}` +
-    `<tr><td>난이도 배율</td><td>×${SCORE_DIFF[res.diff]}</td></tr></table>` +
+    `<tr><td>난이도 배율</td><td>×${SCORE_DIFF[res.diff]}</td></tr>${res.iron ? `<tr><td>철인 모드</td><td>+${res.iron.toLocaleString()}</td></tr>` : ''}</table>` +
     `<div class="big">${res.score.toLocaleString()}점</div>` +
     (res.tools ? `<div class="note">테스트 도구(무적·파워 고정·건너뛰기·게임 속도)를 쓴 기록이에요</div>` : '') +
-    `<table class="board">${board.map((r, i) => `<tr class="${r.me ? 'me' : ''}"><td>${i + 1}위</td><td>${esc(r.n)}</td><td class="rec">${DIFFS[r.diff]}</td><td class="rec">${recText(r)}</td><td>${r.v.toLocaleString()}</td></tr>`).join('')}</table>` +
+    `<table class="board">${board.map((r, i) => `<tr class="${r.me ? 'me' : ''}"><td>${i + 1}위</td><td>${esc(r.n)}</td><td class="rec">${DIFFS[r.diff]}${r.iron ? '·철인' : ''}</td><td class="rec">${recText(r)}</td><td>${r.v.toLocaleString()}</td></tr>`).join('')}</table>` +
     (nextKey ? `<div class="sub">${nextKey === 'extra' ? '엑스트라' : '엑스트라 2'}가 열렸습니다</div>` : '') +
-    `<button class="primary" data-act="again">처음부터 다시</button>`,
-    () => { overlay.hidden = true; G.startStory(key); syncPanel(); });
+    `<div class="row"><button class="primary" data-act="again">다시 도전</button><button data-act="title">시작 화면으로</button></div>`,
+    act => { const iron = !!(G.story && G.story.iron); overlay.hidden = true; if (act === 'title') G.toTitle(); else G.startStory(key, iron); syncPanel(); });
 };
 // 본게임 게임 오버: 컨티뉴 카운트다운(10초). Z·Enter·R 또는 버튼으로 이어 하기
 let contShown = false;
@@ -235,6 +295,35 @@ function syncContinue() {
   }
   const el = document.getElementById('contSec'); if (el) el.textContent = String(Math.max(0, sec));
 }
+
+// ── 시작 화면(스테이지 모드 첫 화면): 모드·기체·난이도·철인 모드를 고르고 시작 ──
+const ANGEL_DESC = { AR: '곧은 바늘 다발 + 유도 레이저', UR: '넓게 퍼지는 가시, 가까울수록 셈', LM: '느린 바늘, 유도탄 비중이 큼', RH: '바늘 + 옵션 둘의 관통 별' };
+const title = { key: 'main', iron: false };
+function showTitle() {
+  if (!unlocked(title.key)) title.key = 'main';
+  if (G.difficulty < 2) title.iron = false;
+  const modes = [['main', '본편'], ['extra', '엑스트라'], ['extra2', '엑스트라 2']];
+  showOverlay(
+    '<h3>탄막 테스트</h3><div class="sub">스테이지 모드 · Z 또는 Enter로 시작</div>' +
+    '<div class="tsec"><div class="tlabel">모드</div><div class="seg">' + modes.map(([k, n]) => `<button data-act="mode:${k}" aria-pressed="${title.key === k}" ${unlocked(k) ? '' : 'disabled'}>${n}${unlocked(k) ? '' : ' (잠김)'}</button>`).join('') + '</div></div>' +
+    '<div class="tsec"><div class="tlabel">기체</div><div class="angels">' + Object.entries(ANGELS).map(([c, a]) => `<button data-act="angel:${c}" aria-pressed="${G.angel === c}"><img src="${IMG_BASE}${c}/D/01.webp" alt="" loading="lazy"><b>${a.name}</b><small>${ANGEL_DESC[c]}</small></button>`).join('') + '</div></div>' +
+    '<div class="tsec"><div class="tlabel">난이도</div><div class="seg">' + DIFFS.map((d, i) => `<button data-act="diff:${i}" aria-pressed="${G.difficulty === i}">${d}</button>`).join('') + '</div></div>' +
+    `<label class="check tiron"><input type="checkbox" id="tIron" ${title.iron ? 'checked' : ''} ${G.difficulty < 2 ? 'disabled' : ''}> 철인 모드 <small>${G.difficulty < 2 ? '하드부터 고를 수 있음' : `컨티뉴 없음 · 클리어하면 +${IRON_BONUS.toLocaleString()}점`}</small></label>` +
+    '<button class="primary tstart" data-act="start">시작 ▶</button>',
+    act => {
+      const [k, v] = act.split(':');
+      if (k === 'mode') title.key = v;
+      else if (k === 'angel') G.angel = v;
+      else if (k === 'diff') G.difficulty = +v;
+      else if (k === 'start') return startFromTitle();
+      syncPanel(); showTitle();
+    });
+  const iron = document.getElementById('tIron');
+  if (iron) iron.onchange = () => { title.iron = iron.checked; $('ironChk').checked = iron.checked; };
+}
+function startFromTitle() { overlay.hidden = true; G.startStory(title.key, title.iron); syncPanel(); }
+G.onTitle = showTitle;
+G.onTitleStart = startFromTitle;
 
 // ── 코드 편집 ──
 function spellSource(sp) {
@@ -277,7 +366,7 @@ let last = performance.now(), audioBusy = false;
 requestAnimationFrame(function tick(now) {
   G.frameTick(now - last); last = now;
   syncContinue();
-  if (!overlay.hidden && !['stageclear', 'storyclear', 'storyfail', 'gameover'].includes(G.phase)) overlay.hidden = true;
+  if (!overlay.hidden && !['stageclear', 'storyclear', 'storyfail', 'gameover', 'title'].includes(G.phase)) overlay.hidden = true;
   // 일시정지 동안은 소리(배경음악 포함)를 멈췄다가 풀면 그 자리부터 이어 감.
   // 일시정지 중 다른 키로 소리가 다시 켜져도 여기서 다시 멈춤
   const ctx = SFX.ctx;
