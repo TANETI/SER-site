@@ -2249,11 +2249,11 @@ const SPELLS = [
     name: '「순차 격자 타격」(가칭)',
     type: 'spell', boss: '이즘', bossColor: '#8fe8ff', hp: 3200, time: 45, start: [192, 60],
     *run(s) {
-      // 순서 기억: 화면을 큰 칸으로 나눔(이지·노말 3칸, 하드 9칸, 베리하드·헬 12칸). 칸이 하나씩 번호와 함께 빛나며
-      // 순서를 알려 주고(번호가 높을수록 높은 효과음), 곧바로 그 순서대로 한 칸씩 터짐. 터진 칸은 그 판 동안 안전하므로
-      // 다음에 터질 칸을 기억해 미리 비킴. 끝나면 바로 새 순서를 알려 주고, 이렇게 4판. 판마다 약 10%씩 빨라짐.
-      // 칸 하나를 벗어나는 데 고속 이동으로 약 20프레임이 드므로 터지는 간격은 22프레임 아래로 내리지 않음. 터지기 전 예고는 약 0.5~0.7초
-      const [cols, rows] = s.lv([3, 1], [3, 1], [3, 3], [3, 4], [3, 4]), n = cols * rows, cw = s.W / cols, ch = s.H / rows;
+      // 순서 기억: 화면을 세로로 세 칸으로 나눔(난이도와 상관없이 3칸). 한 판에 칸이 번호와 함께 차례로 빛나며 순서를 알려 주고
+      // (번호가 높을수록 높은 효과음), 곧바로 그 순서대로 한 칸씩 터짐. 같은 칸이 연달아 나오지는 않지만 다시 나올 수 있으므로
+      // 다음에 터질 칸을 기억해 계속 비킴. 난이도는 한 판에 터지는 횟수(이지 3 … 헬 7)와 속도로 나뉨. 4판, 판마다 약 10%씩 빨라짐.
+      // 칸 경계를 넘어 옆 칸으로 옮기는 데 드는 시간을 생각해 터지는 간격은 26프레임 아래로 내리지 않음. 터지기 전 예고는 약 0.5~0.7초
+      const cols = 3, rows = 1, cw = s.W / cols, ch = s.H / rows, len = s.lv(3, 4, 5, 6, 7);
       const cell = c => ({ x: (c % cols) * cw, y: Math.floor(c / cols) * ch, w: cw, h: ch });
       // 스프링클러(곁다리): 이즘을 중심으로 조금씩 돌아가는 방향으로 작은 탄 세 발짜리 덩어리를 뿜음.
       // 약 0.5초 뿜고 약 1초 쉬기를 반복하며, 순서를 알려 주는 동안과 터지는 동안에도 계속 나옴
@@ -2269,7 +2269,9 @@ const SPELLS = [
       }());
       for (;;) {
         for (let round = 0; round < 4; round++) {
-          const f = Math.pow(0.9, round), order = [...Array(n).keys()].sort(() => Math.random() - 0.5);
+          const f = Math.pow(0.9, round), order = [];
+          for (let i = 0; i < len; i++) { let c; do c = s.randInt(0, cols - 1); while (c === order[i - 1]); order.push(c); }
+          const n = order.length;
           // 순서 알려 주기: 판 첫 칸 앞에 잠깐 틈
           const show = Math.max(14, Math.round(s.lv(34, 30, 24, 22, 20) * f));
           yield 16;
@@ -2281,7 +2283,7 @@ const SPELLS = [
           yield Math.round(24 * f);
           // 순서대로 터짐. 칸마다 터지기 warn프레임 전부터 번호와 노란 테두리로 예고하고 효과음(판이 빨라져도 예고 길이는 그대로).
           // 예고가 터지는 간격보다 길어서, 한 칸이 터지기 전에 다음 칸 예고가 먼저 떠 늘 다음 칸이 보임
-          const step = Math.max(22, Math.round(s.lv(46, 40, 32, 30, 28) * f)), warn = s.lv(42, 38, 34, 32, 30);
+          const step = Math.max(26, Math.round(s.lv(46, 42, 36, 32, 30) * f)), warn = s.lv(42, 38, 34, 32, 30);
           for (let i = 0; i < n; i++) {
             const c = cell(order[i]);
             s.task(function* () {
@@ -2302,30 +2304,36 @@ const SPELLS = [
     name: '논스펠 · 이즘 2',
     type: 'nonspell', boss: '이즘', bossColor: '#8fe8ff', hp: 2800, time: 36, start: [192, 80],
     *run(s) {
-      // 스캔: 가로 레이저 스캔선이 화면 위에서 아래로(다음엔 아래에서 위로) 천천히 훑고 지나감. 선에는 한 칸 빈 틈이 있고,
-      // 켜지기 전 예고 단계부터 틈 위치가 보이므로 그 틈으로 가 있으면 통과. 하드 이상은 약 1.5초 뒤 다른 틈을 가진 두 번째 스캔선.
-      // 틈 폭은 이지 80 … 헬 56px, 훑는 속도는 약 1.6~2.2px/프레임
-      // 두 번째 틈은 첫 번째 틈에서 180px 안쪽(약 1.5초 안에 옮겨 갈 수 있는 거리)
+      // 스캔: 가로 레이저 스캔선이 화면 위에서 아래로(다음엔 아래에서 위로) 훑고 지나감. 선에는 한 칸 빈 틈이 있고,
+      // 켜지기 전 예고 단계부터 틈 위치가 보이므로 그 틈으로 가 있으면 통과. 노말부터 두 번째, 베리하드부터 세 번째 스캔선이
+      // 다른 틈을 갖고 뒤따름(앞 틈에서 180px 안쪽). 틈 폭은 이지 72 … 헬 50px, 훑는 속도 약 2.2px/프레임.
+      // 노말부터 위에서 느린 이진수 비(작은 하늘색 탄)가 내리고 가끔 조준탄
       const scan = (dir, delay, gx) => s.task(function* () {
         yield delay;
-        const gapW = s.lv(80, 72, 64, 60, 56), spd = s.sp(1.9) * dir, warn = 50;
+        const gapW = s.lv(72, 64, 58, 54, 50), spd = s.sp(2.2) * dir, warn = 50;
         const st = { y: dir > 0 ? 4 : s.H - 4 }, dur = Math.ceil((s.H - 8) / Math.abs(spd));
         const move = l => { if (l.t > warn) st.y += spd / 2; l.y = st.y; };   // 두 레이저가 같은 st를 반씩 옮김
         s.laser({ x: 0, y: st.y, ang: 0, len: gx - gapW / 2, w: 10, warn, dur, color: 'cyan', fn: move });
         s.laser({ x: gx + gapW / 2, y: st.y, ang: 0, len: s.W - gx - gapW / 2, w: 10, warn, dur, color: 'cyan', fn: move });
         s.mark({ x: gx, y: st.y + dir * 18, dur: warn });   // 틈 자리 표시
       }());
-      for (let w = 0; ; w++) {
-        const dir = w % 2 ? -1 : 1;
-        const gapW = s.lv(80, 72, 64, 60, 56), g1 = s.rand(gapW, s.W - gapW);
-        scan(dir, 0, g1);
-        if (s.diff >= 2) scan(dir, 90, Math.max(gapW, Math.min(s.W - gapW, g1 + s.rand(-180, 180))));
-        const len = 50 + Math.ceil((s.H - 8) / s.sp(1.9)) + (s.diff >= 2 ? 90 : 0);
-        for (let t = 0; t < len; t += 40) {
-          if (s.diff >= 3 && t % 80 === 40) s.fire({ ang: s.aim(), spd: s.sp(2.2), shape: 'small', color: 'white' });
-          yield 40;
+      if (s.diff >= 1) s.task(function* () {
+        for (let k = 0; ; k++) {
+          s.fire({ x: s.rand(10, s.W - 10), y: -8, ang: Math.PI / 2, spd: s.sp(1.3), shape: 'small', color: 'cyan' });
+          if (k % 5 === 4) s.fire({ ang: s.aim(), spd: s.sp(2.3), shape: 'small', color: 'white' });
+          yield s.lv(30, 20, 16, 14, 12);
         }
-        yield s.wait(40);
+      }());
+      for (let w = 0; ; w++) {
+        const dir = w % 2 ? -1 : 1, lines = s.lv(1, 2, 2, 3, 3), gap = s.lv(72, 64, 58, 54, 50), delay = s.lv(110, 90, 80, 76, 72);
+        let gx = s.rand(gap, s.W - gap);
+        for (let i = 0; i < lines; i++) {
+          scan(dir, i * delay, gx);
+          gx = Math.max(gap, Math.min(s.W - gap, gx + s.rand(-180, 180)));
+        }
+        const len = 50 + Math.ceil((s.H - 8) / s.sp(2.2)) + (lines - 1) * delay;
+        yield len;
+        yield s.wait(30);
       }
     },
   },
