@@ -313,7 +313,7 @@ const SHOT_TYPES = Object.fromEntries(['AR', 'UR', 'LM', 'RH'].map(code => [code
 // 본편 클리어 → 엑스트라, 엑스트라 클리어 → 엑스트라 2
 const UNLOCK_NEXT = { main: 'extra', extra: 'extra2', extra2: 'extra3' };
 // 시험 기간 동안 처음부터 열어 두는 모드
-const ALWAYS_OPEN = new Set(['main', 'extra3']);
+const ALWAYS_OPEN = new Set(['main', 'extra', 'extra2', 'extra3']);   // 시험 기간: 엑스트라 전부 열어 둠(잠금은 나중에)
 function unlocked(key) {
   if (ALWAYS_OPEN.has(key)) return true;
   try { return !!JSON.parse(localStorage.getItem('danmaku.unlock') || '{}')[key]; } catch (e) { return false; }
