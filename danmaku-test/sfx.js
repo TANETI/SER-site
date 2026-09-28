@@ -61,64 +61,75 @@ const SFX = {
     s.connect(bf).connect(g); this.out(g, echo); s.start(t, Math.random() * 0.5); s.stop(t + dur + 0.03);
   },
 
+  // 큰 소리(폭발·타격·찢기) 겹침 막기: 서로 다른 큰 소리라도 0.07초 안에 겹쳐 나지 않게(한꺼번에 터져 뭉개지지 않게).
+  // 격파(boom)·피탄(die)·폭탄(bomb)은 이 제한 없이 항상 남
+  heavy(kind, gap) { if (!this.ok(kind, gap)) return false; return this.ok('heavy', 0.07) || (delete this.last[kind], false); },
+
+  // 음량 기준(정돈 2026-09-28): 자주 나는 소리(발사·그레이즈·명중·아이템·경고음) 0.01~0.04, 보통 연출 0.05~0.12,
+  // 큰 소리(찢기·타격·빰) 0.15~0.22, 가장 중요한 알림(피탄·폭탄·격파) 0.25~0.35. 자주 나는 소리는 귀가 덜 피곤한
+  // 삼각파·사인파로, 네모파는 짧은 딸깍 소리에만
+
   // ── 전투 ──
-  hit()     { if (this.ok('hit', 0.06)) { this.tone('triangle', this.jitter(1300), 900, 0.035, 0.035); this.hiss(0.02, 0.03, 'highpass', 5000); } },
-  block()   { if (this.ok('block', 0.08)) { this.tone('sine', this.jitter(2600, 0.03), 2400, 0.08, 0.05); this.tone('sine', 3900, 3800, 0.05, 0.02); } },
-  kill()    { if (this.ok('kill', 0.05)) { this.hiss(0.22, 0.22, 'lowpass', 3000, 250); this.tone('triangle', this.jitter(600), 180, 0.16, 0.08); this.tone('sine', 1800, 2400, 0.08, 0.03, 0.04); } },
-  graze()   { if (this.ok('graze', 0.045)) this.hiss(0.035, 0.05, 'bandpass', this.jitter(7000, 0.15), 5000, 3); },
-  // 적 발사음: 탄 크기에 따라 음높이가 다름. 자주 나므로 아주 작게
+  hit()     { if (this.ok('hit', 0.06)) { this.tone('triangle', this.jitter(1300), 900, 0.035, 0.03); this.hiss(0.02, 0.025, 'highpass', 5000); } },
+  block()   { if (this.ok('block', 0.08)) { this.tone('sine', this.jitter(2400, 0.03), 2200, 0.08, 0.045); this.tone('sine', 3300, 3200, 0.05, 0.015); } },
+  kill()    { if (this.ok('kill', 0.05)) { this.hiss(0.22, 0.18, 'lowpass', 3000, 250); this.tone('triangle', this.jitter(600), 180, 0.16, 0.07); this.tone('sine', 1800, 2400, 0.08, 0.025, 0.04); } },
+  graze()   { if (this.ok('graze', 0.045)) this.hiss(0.035, 0.04, 'bandpass', this.jitter(7000, 0.15), 5000, 3); },
+  // 적 발사음: 탄 크기에 따라 음높이가 다름. 가장 자주 나므로 가장 작게
   fire(big) {
     if (!this.ok(big ? 'fireBig' : 'fire', big ? 0.12 : 0.07)) return;
-    if (big) { this.tone('sine', this.jitter(260), 160, 0.12, 0.05); this.hiss(0.06, 0.03, 'lowpass', 1200, 400); }
-    else this.tone('square', this.jitter(620, 0.08), 480, 0.03, 0.012);
+    if (big) { this.tone('sine', this.jitter(260), 160, 0.12, 0.04); this.hiss(0.06, 0.025, 'lowpass', 1200, 400); }
+    else this.tone('triangle', this.jitter(620, 0.08), 480, 0.03, 0.014);
   },
-  // 스테이지 클리어: 올라가는 짧은 팡파르
-  stageClear() { if (this.ok('stageClear', 0.5)) [523, 659, 784, 1047, 784, 1047, 1319].forEach((f, i) => this.tone(i < 4 ? 'triangle' : 'square', f, f, i === 6 ? 0.6 : 0.16, i < 4 ? 0.09 : 0.04, i * 0.09, true)); },
+  laser()   { if (this.ok('laser', 0.1)) { this.tone('sawtooth', 180, 900, 0.12, 0.03); this.hiss(0.3, 0.07, 'bandpass', 1500, 3000, 2); } },
+  chain()   { if (this.ok('chain', 0.08)) { this.hiss(0.25, 0.15, 'highpass', 1500, 6000); this.tone('triangle', 1700, 800, 0.05, 0.035); this.tone('triangle', 2600, 2500, 0.12, 0.018, 0.03); } },
+  // 구역 공격 발동·충격
+  strike()  { if (this.heavy('strike', 0.06)) { this.hiss(0.22, 0.2, 'lowpass', 2200, 150); this.tone('sine', 140, 50, 0.18, 0.13); } },
+  impact()  { if (this.heavy('impact', 0.15)) { this.tone('sine', 120, 40, 0.3, 0.2); this.hiss(0.25, 0.17, 'lowpass', 1500, 100); } },
+  // 탄을 한꺼번에 터뜨려 지움(빰!)
+  bam()     { if (this.heavy('bam', 0.1)) { this.tone('sine', 220, 45, 0.35, 0.22); this.hiss(0.25, 0.2, 'lowpass', 3000, 200, 1, 0, true); this.tone('triangle', 900, 300, 0.06, 0.04); } },
+  // 화면을 채우는 소리(쏴아)
+  fillIn()  { if (this.ok('fillIn', 0.12)) { this.hiss(0.2, 0.13, 'highpass', 800, 5000); this.tone('sawtooth', 120, 240, 0.15, 0.035); } },
+  // 경고음: p(0~1)가 커질수록 높고 조금 커짐. 짧은 간격으로 이어 불러 삐비비빅을 만듦
+  beep(p = 0) { if (this.ok('beep', 0.02)) this.tone('triangle', 1100 + p * 900, 1100 + p * 900, 0.04, 0.035 + p * 0.025); },
   // 꿈의 재현: 왼쪽 절반은 낮은 종소리, 오른쪽 절반은 높은 종소리(서로 다른 음색)
-  dreamL()  { if (this.ok('dreamL', 0.1)) { this.tone('sine', 330, 320, 0.55, 0.12); this.tone('triangle', 165, 160, 0.55, 0.07); } },
-  dreamR()  { if (this.ok('dreamR', 0.1)) { this.tone('sine', 988, 980, 0.45, 0.09); this.tone('square', 1976, 1960, 0.12, 0.015, 0.02); } },
-  // 조준 경고음: p(0~1)가 커질수록 높아짐. 짧은 간격으로 이어 불러 삐비비빅을 만듦
-  bam()     { if (this.ok('bam', 0.1)) { this.tone('sine', 220, 45, 0.35, 0.3); this.hiss(0.25, 0.3, 'lowpass', 3000, 200, 1, 0, true); this.tone('square', 900, 300, 0.06, 0.05); } },
-  fillIn()  { if (this.ok('fillIn', 0.1)) { this.hiss(0.2, 0.18, 'highpass', 800, 5000); this.tone('sawtooth', 120, 240, 0.15, 0.05); } },
-  beep(p = 0) { if (this.ok('beep', 0.02)) this.tone('square', 1300 + p * 1100, 1300 + p * 1100, 0.035, 0.03 + p * 0.02); },
-  laser()   { if (this.ok('laser', 0.1)) { this.tone('sawtooth', 180, 900, 0.12, 0.035); this.hiss(0.3, 0.08, 'bandpass', 1500, 3000, 2); } },
-  chain()   { if (this.ok('chain', 0.08)) { this.hiss(0.25, 0.18, 'highpass', 1500, 6000); this.tone('square', 1700, 800, 0.05, 0.035); this.tone('triangle', 3200, 3100, 0.12, 0.02, 0.03); } },
-  strike()  { if (this.ok('strike', 0.06)) { this.hiss(0.22, 0.28, 'lowpass', 2200, 150); this.tone('sine', 140, 50, 0.18, 0.14); } },
-  impact()  { if (this.ok('impact', 0.15)) { this.tone('sine', 120, 40, 0.3, 0.22); this.hiss(0.25, 0.2, 'lowpass', 1500, 100); } },
-
-  // ── 플레이어 ──
-  die()     { if (this.ok('die', 0.3)) { this.tone('sawtooth', 900, 60, 0.6, 0.14, 0, true); this.hiss(0.7, 0.3, 'lowpass', 4000, 150, 1, 0, true); this.tone('sine', 90, 35, 0.5, 0.25); } },
-  hurt()    { if (this.ok('hurt', 0.15)) this.tone('square', 320, 160, 0.1, 0.05); },
-  bomb()    {
-    if (!this.ok('bomb', 0.3)) return;
-    this.tone('sine', 200, 900, 0.5, 0.06);                            // 차지
-    this.hiss(1.0, 0.3, 'bandpass', 250, 3500, 0.8, 0.45, true);        // 퍼짐
-    this.tone('sine', 110, 40, 0.9, 0.3, 0.45);
-  },
-  empty()   { if (this.ok('empty', 0.2)) this.tone('square', 180, 170, 0.07, 0.04); },
-  flick()   { if (this.ok('flick', 0.2)) { this.tone('square', 2000, 1300, 0.03, 0.07); this.tone('triangle', 420, 300, 0.09, 0.06, 0.02); } },
-  item()    { if (this.ok('item', 0.035)) this.tone('sine', this.jitter(1600, 0.1), 2100, 0.045, 0.03); },
-  powerUp() { if (this.ok('powerUp', 0.3)) [660, 990, 1320, 1760].forEach((f, i) => this.tone('square', f, f, 0.07, 0.035, i * 0.05)); },
-
-  // ── 진행·연출 ──
-  spell()   { if (this.ok('spell', 0.3)) { this.hiss(0.5, 0.12, 'highpass', 800, 4000); [880, 1320, 1760].forEach((f, i) => this.tone('sine', f, f, 0.7, 0.07, i * 0.06, true)); } },
-  chime(last) { if (this.ok('chime', 0.12)) this.tone('sine', last ? 1320 : this.jitter(990, 0.02), last ? 1318 : 988, last ? 0.9 : 0.5, last ? 0.06 : 0.035, 0, true, 0.01); },
-  capture() { if (this.ok('capture', 0.5)) [660, 880, 1100, 1320, 1760].forEach((f, i) => this.tone('triangle', f, f, 0.3, 0.08, i * 0.07, true)); },
-  boom()    { if (this.ok('boom', 0.5)) { this.tone('sine', 150, 30, 1.2, 0.35); this.hiss(1.4, 0.4, 'lowpass', 5000, 80, 1, 0, true); this.tone('sawtooth', 400, 60, 0.6, 0.06, 0.05); } },
-  tick(last) { if (this.ok('tick', 0.5)) this.tone('square', last ? 1200 : 880, last ? 1200 : 880, 0.05, 0.04); },
-  slowIn()  { if (this.ok('slowIn', 0.3)) { this.tone('sine', 900, 110, 0.7, 0.13, 0, true); this.hiss(0.7, 0.08, 'lowpass', 3000, 200); } },
-  overclock() { if (this.ok('overclock', 0.3)) { this.tone('sawtooth', 200, 1400, 0.35, 0.06); this.tone('square', 1400, 1400, 0.3, 0.02, 0.35); } },
-  slowOut() { if (this.ok('slowOut', 0.3)) this.tone('sine', 110, 900, 0.4, 0.1); },
-  extend()  { if (this.ok('extend', 0.3)) [520, 780, 1040].forEach((f, i) => this.tone('sine', f, f, 0.3, 0.07, i * 0.09, true)); },
+  dreamL()  { if (this.ok('dreamL', 0.1)) { this.tone('sine', 330, 320, 0.55, 0.11); this.tone('triangle', 165, 160, 0.55, 0.06); } },
+  dreamR()  { if (this.ok('dreamR', 0.1)) { this.tone('sine', 988, 980, 0.45, 0.08); this.tone('triangle', 1976, 1960, 0.12, 0.02, 0.02); } },
   // 차원절단: 공간이 찢어지는 소리(높은 쇳소리가 훑고 내려간 뒤 낮게 울림)
-  riftTear() { if (this.ok('riftTear', 0.12)) { this.hiss(0.45, 0.32, 'highpass', 7000, 1200, 1); this.tone('sawtooth', 1600, 70, 0.4, 0.07); this.tone('sine', 95, 30, 0.7, 0.3, 0.05, true); } },
+  riftTear() { if (this.heavy('riftTear', 0.12)) { this.hiss(0.45, 0.2, 'highpass', 7000, 1200, 1); this.tone('sawtooth', 1600, 70, 0.4, 0.05); this.tone('sine', 95, 30, 0.7, 0.22, 0.05, true); } },
   // 균열이 다시 붙음: 쩌저적(불규칙한 짧은 금 가는 소리 여러 번 뒤 둔탁하게 닫힘)
   riftClose() {
     if (!this.ok('riftClose', 0.15)) return;
-    [0, 0.05, 0.08, 0.14, 0.17, 0.23, 0.27, 0.31].forEach((d, i) => {
-      this.hiss(0.03, 0.22, 'bandpass', this.jitter(3800, 0.3), 2600, 4, d);
-      this.tone('square', this.jitter(2400, 0.2), 900, 0.02, 0.03, d);
+    [0, 0.05, 0.08, 0.14, 0.17, 0.23, 0.27, 0.31].forEach(d => {
+      this.hiss(0.03, 0.16, 'bandpass', this.jitter(3800, 0.3), 2600, 4, d);
+      this.tone('square', this.jitter(2400, 0.2), 900, 0.02, 0.018, d);
     });
-    this.tone('sine', 160, 50, 0.25, 0.2, 0.36); this.hiss(0.15, 0.15, 'lowpass', 1200, 200, 1, 0.36);
+    this.tone('sine', 160, 50, 0.25, 0.16, 0.36); this.hiss(0.15, 0.12, 'lowpass', 1200, 200, 1, 0.36);
   },
+
+  // ── 플레이어 ──
+  die()     { if (this.ok('die', 0.3)) { this.tone('sawtooth', 900, 60, 0.6, 0.13, 0, true); this.hiss(0.7, 0.3, 'lowpass', 4000, 150, 1, 0, true); this.tone('sine', 90, 35, 0.5, 0.28); } },
+  hurt()    { if (this.ok('hurt', 0.15)) this.tone('triangle', 320, 160, 0.1, 0.06); },   // 무적 중 피탄
+  bomb()    {
+    if (!this.ok('bomb', 0.3)) return;
+    this.tone('sine', 200, 900, 0.5, 0.07);                            // 차지
+    this.hiss(1.0, 0.3, 'bandpass', 250, 3500, 0.8, 0.45, true);        // 퍼짐
+    this.tone('sine', 110, 40, 0.9, 0.3, 0.45);
+  },
+  empty()   { if (this.ok('empty', 0.2)) this.tone('triangle', 180, 170, 0.08, 0.05); },   // 폭탄 없음
+  flick()   { if (this.ok('flick', 0.2)) { this.tone('square', 1800, 1200, 0.025, 0.04); this.tone('triangle', 420, 300, 0.09, 0.06, 0.02); } },   // 딱밤
+  item()    { if (this.ok('item', 0.035)) this.tone('sine', this.jitter(1600, 0.1), 2100, 0.045, 0.025); },
+  powerUp() { if (this.ok('powerUp', 0.3)) [660, 990, 1320, 1760].forEach((f, i) => this.tone('triangle', f, f, 0.08, 0.05, i * 0.05)); },
+  extend()  { if (this.ok('extend', 0.3)) [520, 780, 1040].forEach((f, i) => this.tone('sine', f, f, 0.3, 0.07, i * 0.09, true)); },   // 컨티뉴·시간 추가
+
+  // ── 진행·연출 ──
+  spell()   { if (this.ok('spell', 0.3)) { this.hiss(0.5, 0.1, 'highpass', 800, 4000); [880, 1320, 1760].forEach((f, i) => this.tone('sine', f, f, 0.7, 0.07, i * 0.06, true)); } },
+  chime(last) { if (this.ok('chime', 0.12)) this.tone('sine', last ? 1320 : this.jitter(990, 0.02), last ? 1318 : 988, last ? 0.9 : 0.5, last ? 0.06 : 0.035, 0, true, 0.01); },   // 영창 한 줄
+  capture() { if (this.ok('capture', 0.5)) [660, 880, 1100, 1320, 1760].forEach((f, i) => this.tone('triangle', f, f, 0.3, 0.08, i * 0.07, true)); },   // 스펠카드 획득
+  boom()    { if (this.ok('boom', 0.5)) { this.last.heavy = this.ctx.currentTime; this.tone('sine', 150, 30, 1.2, 0.33); this.hiss(1.4, 0.35, 'lowpass', 5000, 80, 1, 0, true); this.tone('sawtooth', 400, 60, 0.6, 0.05, 0.05); } },   // 격파·페이즈 전환
+  tick(last) { if (this.ok('tick', 0.5)) this.tone('triangle', last ? 1200 : 880, last ? 1200 : 880, 0.06, last ? 0.06 : 0.045); },   // 제한시간 초읽기
+  slowIn()  { if (this.ok('slowIn', 0.3)) { this.tone('sine', 900, 110, 0.7, 0.12, 0, true); this.hiss(0.7, 0.07, 'lowpass', 3000, 200); } },
+  slowOut() { if (this.ok('slowOut', 0.3)) this.tone('sine', 110, 900, 0.4, 0.09); },
+  overclock() { if (this.ok('overclock', 0.3)) { this.tone('sawtooth', 200, 1400, 0.35, 0.05); this.tone('triangle', 1400, 1400, 0.3, 0.03, 0.35); } },
+  // 스테이지 클리어: 올라가는 짧은 팡파르
+  stageClear() { if (this.ok('stageClear', 0.5)) [523, 659, 784, 1047, 784, 1047, 1319].forEach((f, i) => this.tone(i < 4 ? 'triangle' : 'square', f, f, i === 6 ? 0.6 : 0.16, i < 4 ? 0.09 : 0.035, i * 0.09, true)); },
 };

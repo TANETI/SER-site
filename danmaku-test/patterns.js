@@ -2936,7 +2936,8 @@ SPELLS.push({
   },
 }, {
   name: '「종언의 시」',
-  type: 'spell', boss: '티폰', bossColor: TY_COLOR, hp: 4200, time: 60, start: [192, 70],
+  // 2페이즈 곡: bgm/티폰 2페이즈/ 폴더(1페이즈는 bgm/티폰/). 폴더가 비어 있으면 1페이즈 곡이 이어짐
+  type: 'spell', boss: '티폰', bossColor: TY_COLOR, bgm: '티폰 2페이즈', hp: 4200, time: 60, start: [192, 70],
   *run(s) {
     // 화면을 무수히 잘게 잘랐다 붙이길 되풀이. 균열은 벌어지는 순간 그 위에 있으면 피탄이고, 열린 동안 넘어갈 수 없음.
     // 모든 균열이 비켜 가는 자리(생존 가능한 위치)가 하나 있고, 자를 때마다 조금씩만 옮겨 감(거의 정해져 있음).
@@ -3174,7 +3175,7 @@ const BOSS_RUNS = [
     ],
   },
   {
-    title: '엑스트라 3 · 티폰', name: '티폰', pages: [1, 1, 1], power: 4, hpScale: 4.6, lastStand: true,
+    title: '엑스트라 3 · 티폰', name: '티폰', pages: [2, 1], power: 4, hpScale: 4.6, lastStand: true,
     seq: [
       spellOf('「차원절단」'),
       spellOf('「붉은 안개」'),
