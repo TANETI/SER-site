@@ -529,7 +529,9 @@ class Game {
     // bgmRate: 곡 재생 속도(폭주 마르코 1.2). 함수면 게임 상태로 정함(김예나 시청자 수 단계)
     // 도중은 bgm(스테이지 폴더 이름)으로 곡을 찾음
     this.bgmFollowR = 1; this.bgmSentR = 1;
-    BGM.playBoss(sp.bgm || sp.boss, cont, (typeof sp.bgmRate === 'function' ? sp.bgmRate(this) : sp.bgmRate) || 1);
+    // 곡이 없는 보스면 앞 곡을 이어 가는데(중간 보스 → 보스), 도중(잡몹 구간)에서 넘어올 때는 이어 가지 않고 멈춤
+    const fromStage = prev && prev.hidden && this.run && this.run.afterStage && this.run.idx === 0;
+    BGM.playBoss(sp.bgm || sp.boss, cont && !fromStage, (typeof sp.bgmRate === 'function' ? sp.bgmRate(this) : sp.bgmRate) || 1);
     // 보스전 시작이나 보스가 바뀔 때(중간 보스 → 보스) 가운데에 소개
     if (this.run && sp.boss && (!cont || !prev || prev.name !== sp.boss)) {
       this.fx.push({ kind: 'intro', top: cont ? '' : this.run.title, text: sp.boss, t: 0, life: 130 });
@@ -570,6 +572,7 @@ class Game {
         // 본게임: 다음 스테이지로. 마지막이면 클리어 기록(엑스트라 해금)을 남기고 클리어 화면
         const st = this.story;
         // 스테이지를 깨면 잠깐 멈추고 '다음 스테이지로' 버튼(Z·Enter). 마지막이면 채점 화면
+        BGM.fadeOut(1.5);   // 마지막 패턴이 시간 초과로 끝났어도 클리어 화면에서는 곡을 줄임
         if (st.idx < st.list.length - 1) { this.phase = 'stageclear'; this.phaseT = 99999; this.clearAt = performance.now(); SFX.stageClear(); this.onStageClear?.(st.list[st.idx], st.list[st.idx + 1]); }
         else { unlockStory(st.key); this.phase = 'storyclear'; this.phaseT = 99999; SFX.stageClear(); st.result = finalScore(st); this.onUnlock?.(); this.onStoryClear?.(st.result); }
       }
@@ -896,6 +899,7 @@ class Game {
       this.tasks.clear(); this.clearBullets(false);
       // 본게임: 컨티뉴가 남았으면 10초 기다림(그 안에 이어 하기), 없으면 잠깐 뒤 탈락. 그 밖에는 4초 뒤 자동 재시작
       this.phase = 'gameover'; this.phaseT = this.story ? (this.story.contLeft > 0 ? CONTINUE_WAIT : 120) : 240;
+      if (this.story) BGM.fadeOut(1.5);   // 본게임은 게임 오버 화면에서 곡을 줄이고, 컨티뉴하면 그 스테이지 곡이 처음부터
     }
   }
 
