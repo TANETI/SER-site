@@ -2364,7 +2364,7 @@ const SPELLS = [
   },
   {
     name: '「백일몽」(가칭)',
-    type: 'spell', strong: true, boss: '이즘', bossColor: '#8fe8ff', bgmFollow: 0.25, hp: 3200, time: 70, start: [192, 70],
+    type: 'spell', strong: true, boss: '이즘', bossColor: '#8fe8ff', bgmFollow: 0.25, noSurgeExtra: true, hp: 3200, time: 70, start: [192, 70],
     *run(s) {
       // 「열흘 같은 하루」의 강화판: 느려진 시간(0.25배) 속 미로가 끊기지 않고 계속 이어짐. 필드 하단 오버클럭 게이지가 약 4초에 걸쳐
       // 차고, 가득 차면 경고 뒤 약 1.8초 동안 0.75배(평소의 3배)로 빨라지고, 직후 3초 동안은 0.1배로 엄청 느려졌다가 평소로 돌아옴.
@@ -2408,6 +2408,7 @@ const SPELLS = [
       let cyc = cycle();
       // 발악: 격화 III에 닿으면 하던 오버클럭 주기를 멈추고 1초 경고 뒤 8초 동안 오버클럭(게이지가 8초에 걸쳐 줄어듦).
       // 처음부터 최고 속도가 아니라 5초에 걸쳐 평소 속도에서 오버클럭 속도까지 서서히 빨라지고, 남은 3초는 최고 속도.
+      // 헬은 10초: 더 느리게(0.15배) 시작해 7초에 걸쳐 더 빠르게(0.85배) 올라가고 남은 3초는 최고 속도
       // 끝나면 3초 동안 아주 느려졌다가 평소 주기로 돌아감
       s.task(function* () {
         while (s.surge < 2) yield 1;
@@ -2415,9 +2416,10 @@ const SPELLS = [
         gauge.v = 1; gauge.flash = true;
         s.say(s.boss, 'OVERCLOCK!!', 60); s.shake(6);
         for (let t = 0; t < 60; t += 6) { s.sound('beep', t / 60); yield 6; }
-        for (let t = 0; t < 480; t++) {
-          if (t % 10 === 0 && t <= 300) s.bulletTime(slowK + (fastK - slowK) * t / 300, 1e9);
-          gauge.v = 1 - t / 480; yield 1;
+        const hell = s.diff >= 4, total = hell ? 600 : 480, ramp = hell ? 420 : 300, k0 = hell ? 0.15 : slowK, k1 = hell ? 0.85 : fastK;
+        for (let t = 0; t < total; t++) {
+          if (t % 10 === 0 && t <= ramp) s.bulletTime(k0 + (k1 - k0) * t / ramp, 1e9);
+          gauge.v = 1 - t / total; yield 1;
         }
         gauge.flash = false; gauge.v = 0;
         s.bulletTime(calmK, 1e9);
@@ -2504,7 +2506,7 @@ const SINS = [
 
 SPELLS.push({
   name: 'Clavis Communis, 스피리투스 제10식 — CONFITEOR. 내 죄가 항상 내 앞에 있나이다',
-  type: 'spell', strong: true, survival: true, extra: true, boss: '예로니모(진심)', bossColor: '#e8e0c8', hp: 1, time: 75, start: [192, 110],
+  type: 'spell', strong: true, survival: true, extra: true, noSurgeExtra: true, boss: '예로니모(진심)', bossColor: '#e8e0c8', hp: 1, time: 75, start: [192, 110],
   *run(s) {
     const C = CHANTS.CONFITEOR;
     // 발악: 마리·마르코, 예로니모가 차례로 쓰러진 뒤의 비상 상황이라 입회·승인 절차 없이 곧바로 개방(시험판 연출)
@@ -2575,6 +2577,33 @@ SPELLS.push({
     for (;;) yield 60;
   },
 });
+
+// ── 격화 III 추가 탄막 ──
+// 패턴이 격화 III(진행도 2/3)에 닿으면 그 보스다운 가벼운 탄막이 그 패턴이 끝날 때까지 함께 나옴(엔진이 붙임).
+// 보스 이름의 괄호 앞부분으로 찾음(예로니모(진심) → 예로니모). noSurgeExtra: true인 패턴은 제외
+const edgePoint = s => { const side = s.randInt(0, 2); return side === 0 ? { x: -8, y: s.rand(20, s.H * 0.6) } : side === 1 ? { x: s.W + 8, y: s.rand(20, s.H * 0.6) } : { x: s.rand(20, s.W - 20), y: -8 }; };
+const SURGE_EXTRA = {
+  // 경광등: 화면 양옆에서 빨강·파랑 조준탄이 번갈아
+  '윤도연': function* (s) { for (let k = 0; ; k++) { const x = k % 2 ? s.W - 6 : 6, y = s.rand(60, 200); s.spread(3, Math.atan2(s.player.y - y, s.player.x - x), 0.15, { x, y, spd: s.sp(2.4), shape: 'rice', color: k % 2 ? 'blue' : 'red', fixed: true }); yield s.lv(90, 80, 70, 64, 60); } },
+  // 관통탄: 기체 x 위로 예고선 뒤 위에서 칼날 줄기가 내리꽂힘
+  '고현성': function* (s) { for (;;) { const x = s.player.x; s.warnLine({ x, y: 0, x2: x, y2: s.H, dur: 40, band: 8 }); yield 40; for (let i = 0; i < 6; i++) { s.fire({ x, y: -8, ang: Math.PI / 2, spd: s.sp(5), shape: 'knife', color: 'cyan' }); yield 3; } yield s.lv(110, 100, 90, 84, 80); } },
+  // 황금 충격파: 느린 큰 원형탄
+  '마르코': function* (s) { for (;;) { s.ring(s.lv(8, 10, 12, 12, 14), { offset: s.rand(0, s.TAU), spd: s.sp(1.3), shape: 'big', color: 'gold' }); s.shake(2); yield s.lv(130, 120, 110, 100, 95); } },
+  // 플래시: 화면 위 여기저기서 별 원형탄이 터짐
+  '김예나': function* (s) { for (;;) { const x = s.rand(40, s.W - 40), y = s.rand(40, 160); s.mark({ x, y, dur: 24 }); yield 24; s.ring(s.lv(8, 10, 12, 12, 14), { x, y, offset: s.rand(0, s.TAU), spd: s.sp(1.6), shape: 'star', color: 'pink' }); yield s.lv(80, 70, 60, 56, 52); } },
+  // 음파: 박자마다 보스에서 퍼지는 작은 탄 부채
+  '차서린': function* (s) { for (let k = 0; ; k++) { s.spread(s.lv(7, 9, 9, 11, 11), Math.PI / 2 + (k % 2 ? 0.25 : -0.25), 0.16, { spd: s.sp(1.8), shape: 'small', color: 'cyan', fixed: true }); yield s.lv(84, 76, 72, 68, 64); } },
+  // 히어로 대시: 양옆에서 기체를 향한 칼날 두 발
+  '고태웅': function* (s) { for (;;) { for (const x of [4, s.W - 4]) { const y = s.rand(80, s.H * 0.6); s.fire({ x, y, ang: Math.atan2(s.player.y - y, s.player.x - x), spd: s.sp(3.4), shape: 'knife', color: 'orange' }); } yield s.lv(90, 80, 70, 64, 60); } },
+  // 검은 비가 더 내림
+  '아즈라엘': function* (s) { yield* azRain(s, { every: s.lv(26, 22, 20, 18, 16), spd: 1.0, shape: 'orb', color: 'void', sway: 0.4 }); },
+  // 가장자리에서 기체를 겨눈 사슬
+  '예로니모': function* (s) { for (;;) { const o = edgePoint(s); s.chain({ x: o.x, y: o.y, ang: Math.atan2(s.player.y - o.y, s.player.x - o.x), len: 760, warn: 50, shoot: 24, hold: 10, retract: 50 }); yield s.lv(140, 120, 110, 100, 90); } },
+  // 가장자리에서 기어 들어오는 덩굴
+  '리크니스': function* (s) { for (;;) { const o = edgePoint(s); s.task(ivyVine(s, { x: o.x, y: o.y, ang: Math.atan2(s.player.y - o.y, s.player.x - o.x), spd: s.sp(2), len: 150, seek: 0.02, seekFor: 50, turn: 0.02, stay: 90 })); yield s.lv(170, 150, 140, 130, 120); } },
+  // 예측 저격
+  '이즘': function* (s) { for (;;) { yield* predictShot(s); yield s.lv(150, 130, 120, 110, 100); } },
+};
 
 // 보스전: 목숨·폭탄·파워를 이어 가며 패턴을 순서대로. name은 오른쪽 표시용 짧은 이름, power는 시작 파워,
 // hpScale은 체력·제한시간 배율. 목록은 스테이지 순서. 1스테이지는 홍마향처럼 중간 보스(윤도연) 뒤에 보스(고현성)

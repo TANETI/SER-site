@@ -639,6 +639,9 @@ class Game {
         this.fx.push({ kind: 'burst', x: this.boss.x, y: this.boss.y, t: 0, life: 40, color: sl === 1 ? '#f5c542' : '#ff5e7a' });
         this.boss.glow = 40;
         this.shake(sl === 1 ? 4 : 6); SFX.spell();
+        // 격화 III: 그 보스다운 추가 탄막이 이 패턴이 끝날 때까지 함께 나옴(SURGE_EXTRA, patterns.js)
+        const extra = sl === 2 && !sp.noSurgeExtra && typeof SURGE_EXTRA !== 'undefined' && SURGE_EXTRA[(sp.boss || '').replace(/\s*\(.*\)$/, '')];
+        if (extra) this.tasks.add(extra(this.api));
       }
       this.surgeLv = sl;
       // bgmFollow: 곡 속도가 적 탄 속도를 따라감. 값은 이 패턴의 평소 탄 속도 배율(그때 1배속). 1.5배속~0.75배속 사이에서 탄 속도에 비례하고, 곡은 프레임당 0.008씩(약 1초에 걸쳐) 서서히 옮겨 감. 패턴 첫 0.7초는 1배속
