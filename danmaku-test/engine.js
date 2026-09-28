@@ -1118,7 +1118,7 @@ class Game {
   }
 
   updateShots() {
-    const b = this.boss, targets = this.enemies;
+    const b = this.boss, targets = this.enemies, shootable = this.bullets.filter(t => t.hp > 0 && !t.dead);
     for (const s of this.shots) {
       if (s.homing) {
         const tgt = nearest(s, targets, b.hidden || this.phase !== 'active' ? null : b);
@@ -1138,6 +1138,13 @@ class Game {
         if (s.pierce) { if (s.pierce.includes(e)) continue; s.pierce.push(e); }   // 꿰뚫는 탄은 같은 적을 한 번만
         e.hp -= shotDamage(s); e.hurt = 4; SFX.hit();
         if (!s.pierce) { s.dead = true; break; }
+      }
+      // 쏴서 깰 수 있는 적 탄(hp): 자기 탄을 막고 체력이 깎임
+      if (!s.dead && shootable.length) for (const t of shootable) {
+        if (t.dead || t.data.broken || dist2(s.x, s.y, t.x, t.y) >= (t.r + 7) ** 2) continue;
+        s.dead = true; t.hp -= shotDamage(s); t.hurt = 4; SFX.hit();
+        if (t.hp <= 0) t.data.broken = true;
+        break;
       }
       const zHit = s.dead ? null : this.zones.find(z => z.t < z.dur && dist2(s.x, s.y, z.x, z.y) < z.r * z.r);
       if (zHit) { s.dead = true; this.fx.push({ kind: 'block', x: s.x, y: s.y, t: 0, life: 10 }); SFX.block(); this.chipShield(zHit, shotDamage(s)); continue; }
@@ -1285,6 +1292,7 @@ function makeAPI(G) {
         shape: o.shape || 'small', color: o.color || 'red', r: o.r ?? def.r, alpha: o.alpha ?? 1,
         fn: o.fn, margin: o.margin ?? 32, marginTop: o.marginTop ?? 0, data: o.data || {},
         keep: !!o.keep,   // keep: 한 번 깔고 계속 쓰는 구조물 탄(채운 화면·격자). 폭탄·피탄에 지워지지 않고 잠깐 꺼졌다가 돌아옴
+        hp: o.hp,   // hp: 자기 탄에 맞는 탄(맞은 탄은 막힘). 0이 되면 data.broken = true(패턴의 fn이 처리)
       };
       G.bullets.push(b);
       SFX.fire(b.shape === 'big' || b.shape === 'orb');
@@ -1935,7 +1943,7 @@ function drawBullets(G, g) {
   g.globalAlpha = 1;
   for (const b of G.bullets) {
     const def = SHAPES[b.shape] || SHAPES.small, img = sprite(b.shape, b.color), s = def.size;
-    const al = b.off ? 0.1 : b.alpha;   // 꺼진 탄은 자리만 아주 흐리게
+    const al = b.off ? 0.1 : b.hurt > 0 ? (b.hurt-- % 2 ? 0.45 : 1) : b.alpha;   // 꺼진 탄은 자리만 아주 흐리게, 맞은 깰 수 있는 탄은 깜빡임
     if (al !== alpha) { g.globalAlpha = alpha = al; }
     const k = b.t < 6 ? 1 + (6 - b.t) * 0.15 : 1; // 발사 순간 살짝 크게
     if (!def.oriented && !def.spin && k === 1) {

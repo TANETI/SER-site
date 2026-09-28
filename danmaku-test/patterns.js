@@ -1127,20 +1127,32 @@ const SPELLS = [
       }
     },
   },
+  // 진(아이오딘, 화학): 변신체 능력은 미정이라 코드명의 원소 요오드가 가진 실제 화학 성질만 모티브로 씀(기술명 가칭).
+  // 시계 반응(요오드 시계 반응: 한참 투명하다가 한순간에 남색으로 바뀜), 승화·증착(고체 ↔ 보라 증기), 요오드-녹말 반응(남색)
   {
     name: '논스펠 · 진',
     type: 'nonspell', boss: '진', bossColor: '#c07cff', hp: 1800, time: 34, start: [192, 100],
     *run(s) {
-      // 결정: 보라 결정 탄 부채꼴이 날아가다 멈춰 섰다가 세 갈래로 갈라져 흩어짐 + 훑기(잠금 뒤 조준) 쌀알탄
+      // 시계 반응: 진이 흐린 흰 결정을 흩뿌리면 결정은 느려져 제자리에 떠 있음. 삑 삑 삑 세 번 뒤 화면의 결정이 한꺼번에
+      // 남색으로 바뀌며(반응) 일제히 출발: 잠금 전에는 아래로 퍼지며, 잠금 뒤에는 반응 순간의 기체 자리로 모여듦(그 자리를 비키면 됨)
       const scan = nymphScan(s);
       for (let k = 0; ; k++) {
-        const a = scan.sweep();
-        s.spread(s.lv(3, 5, 5, 7, 7), a, 0.3, { spd: s.sp(2.6), accel: -0.05, minSpd: 0, shape: 'star', color: 'purple',
-          fn: (b, s) => { if (b.spd === 0 && !b.data.split) { b.data.split = true; b.dead = true; s.spread(3, b.ang, 0.5, { x: b.x, y: b.y, spd: s.sp(1.3), shape: 'small', color: 'purple', fixed: true }); } } });
-        yield s.wait(26);
-        s.fire({ ang: scan.sweep(), spd: s.sp(3), shape: 'rice', color: 'white' });
-        yield s.wait(26);
-        if (k % 5 === 4) yield* s.wander(50, 50);
+        const wave = [], until = s.frame + 96;
+        while (s.frame < until) {
+          const a = scan.sweep() + s.rand(-1.0, 1.0);
+          wave.push(...s.spread(s.lv(2, 3, 3, 4, 4), a, 0.32, { spd: s.sp(s.rand(2.2, 3)), accel: -0.05, minSpd: 0.12, shape: 'star', color: 'white', fixed: true }));
+          yield s.wait(11);
+        }
+        for (let i = 0; i < 3; i++) { s.sound('beep', 0.2 + i * 0.35); yield 18; }
+        s.sound('bam'); s.shake(3);
+        const px = s.player.x, py = s.player.y;
+        for (const b of wave) {
+          if (b.dead) continue;
+          b.color = 'blue'; b.spd = 0; b.minSpd = 0; b.accel = s.sp(0.07); b.maxSpd = s.sp(3.1);
+          b.ang = scan.locked ? Math.atan2(py - b.y, px - b.x) + s.rand(-0.06, 0.06) : Math.PI / 2 + s.rand(-0.5, 0.5);
+        }
+        yield s.wait(34);
+        if (k % 3 === 2) yield* s.wander(50, 50);
       }
     },
   },
@@ -1148,34 +1160,43 @@ const SPELLS = [
     name: '「승화」(가칭)',
     type: 'spell', boss: '진', bossColor: '#c07cff', hp: 2100, time: 42, start: [192, 80],
     *run(s) {
-      // 승화: 보라 결정 탄이 화면 위쪽 여기저기에 박혀 멈춰 있다가(약 2초) 증기처럼 느리게 흩어지는 알갱이로 바뀜.
-      // 결정은 기체에서 80px 넘게 떨어진 곳에만 박힘. 잠금 뒤에는 결정이 기체 쪽으로 조금 치우쳐 박힘.
-      // 결정은 화면 위에서 약 80%까지 박혀 하단이 늘 비어 있지 않게 함(예전 55%)
-      const scan = nymphScan(s);
+      // 승화·증착: 진이 보라 결정을 화면 곳곳에 박아 둠(기체 80px 밖). 결정은 약 3초 뒤, 또는 자기 탄을 맞아 깨지면 곧바로
+      // 보라 증기(흔들리며 위로 떠오르는 알갱이)로 승화함. 증기가 화면 위쪽에 닿으면 일부가 다시 결정 조각으로 굳어(증착) 떨어짐.
+      // 결정은 자기 탄을 막으므로 보스를 가리기도 함. 쏴서 일찍 깨면 증기가 절반만 나옴(대신 조각은 결국 돌아옴)
+      const scan = nymphScan(s), TOP = 34, dep = s.lv(0.3, 0.4, 0.5, 0.55, 0.6);
+      const vapor = (x, y) => {
+        const ph = s.rand(0, s.TAU);
+        s.fire({ x, y, ang: -Math.PI / 2 + s.rand(-1.1, 1.1), spd: s.sp(s.rand(0.55, 1.0)), shape: 'small', color: 'purple', marginTop: 40,
+          fn: (c, s) => {
+            c.ang += Math.sin(c.t * 0.06 + ph) * 0.03 + (-Math.PI / 2 - c.ang) * 0.012;   // 흔들리며 점점 위로
+            if (c.y < TOP && !c.data.dep) {
+              c.data.dep = true; c.dead = true;
+              if (s.rand() < dep) s.fire({ x: c.x, y: c.y, ang: Math.PI / 2 + s.rand(-0.15, 0.15), spd: 0, accel: 0.03, maxSpd: s.sp(2.2), shape: 'star', color: 'purple' });
+            }
+          } });
+      };
       for (let w = 0; ; w++) {
-        for (let i = 0; i < s.lv(4, 5, 6, 7, 7); i++) {
+        for (let i = 0; i < s.lv(4, 5, 6, 6, 7); i++) {
           let tx, ty, tries = 0;
           do {
-            tx = scan.locked ? s.player.x + s.rand(-160, 160) : s.rand(30, s.W - 30);
-            ty = s.rand(60, s.H * 0.8);
+            tx = scan.locked ? s.player.x + s.rand(-150, 150) : s.rand(30, s.W - 30);
+            ty = s.rand(70, s.H * 0.8);
           } while (Math.hypot(tx - s.player.x, ty - s.player.y) < 80 && ++tries < 20);
           tx = Math.max(20, Math.min(s.W - 20, tx));
-          const T = 30;
-          s.fire({ x: s.boss.x, y: s.boss.y, vx: (tx - s.boss.x) / T, vy: (ty - s.boss.y) / T, shape: 'big', color: 'purple',
+          const T = 30, life = T + s.lv(200, 180, 170, 160, 150);
+          s.fire({ x: s.boss.x, y: s.boss.y, vx: (tx - s.boss.x) / T, vy: (ty - s.boss.y) / T, shape: 'big', color: 'purple', hp: 24,
             fn: (b, s) => {
               if (b.t === T) { b.vx = 0; b.vy = 0; }
-              if (b.t === T + 120) {
+              if (b.t === life || b.data.broken) {
                 b.dead = true;
-                for (let j = 0; j < s.lv(6, 7, 8, 9, 10); j++) {
-                  const ph = s.rand(0, s.TAU);
-                  s.fire({ x: b.x, y: b.y, ang: s.rand(0, s.TAU), spd: s.rand(0.5, 1.0) * s.sp(1), shape: 'small', color: 'purple',
-                    fn: c => { c.ang += Math.sin(c.t * 0.05 + ph) * 0.02; } });
-                }
+                const n = s.lv(6, 7, 8, 9, 10);
+                for (let j = 0; j < (b.data.broken ? Math.ceil(n / 2) : n); j++) vapor(b.x, b.y);
+                s.sound('fillIn');
               }
             } });
           yield 8;
         }
-        yield s.wait(90);
+        yield s.wait(100);
         if (w % 3 === 2) yield* s.wander(50, 50);
       }
     },
@@ -1184,35 +1205,50 @@ const SPELLS = [
     name: '「연쇄 반응」(가칭)',
     type: 'spell', strong: true, boss: '진', bossColor: '#c07cff', hp: 2200, time: 44, start: [192, 90],
     *run(s) {
-      // 연쇄 반응: 진이 주황 탄과 파랑 탄을 서로 반대로 도는 나선으로 뿌림. 두 색 탄이 맞닿은 자리에 예고 표시가 뜨고
-      // 약 0.4초 뒤 작은 원형 폭발(두 탄은 그 자리에서 사라짐). 잠금 뒤에는 조준탄을 섞음
+      // 연쇄 반응(요오드-녹말 반응): 진이 호박색 탄(요오드)과 흰 탄(녹말)을 서로 반대로 도는 나선으로 뿌림.
+      // 두 탄이 맞닿으면 예고 표시 뒤 남색 폭발(작은 원형탄). 첫 폭발의 남색 탄이 호박색 탄에 닿으면 그 탄도 반응해 한 번 더 폭발(연쇄 2대까지).
+      // 첫 반응은 4프레임에 하나(하드부터 둘), 이어지는 반응은 16프레임에 하나까지만(화면이 폭발로 뒤덮이지 않게)
+      // 나선 한가운데에서 시작된 반응이 호박색 줄기를 타고 번져 나감. 기체 40px 안에서는 터지지 않음. 잠금 뒤에는 조준 부채꼴을 섞음
       const scan = nymphScan(s);
+      const react = (x, y, gen) => {
+        s.mark({ x, y, dur: 20 });
+        s.task(function* () {
+          yield 20;
+          s.ring(gen ? s.lv(3, 3, 4, 4, 5) : s.lv(6, 6, 8, 9, 10), { x, y, offset: s.rand(0, s.TAU), spd: s.sp(gen ? 1.2 : 1.5), shape: 'small', color: 'blue', data: { gen: gen + 1 } });
+        }());
+      };
+      let chainOk = true, tick = 0;
+      const firstCap = s.lv(1, 1, 2, 2, 2);
       s.task(function* () {
         for (;;) {
-          const bs = s.bullets, org = bs.filter(b => b.color === 'orange' && !b.data.gone), blu = bs.filter(b => b.color === 'blue' && !b.data.gone);
-          let n = 0;
+          const bs = s.bullets, org = bs.filter(b => b.color === 'orange' && !b.data.gone);
+          const white = bs.filter(b => b.color === 'white' && !b.data.gone && b.shape === 'orb');
+          const blue = chainOk ? bs.filter(b => b.color === 'blue' && !b.dead && b.data.gen === 1) : [];
+          let first = 0, chained = 0;
           for (const o of org) {
-            for (const u of blu) {
-              if (u.data.gone || Math.abs(o.x - u.x) > 9 || Math.abs(o.y - u.y) > 9) continue;
-              o.data.gone = u.data.gone = true; o.dead = u.dead = true;
-              const x = (o.x + u.x) / 2, y = (o.y + u.y) / 2;
-              if (Math.hypot(x - s.player.x, y - s.player.y) < 40) break;   // 기체 코앞에서는 터지지 않음
-              s.mark({ x, y, dur: 24 });
-              s.task(function* () { yield 24; s.ring(s.lv(6, 6, 8, 9, 10), { x, y, offset: s.rand(0, s.TAU), spd: s.sp(1.5), shape: 'small', color: 'yellow' }); }());
-              n++;
-              break;
+            if (first >= firstCap && (chained >= 1 || !chainOk)) break;
+            if (Math.hypot(o.x - s.player.x, o.y - s.player.y) < 40) continue;   // 기체 코앞에서는 터지지 않음
+            let hit = first < firstCap && white.find(u => !u.data.gone && Math.abs(o.x - u.x) < 9 && Math.abs(o.y - u.y) < 9), gen = 0;
+            if (hit) { hit.data.gone = true; hit.dead = true; first++; }
+            else {
+              if (!chainOk || chained >= 1) continue;
+              hit = blue.find(u => Math.abs(o.x - u.x) < 8 && Math.abs(o.y - u.y) < 8);
+              if (!hit) continue;
+              gen = 1; chained++; chainOk = false;
             }
-            if (n >= 3) break;
+            o.data.gone = true; o.dead = true;
+            react(o.x, o.y, gen);
           }
-          yield 2;
+          yield 4;
+          if (++tick % 4 === 0) chainOk = true;
         }
       }());
       let a = 0;
       for (let k = 0; ; k++) {
         a += s.spin(0.12);
         for (let i = 0; i < 3; i++) {
-          s.fire({ ang: a + i * s.TAU / 3, spd: s.sp(1.7), angVel: 0.004, shape: 'orb', color: 'orange' });
-          s.fire({ ang: -a + i * s.TAU / 3 + 0.5, spd: s.sp(1.7), angVel: -0.004, shape: 'orb', color: 'blue' });
+          s.fire({ ang: a + i * s.TAU / 3, spd: s.sp(1.6), angVel: 0.004, shape: 'orb', color: 'orange' });
+          if (k % 2 === 0) s.fire({ ang: -a + i * s.TAU / 3 + 0.5, spd: s.sp(1.7), angVel: -0.004, shape: 'orb', color: 'white' });
         }
         if (scan.locked && k % 12 === 6) s.spread(3, scan.sweep(), 0.2, { spd: s.sp(2.6), shape: 'rice', color: 'white', fixed: true });
         yield s.lv(9, 8, 7, 7, 6);
