@@ -380,9 +380,11 @@ const SPELLS = [
               if (b.t === T) {
                 // 철퍽: 붙는 순간 작은 방울이 느리게 튐
                 b.vx = 0; b.vy = 0; b.ay = 0;
-                s.ring(s.lv(4, 5, 6, 6, 7), { x: b.x, y: b.y, offset: s.rand(0, s.TAU), spd: 0.3, accel: 0.02, maxSpd: s.sp(1.4), shape: 'small', color: '#f0e6a0' });
+                // 튄 방울은 덩어리가 떨어질 때 함께 사라짐(화면에 오래 남지 않게)
+                s.ring(s.lv(4, 5, 6, 6, 7), { x: b.x, y: b.y, offset: s.rand(0, s.TAU), spd: 0.3, accel: 0.02, maxSpd: s.sp(1.4), shape: 'small', color: '#f0e6a0',
+                  fn: c => { if (b.dead) { c.dead = true; s.ghost(c.x, c.y, '#f0e6a0'); } } });
               }
-              if (b.t > T + stick) b.dead = true;
+              if (b.t > T + stick) { b.dead = true; s.ghost(b.x, b.y, '#f0e6a0'); }
             },
           });
           yield 8;
