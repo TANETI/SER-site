@@ -233,7 +233,7 @@ function shotSprite(shape, color) {
 // 탄 한 발: {x,y,vx,vy,dmg,shape,color,homing,turn,life,laser}
 // 파워 단계 L(0~4)에 따라 구성이 바뀐다. 괄호 안은 정지 표적에 붙어 쏠 때 최대 파워 기준 초당 피해량
 // 모든 기체 공통 대미지 배율. 표 안의 대미지·주석의 초당 피해량은 배율 적용 전 값
-const SHOT_DMG = 1.815;   // 1.25 × 1.15 × 1.15 × 1.1
+const SHOT_DMG = 1.9965;   // 1.25 × 1.15 × 1.15 × 1.1 × 1.1
 function shot(out, x, y, a, spd, dmg, shape, color, extra) {
   out.push({ x, y, vx: Math.cos(a) * spd, vy: Math.sin(a) * spd, dmg: dmg * SHOT_DMG, shape, color, ...extra });
 }
