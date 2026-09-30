@@ -32,12 +32,12 @@ window.SER = (function () {
   const BATTLE_OWN = { JR: ['120'] };
   const EMOTION = Array.from({ length: 25 }, (_, i) => String(i + 1).padStart(2, '0'));
 
-  /* 확정된 번호만. 201 과 301 은 각각 대역의 첫 확정 번호다. */
+  /* 확정된 번호만. 201 은 일상 대역의 첫 확정 번호이고, NSFW 는 301~342 가 모두 확정됐다. */
   const DAILY_FIXED = ['201'];
-  const NSFW_FIXED = ['301'];
+  const NSFW_FIXED = Array.from({ length: 42 }, (_, i) => String(301 + i));
   /* 예상 상한 — 아직 번호가 배정되지 않은 물량. 별도 표시용이며 분모가 아니다. */
   const DAILY_EST = 7;
-  const NSFW_EST = 36;
+  const NSFW_EST = NSFW_FIXED.length;
 
   const battleSet = (character) =>
     (BATTLE_BY_GROUP[character.group] || ['101', '102', '103']).concat(BATTLE_OWN[character.code] || []);
